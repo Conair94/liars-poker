@@ -17,7 +17,13 @@
       "Bash(awk 'NR>=870 && NR<=1121' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
       "Bash(awk 'NR>=677 && NR<=697' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
       "Bash(awk 'NR>=682 && NR<=698' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
-      "Bash(awk 'NR>=136 && NR<=170' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")"
+      "Bash(awk 'NR>=136 && NR<=170' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(grep -n \"^// ============================================================$\" \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(awk 'NR>=892 && NR<=900' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(python -m agent.data.compute_exact_rules_probs --samples 10000 --workers 8)",
+      "Bash(python -m agent.data.compute_five_kings_probs --workers 8)",
+      "Bash(ls -la \"/Users/connorlockhart/Documents/GitHub/liars-poker/Liars poker/agent/data/\"*.json)",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
