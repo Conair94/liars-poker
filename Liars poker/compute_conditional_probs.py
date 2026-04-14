@@ -741,8 +741,8 @@ def _plot_conditional(condition_name, cond_counts, baseline, output_path, label)
         "dashed = blind baseline,  solid = conditional",
         fontsize=11,
     )
-    ax.set_xticks(range(5, 21))
-    ax.set_xlim(5, 20)
+    ax.set_xticks(range(5, 26))
+    ax.set_xlim(5, 25)
     ax.set_ylim(bottom=0)
     ax.legend(loc="upper right", fontsize=9, framealpha=0.8)
     ax.grid(True, linestyle="--", alpha=0.4)
@@ -797,8 +797,8 @@ def _plot_at_least_conditional(condition_name, cond_counts, baseline, output_pat
         "open circles = blind baseline,  filled circles = conditional",
         fontsize=11,
     )
-    ax.set_xticks(range(5, 21))
-    ax.set_xlim(5, 20)
+    ax.set_xticks(range(5, 26))
+    ax.set_xlim(5, 25)
     ax.set_ylim(0, 100)
     ax.legend(loc="upper right", fontsize=9, framealpha=0.8)
     ax.grid(True, linestyle="--", alpha=0.4)

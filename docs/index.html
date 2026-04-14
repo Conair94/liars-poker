@@ -385,6 +385,16 @@ class RandomAgent {
 }
 
 class BlindBaselineAgent {
+  // Use p_at_least threshold strategy: bid the highest hand where P(pool >= bid) >= 50%.
+  // Respond by calling if the standing bid exceeds that threshold (likely a bluff),
+  // or raising to the threshold otherwise.  This avoids improbable SF/4K bids.
+  _threshIdx(palAt, threshold) {
+    for (let i = NUM_BIDS - 1; i >= 0; i--) {
+      if (palAt[i] >= threshold) return i;
+    }
+    return 0;
+  }
+
   choose(st) {
     const seats = activeSeats(st);
     const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
@@ -393,19 +403,93 @@ class BlindBaselineAgent {
 
     const rs = st.roundState;
     const legal = legalActions(st);
+    const palAt = eq.p_at_least;
+    const threshIdx = this._threshIdx(palAt, 0.5);
 
     if (!rs.currentBid) {
+      // First bid: use equilibrium initial_bid if it doesn't exceed threshold
       const a = eq.initial_bid;
-      return legal.includes(a) ? a : legal[legal.length - 1];
+      if (a !== undefined && a <= threshIdx && legal.includes(a)) return a;
+      return legal.includes(threshIdx) ? threshIdx : legal[0];
     }
 
-    const bidIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
-    const policy = eq.policy;
-    for (const actor of [0, 1]) {
-      const a = policy[bidIdx][actor];
-      if (legal.includes(a)) return a;
+    // Responding: call if standing bid is above the 50% threshold, else raise to threshold
+    const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(CALL_ACTION) && palAt[curIdx] < 0.5) return CALL_ACTION;
+
+    const bidCands = legal.filter(a => a !== CALL_ACTION);
+    if (!bidCands.length) return CALL_ACTION;
+    for (const a of bidCands) { if (a >= threshIdx) return a; }
+    return bidCands[0];
+  }
+}
+
+class ConditionalAgent {
+  // Threshold strategy that adjusts the bid threshold based on the agent's private hand.
+  // Conditions (most-to-least specific): trips > pair > 3suited > suited > 3range > adjacent
+  // Positive conditions (e.g. pair) lower the threshold → agent bids more aggressively.
+  _matchCondition(hand) {
+    if (!hand || !hand.length) return null;
+    const ranks = hand.map(c => c >> 2);
+    const suits = hand.map(c => c & 3);
+    const RC = {}, SC = {};
+    for (const r of ranks) RC[r] = (RC[r] || 0) + 1;
+    for (const s of suits) SC[s] = (SC[s] || 0) + 1;
+
+    if (Object.values(RC).some(c => c >= 3)) return 'trips';
+    if (Object.values(RC).some(c => c === 2)) return 'pair';
+    if (Object.values(SC).some(c => c >= 3)) return '3suited';
+    if (Object.values(SC).some(c => c === 2)) return 'suited';
+
+    if (ranks.length >= 3) {
+      const ur = [...new Set(ranks)].sort((a, b) => a - b);
+      for (let i = 0; i <= ur.length - 3; i++) {
+        if (ur.filter(r => r - ur[i] <= 4).length >= 3) return '3range';
+      }
     }
-    return legal.includes(CALL_ACTION) ? CALL_ACTION : legal[legal.length - 1];
+    const ur = [...new Set(ranks)].sort((a, b) => a - b);
+    for (let i = 0; i < ur.length - 1; i++) {
+      if (ur[i + 1] - ur[i] === 1) return 'adjacent';
+    }
+    return null;
+  }
+
+  _threshIdx(palAt, threshold) {
+    for (let i = NUM_BIDS - 1; i >= 0; i--) {
+      if (palAt[i] >= threshold) return i;
+    }
+    return 0;
+  }
+
+  choose(st) {
+    const seats = activeSeats(st);
+    const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
+    const eq = BLIND_EQ[String(n)];
+    if (!eq) return new RandomAgent().choose(st);
+
+    const rs = st.roundState;
+    const legal = legalActions(st);
+    const palAt = eq.p_at_least;
+
+    // Detect private hand condition and adjust threshold
+    const seat = rs.currentPlayer;
+    const ownHand = (rs.hands && rs.hands[seat]) || [];
+    const condition = this._matchCondition(ownHand);
+    const condAdj = { trips: -0.15, pair: -0.08, '3suited': -0.05, suited: -0.03, '3range': -0.03, adjacent: -0.02 };
+    const threshold = 0.5 + (condAdj[condition] || 0);
+    const threshIdx = this._threshIdx(palAt, threshold);
+
+    if (!rs.currentBid) {
+      return legal.includes(threshIdx) ? threshIdx : legal[0];
+    }
+
+    const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(CALL_ACTION) && palAt[curIdx] < threshold) return CALL_ACTION;
+
+    const bidCands = legal.filter(a => a !== CALL_ACTION);
+    if (!bidCands.length) return CALL_ACTION;
+    for (const a of bidCands) { if (a >= threshIdx) return a; }
+    return bidCands[0];
   }
 }
 
@@ -540,6 +624,30 @@ function renderBidHistory() {
   </div>`;
 }
 
+function _buildBidGroups() {
+  const legal = legalActions(G.st);
+  const bidIdxs = legal.filter(a => a !== CALL_ACTION);
+  const groups = {};
+  for (const idx of bidIdxs) {
+    const b = indexToBid(idx);
+    if (!groups[b.ht]) groups[b.ht] = [];
+    groups[b.ht].push({idx, b});
+  }
+  return groups;
+}
+
+function updateRankSelect() {
+  const htSel = document.getElementById('bid-ht');
+  const prSel = document.getElementById('bid-pr');
+  if (!htSel || !prSel) return;
+  const ht = parseInt(htSel.value);
+  const groups = _buildBidGroups();
+  if (!groups[ht]) return;
+  prSel.innerHTML = groups[ht].map(({idx, b}) =>
+    `<option value="${idx}">${RANK_NAMES[b.pr]}</option>`
+  ).join('');
+}
+
 function renderActionArea() {
   const st = G.st;
   const legal = legalActions(st);
@@ -548,26 +656,30 @@ function renderActionArea() {
 
   let bidForm = '';
   if (bidIdxs.length) {
-    // Group by hand type
-    const groups = {};
-    for (const idx of bidIdxs) {
-      const b = indexToBid(idx);
-      if (!groups[b.ht]) groups[b.ht] = [];
-      groups[b.ht].push({idx, b});
-    }
-    let opts = '';
+    const groups = _buildBidGroups();
+    // Hand type options (only those with legal bids)
+    let htOpts = '';
+    let firstHt = -1;
     for (let ht = 0; ht <= 8; ht++) {
       if (!groups[ht]) continue;
-      opts += `<optgroup label="${HAND_NAMES[ht]}">`;
-      for (const {idx, b} of groups[ht]) {
-        opts += `<option value="${idx}">${RANK_NAMES[b.pr]}</option>`;
-      }
-      opts += '</optgroup>';
+      if (firstHt < 0) firstHt = ht;
+      htOpts += `<option value="${ht}">${HAND_NAMES[ht]}</option>`;
+    }
+    // Rank options for first legal hand type
+    let prOpts = '';
+    if (firstHt >= 0) {
+      prOpts = groups[firstHt].map(({idx, b}) =>
+        `<option value="${idx}">${RANK_NAMES[b.pr]}</option>`
+      ).join('');
     }
     bidForm = `<div style="display:flex;gap:0.5rem;align-items:flex-end;flex:1">
       <div style="flex:1">
-        <label style="margin-bottom:0.2rem">Hand type &amp; rank</label>
-        <select id="bid-select">${opts}</select>
+        <label style="margin-bottom:0.2rem">Hand type</label>
+        <select id="bid-ht" onchange="updateRankSelect()">${htOpts}</select>
+      </div>
+      <div style="flex:0.7">
+        <label style="margin-bottom:0.2rem">Rank</label>
+        <select id="bid-pr">${prOpts}</select>
       </div>
       <button onclick="doRaise()" style="margin-bottom:0.75rem">Raise ↑</button>
     </div>`;
@@ -658,7 +770,8 @@ const RULES_HTML = `
     <h4>Agents</h4>
     <ul>
       <li><span class="hl">Random</span> — picks any legal action uniformly at random.</li>
-      <li><span class="hl">Blind Baseline</span> — N=2 backward-induction equilibrium (ignores private cards).</li>
+      <li><span class="hl">Blind Baseline</span> — N=2 backward-induction equilibrium; bids the 50% probability threshold (ignores private cards).</li>
+      <li><span class="hl">Conditional</span> — threshold strategy that detects its private hand condition (pair, trips, suited, etc.) and bids more aggressively when holding a strong partial hand.</li>
     </ul>
   </div>
 </details>`;
@@ -693,6 +806,7 @@ function renderSetup() {
       <select id="cfg-agent">
         <option value="random">Random</option>
         <option value="blind" selected>Blind Baseline (N=2 equilibrium)</option>
+        <option value="conditional">Conditional (hand-aware threshold)</option>
       </select>
     </div>
   </div>
@@ -763,7 +877,9 @@ function startGame() {
   G.agents = {};
   for (let s = 0; s < np; s++) {
     if (s !== G.humanSeat) {
-      G.agents[s] = atype === 'blind' ? new BlindBaselineAgent() : new RandomAgent();
+      G.agents[s] = atype === 'blind' ? new BlindBaselineAgent()
+                 : atype === 'conditional' ? new ConditionalAgent()
+                 : new RandomAgent();
     }
   }
   G.lastResult = null;
@@ -776,7 +892,7 @@ function startGame() {
 }
 
 function doRaise() {
-  const sel = document.getElementById('bid-select');
+  const sel = document.getElementById('bid-pr');
   if (!sel) return;
   const action = parseInt(sel.value);
   const legal = legalActions(G.st);

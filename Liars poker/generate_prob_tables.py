@@ -82,8 +82,8 @@ def plot(data, output_path):
         r"(exact for $n\in\{5,6,7\}$; Monte Carlo $N=3\times10^6$ for $n\geq 8$)",
         fontsize=11,
     )
-    ax.set_xticks(range(5, 21))
-    ax.set_xlim(5, 20)
+    ax.set_xticks(range(5, 26))
+    ax.set_xlim(5, 25)
     ax.set_ylim(bottom=0)
     ax.legend(loc="upper right", fontsize=9, framealpha=0.8)
     ax.grid(True, linestyle="--", alpha=0.4)
@@ -119,8 +119,8 @@ def plot_distribution(data, output_path):
         r"(exact for $n\in\{5,6,7\}$; Monte Carlo $N=3\times10^6$ for $n\geq 8$)",
         fontsize=11,
     )
-    ax.set_xticks(range(5, 21))
-    ax.set_xlim(5, 20)
+    ax.set_xticks(range(5, 26))
+    ax.set_xlim(5, 25)
     ax.set_ylim(0, 100)
     ax.legend(loc="upper right", fontsize=9, framealpha=0.8, reverse=True)
     ax.grid(True, linestyle="--", alpha=0.4)
@@ -159,8 +159,8 @@ def plot_at_least(data, output_path):
         r"(exact for $n\in\{5,6,7\}$; Monte Carlo $N=3\times10^6$ for $n\geq 8$)",
         fontsize=11,
     )
-    ax.set_xticks(range(5, 21))
-    ax.set_xlim(5, 20)
+    ax.set_xticks(range(5, 26))
+    ax.set_xlim(5, 25)
     ax.set_ylim(0, 100)
     ax.legend(loc="upper right", fontsize=9, framealpha=0.8)
     ax.grid(True, linestyle="--", alpha=0.4)
