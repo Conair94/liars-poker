@@ -1,9 +1,16 @@
 """
-Web agent implementations.
+Web agent implementations.  See agent/AGENT_CATALOG.md for the full registry.
 
-RandomAgent        — picks a uniformly random legal action
-BlindBaselineAgent — marginal 50% threshold strategy (ignores private cards)
-ConditionalAgent   — threshold strategy using private-card conditional priors
+Standard rules (52-card deck):
+  RandomAgent        — uniform random legal action
+  BlindBaselineAgent — marginal 50% threshold (ignores private cards)
+  ConditionalAgent   — threshold strategy with private-card conditional priors
+
+Exact Hand Rules mode (52-card deck, exact 5-card subset required):
+  ExactRulesBlindAgent — threshold strategy using exact-rules probability table
+
+Five-Kings mode (53-card deck, 5K Kings > SF):
+  FiveKingsBlindAgent — threshold strategy calibrated for 53-card deck
 """
 
 from __future__ import annotations
@@ -215,4 +222,115 @@ class ConditionalAgent:
                 return a
 
         # All legal bids are already above threshold — smallest legal raise.
+        return bid_candidates[0]
+
+
+# ---------------------------------------------------------------------------
+class ExactRulesBlindAgent:
+    """
+    Marginal 50% threshold strategy calibrated for Exact Hand Rules mode.
+
+    Uses P(pool contains a 5-card subset with best hand >= bid | n) from
+    exact_rules_probs.json.  Falls back to BlindBaselineAgent (standard
+    probabilities) if the exact-rules cache has not been generated yet.
+
+    See agent/AGENT_CATALOG.md for details.
+    """
+
+    def __init__(self) -> None:
+        self._blind = BlindBaselineAgent()
+        self._rng   = random.Random()
+
+    def choose_action(self, state: MatchState) -> int:
+        n = sum(state.hand_sizes[s] for s in state.active_seats())
+        rs    = state.round_state
+        legal = state.legal_actions()
+
+        # Try exact-rules probability table first.
+        p_at_least: Optional[np.ndarray] = None
+        if n >= 5:
+            try:
+                lookup = _get_warm_start()
+                p_at_least = lookup.get_exact_rules_at_least(n)
+            except Exception:
+                pass
+
+        if p_at_least is None:
+            # Cache not generated yet — degrade gracefully to standard blind.
+            return self._blind.choose_action(state)
+
+        threshold_idx = 0
+        for i in range(len(p_at_least) - 1, -1, -1):
+            if p_at_least[i] >= 0.5:
+                threshold_idx = i
+                break
+
+        if rs.current_bid is None:
+            return threshold_idx if threshold_idx in legal else legal[0]
+
+        cur_idx = bid_to_index(rs.current_bid)
+        if CALL_ACTION in legal and float(p_at_least[cur_idx]) < 0.5:
+            return CALL_ACTION
+
+        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
+        if not bid_candidates:
+            return CALL_ACTION
+        for a in bid_candidates:
+            if a >= threshold_idx:
+                return a
+        return bid_candidates[0]
+
+
+# ---------------------------------------------------------------------------
+class FiveKingsBlindAgent:
+    """
+    Marginal 50% threshold strategy calibrated for Five-Kings mode (53-card deck).
+
+    Uses P(pool_best >= bid | n, 53-card deck) from five_kings_probs.json.
+    Bid index 110 = Five of a Kind Kings is included in the probability table.
+    Falls back to BlindBaselineAgent (standard 52-card probabilities) if the
+    five-kings cache has not been generated yet.
+
+    See agent/AGENT_CATALOG.md for details.
+    """
+
+    def __init__(self) -> None:
+        self._blind = BlindBaselineAgent()
+        self._rng   = random.Random()
+
+    def choose_action(self, state: MatchState) -> int:
+        n = sum(state.hand_sizes[s] for s in state.active_seats())
+        rs    = state.round_state
+        legal = state.legal_actions()
+
+        p_at_least: Optional[np.ndarray] = None
+        if n >= 5:
+            try:
+                lookup = _get_warm_start()
+                p_at_least = lookup.get_five_kings_at_least(n)
+            except Exception:
+                pass
+
+        if p_at_least is None:
+            return self._blind.choose_action(state)
+
+        threshold_idx = 0
+        for i in range(len(p_at_least) - 1, -1, -1):
+            if p_at_least[i] >= 0.5:
+                threshold_idx = i
+                break
+
+        if rs.current_bid is None:
+            return threshold_idx if threshold_idx in legal else legal[0]
+
+        cur_idx = bid_to_index(rs.current_bid)
+        if CALL_ACTION in legal and float(p_at_least[cur_idx]) < 0.5:
+            return CALL_ACTION
+
+        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
+        if not bid_candidates:
+            return CALL_ACTION
+        for a in bid_candidates:
+            if a >= threshold_idx:
+                return a
         return bid_candidates[0]

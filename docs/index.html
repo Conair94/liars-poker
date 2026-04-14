@@ -651,6 +651,69 @@ class ConditionalAgent {
   }
 }
 
+class ExactRulesBlindAgent {
+  // Marginal 50% threshold strategy calibrated for Exact Hand Rules mode.
+  // Uses EXACT_RULES_PAL[n][i] = P(pool contains 5-card exact match >= bid_i | n).
+  // Falls back to BlindBaselineAgent if the exact-rules probability table is unavailable.
+  choose(st) {
+    const seats = activeSeats(st);
+    const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
+    const palAt = EXACT_RULES_PAL[String(n)];
+    if (!palAt) return new BlindBaselineAgent().choose(st);
+
+    const rs = st.roundState;
+    const legal = legalActions(st);
+
+    let threshIdx = 0;
+    for (let i = NUM_BIDS - 1; i >= 0; i--) {
+      if (palAt[i] >= 0.5) { threshIdx = i; break; }
+    }
+
+    if (!rs.currentBid) {
+      return legal.includes(threshIdx) ? threshIdx : legal[0];
+    }
+
+    const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(CALL_ACTION) && palAt[curIdx] < 0.5) return CALL_ACTION;
+    const bidCands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+    if (!bidCands.length) return CALL_ACTION;
+    for (const a of bidCands) { if (a >= threshIdx) return a; }
+    return bidCands[0];
+  }
+}
+
+class FiveKingsBlindAgent {
+  // Marginal 50% threshold strategy calibrated for Five-Kings mode (53-card deck).
+  // Uses FIVE_KINGS_PAL[n][i] = P(pool_best >= bid_i | n, 53-card deck).
+  // Bid index NUM_BIDS-1 = Five of a Kind Kings when five-kings mode is active.
+  // Falls back to BlindBaselineAgent if the five-kings probability table is unavailable.
+  choose(st) {
+    const seats = activeSeats(st);
+    const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
+    const palAt = FIVE_KINGS_PAL[String(n)];
+    if (!palAt) return new BlindBaselineAgent().choose(st);
+
+    const rs = st.roundState;
+    const legal = legalActions(st);
+
+    let threshIdx = 0;
+    for (let i = palAt.length - 1; i >= 0; i--) {
+      if (palAt[i] >= 0.5) { threshIdx = i; break; }
+    }
+
+    if (!rs.currentBid) {
+      return legal.includes(threshIdx) ? threshIdx : legal[0];
+    }
+
+    const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(CALL_ACTION) && palAt[curIdx] < 0.5) return CALL_ACTION;
+    const bidCands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+    if (!bidCands.length) return CALL_ACTION;
+    for (const a of bidCands) { if (a >= threshIdx) return a; }
+    return bidCands[0];
+  }
+}
+
 // ============================================================
 // 6. EMBEDDED EQUILIBRIUM DATA
 // ============================================================
@@ -1168,9 +1231,15 @@ function renderSetup() {
     <div>
       <label>Opponent</label>
       <select id="cfg-agent">
-        <option value="random">Random</option>
-        <option value="blind" selected>Blind Baseline (50% threshold)</option>
-        <option value="conditional">Conditional (hand-aware threshold)</option>
+        <optgroup label="Standard Rules">
+          <option value="random">Random</option>
+          <option value="blind" selected>Blind Baseline (50% threshold)</option>
+          <option value="conditional">Conditional (hand-aware threshold)</option>
+        </optgroup>
+        <optgroup label="Mode-Specific">
+          <option value="exactblind">Exact Rules Blind (exact-mode calibrated)</option>
+          <option value="fivekingsblind">Five-Kings Blind (53-card calibrated)</option>
+        </optgroup>
       </select>
     </div>
     <div>
@@ -1264,8 +1333,10 @@ function startGame() {
   G.agents = {};
   for (let s = 0; s < np; s++) {
     if (s !== G.humanSeat) {
-      G.agents[s] = atype === 'blind' ? new BlindBaselineAgent()
-                 : atype === 'conditional' ? new ConditionalAgent()
+      G.agents[s] = atype === 'blind'          ? new BlindBaselineAgent()
+                 : atype === 'conditional'     ? new ConditionalAgent()
+                 : atype === 'exactblind'      ? new ExactRulesBlindAgent()
+                 : atype === 'fivekingsblind'  ? new FiveKingsBlindAgent()
                  : new RandomAgent();
     }
   }
