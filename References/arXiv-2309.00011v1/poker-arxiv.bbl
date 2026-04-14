@@ -1,0 +1,37 @@
+\begin{thebibliography}{1}
+
+\bibitem{wiki:Poker_probability}
+Wikipedia, ``{Poker probability} --- {W}ikipedia{,} the free encyclopedia.''
+  \url{http://en.wikipedia.org/w/index.php?title=Poker\%20probability&oldid=1153025783},
+  2023.
+\newblock [Online; accessed 26-July-2023].
+
+\bibitem{wiki:Big_two}
+Wikipedia, ``{Big two} --- {W}ikipedia{,} the free encyclopedia.''
+  \url{http://en.wikipedia.org/w/index.php?title=Big\%20two&oldid=1166850714},
+  2023.
+\newblock [Online; accessed 26-July-2023].
+
+\bibitem{durangobill:poker}
+B.~Butler, ``Durango {B}ill's poker probabilities.''
+  \url{http://www.durangobill.com/Poker_Probabilities_7_Cards.html}.
+\newblock [Online; accessed 26-July-2023].
+
+\bibitem{michon}
+G.~P. Michon, ``26-card stud poker \& q-card poker.''
+  \url{http://www.numericana.com/answer/counting.htm#stud26}.
+\newblock [Online; accessed 26-July-2023].
+
+\bibitem{oeisA143314}
+{OEIS Foundation Inc.}, ``Number of hands of n cards containing a straight
+  flush (for n=1 to 52), {E}ntry {A143314} in {The On-Line Encyclopedia of
+  Integer Sequences}.'' \url{https://oeis.org/A143314}, 2023.
+\newblock [Online; accessed 26-July-2023].
+
+\bibitem{wiki:Permutation}
+Wikipedia, ``{Permutation} --- {W}ikipedia{,} the free encyclopedia.''
+  \url{http://en.wikipedia.org/w/index.php?title=Permutation&oldid=1164598038},
+  2023.
+\newblock [Online; accessed 26-July-2023].
+
+\end{thebibliography}

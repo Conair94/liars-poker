@@ -1,0 +1,243 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.2 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nyt/global//global/global}
+    \entry{rnd_paper}{article}{}
+      \name{author}{4}{}{%
+        {{hash=bd09cb455f176bf7e592f10db51720d1}{%
+           family={Dewey},
+           familyi={D\bibinitperiod},
+           given={Richard},
+           giveni={R\bibinitperiod}}}%
+        {{hash=52b430db5164491501f88046df632967}{%
+           family={Botyánszki},
+           familyi={B\bibinitperiod},
+           given={János},
+           giveni={J\bibinitperiod}}}%
+        {{hash=47e41cac00b979891e55cd49f01df1de}{%
+           family={Moallemi},
+           familyi={M\bibinitperiod},
+           given={Ciamac\bibnamedelima C.},
+           giveni={C\bibinitperiod\bibinitdelim C\bibinitperiod}}}%
+        {{hash=81ba84d4d8536335d9a3c5527d436f51}{%
+           family={Zheng},
+           familyi={Z\bibinitperiod},
+           given={Andrew\bibnamedelima T.},
+           giveni={A\bibinitperiod\bibinitdelim T\bibinitperiod}}}%
+      }
+      \strng{namehash}{468c27c17a5565700f1e80e974e18bd4}
+      \strng{fullhash}{af7bb4f8357939cb03bf1813400375ff}
+      \strng{bibnamehash}{468c27c17a5565700f1e80e974e18bd4}
+      \strng{authorbibnamehash}{468c27c17a5565700f1e80e974e18bd4}
+      \strng{authornamehash}{468c27c17a5565700f1e80e974e18bd4}
+      \strng{authorfullhash}{af7bb4f8357939cb03bf1813400375ff}
+      \field{sortinit}{D}
+      \field{sortinithash}{6f385f66841fb5e82009dc833c761848}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{arXiv preprint arXiv:2511.03724v2}
+      \field{title}{{Outbidding and Outbluffing Elite Humans: Mastering Liar's Poker via Self-Play and Reinforcement Learning}}
+      \field{year}{2025}
+    \endentry
+    \entry{openspiel}{article}{}
+      \name{author}{27}{}{%
+        {{hash=3075d0e02c0833f6e5fe1addb880898f}{%
+           family={Lanctot},
+           familyi={L\bibinitperiod},
+           given={Marc},
+           giveni={M\bibinitperiod}}}%
+        {{hash=67c36471603b6de0347c489b0f8b05b0}{%
+           family={Lockhart},
+           familyi={L\bibinitperiod},
+           given={Edward},
+           giveni={E\bibinitperiod}}}%
+        {{hash=a444aafc3cc0fa1bbe095e57d43927ba}{%
+           family={Lespiau},
+           familyi={L\bibinitperiod},
+           given={Jean-Baptiste},
+           giveni={J\bibinithyphendelim B\bibinitperiod}}}%
+        {{hash=997657b08786dc45aaef854249d8af31}{%
+           family={Zambaldi},
+           familyi={Z\bibinitperiod},
+           given={Vinicius},
+           giveni={V\bibinitperiod}}}%
+        {{hash=3ed5a5a7929f4b14e7073372068780c4}{%
+           family={Upadhyay},
+           familyi={U\bibinitperiod},
+           given={Satyaki},
+           giveni={S\bibinitperiod}}}%
+        {{hash=378acfd608dceb9cbffa0ac5c9723d2a}{%
+           family={Pérolat},
+           familyi={P\bibinitperiod},
+           given={Julien},
+           giveni={J\bibinitperiod}}}%
+        {{hash=02988c38f191d40af12e0f7e6518498e}{%
+           family={Srinivasan},
+           familyi={S\bibinitperiod},
+           given={Sriram},
+           giveni={S\bibinitperiod}}}%
+        {{hash=df54e0bb20ab5d54d596be46e7f86e37}{%
+           family={Timbers},
+           familyi={T\bibinitperiod},
+           given={Finbarr},
+           giveni={F\bibinitperiod}}}%
+        {{hash=abe873d21d37af0af9b6711c1efd9caa}{%
+           family={Tuyls},
+           familyi={T\bibinitperiod},
+           given={Karl},
+           giveni={K\bibinitperiod}}}%
+        {{hash=faee89b48145decbfc43c93436394507}{%
+           family={Omidshafiei},
+           familyi={O\bibinitperiod},
+           given={Shayegan},
+           giveni={S\bibinitperiod}}}%
+        {{hash=a657fe5a3ed8a09d83c5b599ec77d4b1}{%
+           family={Hennes},
+           familyi={H\bibinitperiod},
+           given={Daniel},
+           giveni={D\bibinitperiod}}}%
+        {{hash=ae3357c4eb114d617dba31bb431f688b}{%
+           family={Morrill},
+           familyi={M\bibinitperiod},
+           given={Dustin},
+           giveni={D\bibinitperiod}}}%
+        {{hash=7aa7fe77b36a72af5cc6a067fcb1da09}{%
+           family={Muller},
+           familyi={M\bibinitperiod},
+           given={Paul},
+           giveni={P\bibinitperiod}}}%
+        {{hash=2687d58e59afed22249974d723704f56}{%
+           family={Ewalds},
+           familyi={E\bibinitperiod},
+           given={Timo},
+           giveni={T\bibinitperiod}}}%
+        {{hash=bda312b3281fe49ab97ff273d1718d11}{%
+           family={Faulkner},
+           familyi={F\bibinitperiod},
+           given={Ryan},
+           giveni={R\bibinitperiod}}}%
+        {{hash=f6314673a113c5636aea6732571bd5c2}{%
+           family={Kramár},
+           familyi={K\bibinitperiod},
+           given={János},
+           giveni={J\bibinitperiod}}}%
+        {{hash=613c27102943211abd3c6207fe23b6ae}{%
+           family={Vylder},
+           familyi={V\bibinitperiod},
+           given={Bart\bibnamedelima De},
+           giveni={B\bibinitperiod\bibinitdelim D\bibinitperiod}}}%
+        {{hash=7e8263bdfc0415de5b52a96d0cc15a5b}{%
+           family={Saeta},
+           familyi={S\bibinitperiod},
+           given={Brennan},
+           giveni={B\bibinitperiod}}}%
+        {{hash=b75383e6b48c8360c7a60031424c85cf}{%
+           family={Bradbury},
+           familyi={B\bibinitperiod},
+           given={James},
+           giveni={J\bibinitperiod}}}%
+        {{hash=352c5147960594f5c84dd22ea170817e}{%
+           family={Ding},
+           familyi={D\bibinitperiod},
+           given={David},
+           giveni={D\bibinitperiod}}}%
+        {{hash=c28d74501d531d6672ccf4c28016c7ac}{%
+           family={Borgeaud},
+           familyi={B\bibinitperiod},
+           given={Sebastian},
+           giveni={S\bibinitperiod}}}%
+        {{hash=f311ac3fec4a3d3207fdec17a9887704}{%
+           family={Lai},
+           familyi={L\bibinitperiod},
+           given={Matthew},
+           giveni={M\bibinitperiod}}}%
+        {{hash=8fad8df927bc0014c0bd6a9feb7aa71d}{%
+           family={Schrittwieser},
+           familyi={S\bibinitperiod},
+           given={Julian},
+           giveni={J\bibinitperiod}}}%
+        {{hash=f0b65a45db475f2a562a286133673bb3}{%
+           family={Anthony},
+           familyi={A\bibinitperiod},
+           given={Thomas},
+           giveni={T\bibinitperiod}}}%
+        {{hash=c31011a2b5a6020c13cdc52234b0c75b}{%
+           family={Hughes},
+           familyi={H\bibinitperiod},
+           given={Edward},
+           giveni={E\bibinitperiod}}}%
+        {{hash=970650e9394fccd4144d4b829505d2b3}{%
+           family={Danihelka},
+           familyi={D\bibinitperiod},
+           given={Ivo},
+           giveni={I\bibinitperiod}}}%
+        {{hash=5a7b58a1d85e3256ab4b378613b44399}{%
+           family={Ryan-Davis},
+           familyi={R\bibinithyphendelim D\bibinitperiod},
+           given={Jonah},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{191090c1b5c77bca4c24d68999e277cd}
+      \strng{fullhash}{4dc79287fc8390b2da1cdeb18cfbc68c}
+      \strng{bibnamehash}{191090c1b5c77bca4c24d68999e277cd}
+      \strng{authorbibnamehash}{191090c1b5c77bca4c24d68999e277cd}
+      \strng{authornamehash}{191090c1b5c77bca4c24d68999e277cd}
+      \strng{authorfullhash}{4dc79287fc8390b2da1cdeb18cfbc68c}
+      \field{sortinit}{L}
+      \field{sortinithash}{7c47d417cecb1f4bd38d1825c427a61a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{arXiv preprint arXiv:1908.09453}
+      \field{title}{{OpenSpiel: A Framework for Reinforcement Learning in Games}}
+      \field{year}{2019}
+    \endentry
+    \entry{wu2024ncard}{article}{}
+      \name{author}{2}{}{%
+        {{hash=c023366f3499f715aaf9791b2d605c56}{%
+           family={Wu},
+           familyi={W\bibinitperiod},
+           given={Brian},
+           giveni={B\bibinitperiod}}}%
+        {{hash=954726ce278d3cb10a9189ae0a8cbcb2}{%
+           family={Wu},
+           familyi={W\bibinitperiod},
+           given={Chai\bibnamedelima Wah},
+           giveni={C\bibinitperiod\bibinitdelim W\bibinitperiod}}}%
+      }
+      \strng{namehash}{42d69d2d66c11e8cbe8f4a3f707a2094}
+      \strng{fullhash}{42d69d2d66c11e8cbe8f4a3f707a2094}
+      \strng{bibnamehash}{42d69d2d66c11e8cbe8f4a3f707a2094}
+      \strng{authorbibnamehash}{42d69d2d66c11e8cbe8f4a3f707a2094}
+      \strng{authornamehash}{42d69d2d66c11e8cbe8f4a3f707a2094}
+      \strng{authorfullhash}{42d69d2d66c11e8cbe8f4a3f707a2094}
+      \field{sortinit}{W}
+      \field{sortinithash}{4315d78024d0cea9b57a0c6f0e35ed0d}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Communications on Number Theory and Combinatorial Theory}
+      \field{note}{arXiv:2309.00011}
+      \field{title}{{Big Two and $n$-card poker probabilities}}
+      \field{volume}{5}
+      \field{year}{2024}
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
