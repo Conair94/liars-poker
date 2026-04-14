@@ -1,12 +1,12 @@
 # Fdb version 3
-["biber Liars-poker"] 1775612987 "Liars-poker.bcf" "Liars-poker.bbl" "Liars-poker" 1775613902
-  "Liars-poker.bcf" 1775613902 107448 f74aab1655477cbd846097bc1547c431 "pdflatex"
+["biber Liars-poker"] 1775612987 "Liars-poker.bcf" "Liars-poker.bbl" "Liars-poker" 1776190396
+  "Liars-poker.bcf" 1776190396 107448 f74aab1655477cbd846097bc1547c431 "pdflatex"
   "references.bib" 1775592961 1432 46581f4f22db0fc345b630074bf090c4 ""
   (generated)
   "Liars-poker.bbl"
   "Liars-poker.blg"
-["pdflatex"] 1775613901 "/Users/connorlockhart/Documents/GitHub/LaTeX Files/papers/Liars poker/Liars-poker.tex" "Liars-poker.pdf" "Liars-poker" 1775613902
-  "/Users/connorlockhart/Documents/GitHub/LaTeX Files/papers/Liars poker/Liars-poker.tex" 1775613869 26730 55ab7a2523d2eeb765fe7fb6a6932ee9 ""
+["pdflatex"] 1776190395 "/Users/connorlockhart/Documents/GitHub/liars-poker/Liars poker/Liars-poker.tex" "Liars-poker.pdf" "Liars-poker" 1776190396
+  "/Users/connorlockhart/Documents/GitHub/liars-poker/Liars poker/Liars-poker.tex" 1775613869 26730 55ab7a2523d2eeb765fe7fb6a6932ee9 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc" 1136849721 2971 def0b6c1f0b107b3b936def894055589 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc" 1136849721 2900 1537cc8184ad1792082cd229ecc269f4 ""
   "/usr/local/texlive/2022/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -155,10 +155,10 @@
   "/usr/local/texlive/2022/texmf-var/fonts/map/pdftex/updmap/pdftex.map" 1647878959 4410336 7d30a02e9fa9a16d7d1f8d037ba69641 ""
   "/usr/local/texlive/2022/texmf-var/web2c/pdftex/pdflatex.fmt" 1676329569 2826437 54ed7b424354785bbc5215fb5778b0bc ""
   "/usr/local/texlive/2022/texmf.cnf" 1647878952 577 209b46be99c9075fd74d4c0369380e8c ""
-  "Liars-poker.aux" 1775613902 13908 a1c816953da355994b52288fba085585 "pdflatex"
+  "Liars-poker.aux" 1776190396 13908 a1c816953da355994b52288fba085585 "pdflatex"
   "Liars-poker.bbl" 1775612989 9308 7b89234b30bd58cad3cab9cd3b816ab0 "biber Liars-poker"
-  "Liars-poker.out" 1775613902 3592 500ffbb70825440863a59c8d5697d34c "pdflatex"
-  "Liars-poker.run.xml" 1775613902 2354 e325d1af5e1dd08bb68d5b9552a9944b "pdflatex"
+  "Liars-poker.out" 1776190396 3592 500ffbb70825440863a59c8d5697d34c "pdflatex"
+  "Liars-poker.run.xml" 1776190396 2354 e325d1af5e1dd08bb68d5b9552a9944b "pdflatex"
   "Liars-poker.tex" 1775613869 26730 55ab7a2523d2eeb765fe7fb6a6932ee9 ""
   "figures/conditional_3range.pdf" 1775613875 22204 af5e0a3f9006759ac598a72f03ba6aac ""
   "figures/conditional_3range_atleast.pdf" 1775613875 33544 1347f76d1c454b0b8644e151574b45c0 ""

@@ -1,8 +1,8 @@
-PWD /Users/connorlockhart/Documents/GitHub/LaTeX Files/papers/Liars poker
+PWD /Users/connorlockhart/Documents/GitHub/liars-poker/Liars poker
 INPUT /usr/local/texlive/2022/texmf.cnf
 INPUT /usr/local/texlive/2022/texmf-dist/web2c/texmf.cnf
 INPUT /usr/local/texlive/2022/texmf-var/web2c/pdftex/pdflatex.fmt
-INPUT /Users/connorlockhart/Documents/GitHub/LaTeX Files/papers/Liars poker/Liars-poker.tex
+INPUT /Users/connorlockhart/Documents/GitHub/liars-poker/Liars poker/Liars-poker.tex
 OUTPUT Liars-poker.log
 INPUT /usr/local/texlive/2022/texmf-dist/tex/latex/base/article.cls
 INPUT /usr/local/texlive/2022/texmf-dist/tex/latex/base/article.cls
