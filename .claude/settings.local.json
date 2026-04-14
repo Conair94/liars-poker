@@ -9,7 +9,8 @@
       "Bash(python3 generate_prob_tables.py)",
       "Bash(python3 compute_conditional_probs.py)",
       "Bash(python3 -)",
-      "Bash(sort -t'\"' -k2 -n)"
+      "Bash(sort -t'\"' -k2 -n)",
+      "Bash(python3 -m pytest agent/game/tests/ agent/baseline/tests/ -q)"
     ]
   }
 }

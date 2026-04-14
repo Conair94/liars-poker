@@ -2,7 +2,7 @@
 Web agent implementations.
 
 RandomAgent        — picks a uniformly random legal action
-BlindBaselineAgent — N=2 backward-induction equilibrium (ignores private cards)
+BlindBaselineAgent — marginal 50% threshold strategy (ignores private cards)
 ConditionalAgent   — threshold strategy using private-card conditional priors
 """
 
@@ -39,46 +39,82 @@ class RandomAgent:
 # ---------------------------------------------------------------------------
 class BlindBaselineAgent:
     """
-    Threshold strategy from the N=2 blind backward-induction equilibrium.
-    Uses the cached equilibrium for n=2..25; raises to the threshold bid
-    (where P(pool >= bid) ≈ 50%) and calls above it.
+    Marginal threshold strategy: bids the highest hand where
+    P(pool >= bid | total cards = n) >= 50%, and calls when the standing
+    bid exceeds that threshold.
 
-    Falls back to RandomAgent only if the equilibrium cache is unavailable
-    or if n is out of range.
+    Data sources (in priority order):
+      - WarmStartLookup marginal vector for n=5..25 (MC-derived)
+      - blind_equilibrium p_at_least for n=2..4 (exact combinatorics)
+
+    BLIND_EQ initial_bid is used as an opening-bid hint for n<=10 only
+    when it does not exceed the 50% threshold.
     """
 
     def __init__(self) -> None:
         self._rng = random.Random()
 
-    def choose_action(self, state: MatchState) -> int:
-        n = sum(state.hand_sizes[s] for s in state.active_seats())
-
+    def _get_p_at_least(self, n: int) -> Optional[np.ndarray]:
+        """Return (NUM_BIDS,) array of P(pool >= bid_i | pool size n)."""
+        if n >= 5:
+            try:
+                lookup = _get_warm_start()
+                marginal, _, _ = lookup.get_features([], n)
+                return np.flip(np.cumsum(np.flip(marginal))).astype(np.float32)
+            except Exception:
+                pass
+        # n < 5 or WarmStart unavailable: use exact blind equilibrium p_at_least
         try:
             from agent.baseline.blind_equilibrium import get_blind_equilibrium
             eq = get_blind_equilibrium(n)
+            return np.array(eq["p_at_least"], dtype=np.float32)
         except Exception:
+            return None
+
+    def choose_action(self, state: MatchState) -> int:
+        n = sum(state.hand_sizes[s] for s in state.active_seats())
+
+        p_at_least = self._get_p_at_least(n)
+        if p_at_least is None:
             return self._rng.choice(state.legal_actions())
 
-        rs     = state.round_state
-        legal  = state.legal_actions()
+        rs    = state.round_state
+        legal = state.legal_actions()
 
-        # First bid of the round — use the equilibrium's optimal initial bid.
+        # Threshold = highest bid index where P(pool >= bid) >= 50%
+        threshold_idx = 0
+        for i in range(NUM_BIDS - 1, -1, -1):
+            if p_at_least[i] >= 0.5:
+                threshold_idx = i
+                break
+
         if rs.current_bid is None:
-            action = eq["initial_bid"]
-            return action if action in legal else legal[-1]
+            # Use equilibrium initial_bid as opening hint (n<=10 only, must not exceed threshold)
+            if n <= 10:
+                try:
+                    from agent.baseline.blind_equilibrium import get_blind_equilibrium
+                    eq = get_blind_equilibrium(n)
+                    initial = eq["initial_bid"]
+                    if initial <= threshold_idx and initial in legal:
+                        return initial
+                except Exception:
+                    pass
+            return threshold_idx if threshold_idx in legal else legal[0]
 
-        # Responding to a standing bid — use the policy.
-        bid_idx = bid_to_index(rs.current_bid)
-        policy  = eq["policy"]
+        # Responding: call if standing bid is above threshold, else raise to threshold
+        cur_idx = bid_to_index(rs.current_bid)
+        if CALL_ACTION in legal and float(p_at_least[cur_idx]) < 0.5:
+            return CALL_ACTION
 
-        # Try actor=0 first; if illegal (shouldn't happen) try actor=1 then call.
-        for actor in (0, 1):
-            action = policy[bid_idx][actor]
-            if action in legal:
-                return action
+        bid_candidates = [a for a in legal if a != CALL_ACTION]
+        if not bid_candidates:
+            return CALL_ACTION
 
-        # Fallback: call if legal, else highest legal bid.
-        return CALL_ACTION if CALL_ACTION in legal else legal[-1]
+        for a in bid_candidates:
+            if a >= threshold_idx:
+                return a
+
+        return bid_candidates[0]
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +141,8 @@ class ConditionalAgent:
       - If standing bid is above threshold (P < 50%): call (it's likely a bluff).
       - If standing bid is at/below threshold: raise to the threshold.
 
-    Falls back to BlindBaselineAgent for n outside the lookup range (2..4).
+    Falls back to BlindBaselineAgent (marginal threshold strategy) for n outside
+    the WarmStartLookup range (n<5 or n>25).
     """
 
     def __init__(self) -> None:

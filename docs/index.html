@@ -948,7 +948,7 @@ const RULES_HTML = `
     <h4>Agents</h4>
     <ul>
       <li><span class="hl">Random</span> — picks any legal action uniformly at random.</li>
-      <li><span class="hl">Blind Baseline</span> — N=2 backward-induction equilibrium; bids the 50% probability threshold (ignores private cards).</li>
+      <li><span class="hl">Blind Baseline</span> — bids the highest hand where P(pool &ge; bid) &ge; 50% given total card count, ignoring private cards.</li>
       <li><span class="hl">Conditional</span> — threshold strategy that detects its private hand condition (pair, trips, suited, etc.) and bids more aggressively when holding a strong partial hand.</li>
     </ul>
   </div>
@@ -983,7 +983,7 @@ function renderSetup() {
       <label>Opponent</label>
       <select id="cfg-agent">
         <option value="random">Random</option>
-        <option value="blind" selected>Blind Baseline (N=2 equilibrium)</option>
+        <option value="blind" selected>Blind Baseline (50% threshold)</option>
         <option value="conditional">Conditional (hand-aware threshold)</option>
       </select>
     </div>
