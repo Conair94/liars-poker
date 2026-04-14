@@ -102,6 +102,11 @@ class MatchState:
     terminal: bool = False
     winner: Optional[int] = None
     rng: random.Random = field(default_factory=random.Random)
+    # Game mode options
+    mode: str = 'countup'              # 'countup' | 'countdown'
+    exact_rules: bool = False          # exact 5-card hand matching on call
+    high_hand: bool = False            # high hand declaration action enabled
+    five_kings: bool = False           # 53-card deck with extra King
 
     # --- public API -------------------------------------------------------
 
@@ -268,11 +273,41 @@ class MatchState:
             terminal=self.terminal,
             winner=self.winner,
             rng=random.Random(),
+            mode=self.mode,
+            exact_rules=self.exact_rules,
+            high_hand=self.high_hand,
+            five_kings=self.five_kings,
         )
         new.rng.setstate(self.rng.getstate())
         return new
 
     # --- internal helpers -------------------------------------------------
+
+    def _apply_penalty(self, loser: int) -> None:
+        """Apply card penalty to loser. Handles both countup and countdown modes."""
+        if self.mode == 'countdown':
+            new_size = self.hand_sizes[loser] - 1
+            if new_size < 1:
+                self.active[loser] = False
+                self.hand_sizes[loser] = 0
+                self.first_bidder_next = (
+                    self._next_active_seat(loser) if self.num_active() > 0 else loser
+                )
+            else:
+                self.hand_sizes[loser] = new_size
+                self.first_bidder_next = loser
+        else:
+            # countup: loser gains a card; eliminated when > MAX_HAND_SIZE
+            new_size = self.hand_sizes[loser] + 1
+            if new_size > MAX_HAND_SIZE:
+                self.active[loser] = False
+                self.hand_sizes[loser] = 0
+                self.first_bidder_next = (
+                    self._next_active_seat(loser) if self.num_active() > 0 else loser
+                )
+            else:
+                self.hand_sizes[loser] = new_size
+                self.first_bidder_next = loser
 
     def _next_active_seat(self, seat: int) -> int:
         """Next seat in clockwise order that is still active."""
@@ -325,17 +360,7 @@ class MatchState:
         )
         self.round_history.append(result)
 
-        # Advance hand sizes / elimination.
-        new_size = self.hand_sizes[loser] + 1
-        if new_size > MAX_HAND_SIZE:
-            # Elimination: loser lost a round while already at 5 cards.
-            self.active[loser] = False
-            self.hand_sizes[loser] = 0
-            # Next first bidder: next active seat after the eliminated one.
-            self.first_bidder_next = self._next_active_seat(loser) if self.num_active() > 0 else loser
-        else:
-            self.hand_sizes[loser] = new_size
-            self.first_bidder_next = loser  # loser leads off next round
+        self._apply_penalty(loser)
 
         # Clear round state.
         self.round_state = None
@@ -353,14 +378,24 @@ class MatchState:
 # ---------------------------------------------------------------------------
 
 
-def new_match(num_players: int, seed: Optional[int] = None) -> MatchState:
+def new_match(
+    num_players: int,
+    seed: Optional[int] = None,
+    mode: str = 'countup',
+    exact_rules: bool = False,
+    high_hand: bool = False,
+    five_kings: bool = False,
+) -> MatchState:
     if not (MIN_PLAYERS <= num_players <= MAX_PLAYERS):
         raise ValueError(f"num_players must be in [{MIN_PLAYERS}, {MAX_PLAYERS}]")
+    if mode not in ('countup', 'countdown'):
+        raise ValueError(f"mode must be 'countup' or 'countdown', got {mode!r}")
 
     rng = random.Random(seed)
+    start_size = MAX_HAND_SIZE if mode == 'countdown' else 1
     state = MatchState(
         num_players=num_players,
-        hand_sizes=[1] * num_players,
+        hand_sizes=[start_size] * num_players,
         active=[True] * num_players,
         first_bidder_next=0,
         round_state=None,
@@ -368,5 +403,9 @@ def new_match(num_players: int, seed: Optional[int] = None) -> MatchState:
         terminal=False,
         winner=None,
         rng=rng,
+        mode=mode,
+        exact_rules=exact_rules,
+        high_hand=high_hand,
+        five_kings=five_kings,
     )
     return state

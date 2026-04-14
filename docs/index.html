@@ -273,17 +273,22 @@ function evaluateRanked(cards) {
 // ============================================================
 // 4. GAME ENGINE
 // ============================================================
-function newMatch(numPlayers) {
+function newMatch(numPlayers, opts={}) {
+  const mode = opts.mode || 'countup';
   return {
     numPlayers,
-    handSizes: new Array(numPlayers).fill(1),
+    handSizes: new Array(numPlayers).fill(mode === 'countdown' ? 5 : 1),
     active: new Array(numPlayers).fill(true),
     firstBidderNext: 0,
     roundState: null,
     roundHistory: [],
     terminal: false,
     winner: null,
-    rng: new RNG(Date.now() & 0xffffffff)
+    rng: new RNG(Date.now() & 0xffffffff),
+    mode,
+    exactRules: opts.exactRules || false,
+    highHand:   opts.highHand   || false,
+    fiveKings:  opts.fiveKings  || false
   };
 }
 
@@ -327,6 +332,34 @@ function startRound(st) {
   st.roundState = { hands, history: [], currentPlayer: first, lastBidder: -1, currentBid: null };
 }
 
+// Apply card penalty to loser after a round ends. Updates handSizes, active, firstBidderNext.
+function _applyPenalty(st, loserSeat) {
+  if (st.mode === 'countdown') {
+    const newSz = st.handSizes[loserSeat] - 1;
+    if (newSz < 1) {
+      st.active[loserSeat] = false;
+      st.handSizes[loserSeat] = 0;
+      const left = activeSeats(st);
+      st.firstBidderNext = left.length > 0 ? nextActive(st, loserSeat) : loserSeat;
+    } else {
+      st.handSizes[loserSeat] = newSz;
+      st.firstBidderNext = loserSeat;
+    }
+  } else {
+    // countup (default): loser gains a card; eliminated when > 5
+    const newSz = st.handSizes[loserSeat] + 1;
+    if (newSz > 5) {
+      st.active[loserSeat] = false;
+      st.handSizes[loserSeat] = 0;
+      const left = activeSeats(st);
+      st.firstBidderNext = left.length > 0 ? nextActive(st, loserSeat) : loserSeat;
+    } else {
+      st.handSizes[loserSeat] = newSz;
+      st.firstBidderNext = loserSeat;
+    }
+  }
+}
+
 function applyAction(st, action) {
   // Returns RoundResult or null
   const rs = st.roundState;
@@ -356,17 +389,7 @@ function applyAction(st, action) {
                    callerSeat: actor, pool: [...pool], poolBest, callSucceeded: !bidHolds };
   st.roundHistory.push(result);
 
-  // Update sizes / elimination
-  const newSz = st.handSizes[loser] + 1;
-  if (newSz > 5) {
-    st.active[loser] = false;
-    st.handSizes[loser] = 0;
-    const left = activeSeats(st);
-    st.firstBidderNext = left.length > 0 ? nextActive(st, loser) : loser;
-  } else {
-    st.handSizes[loser] = newSz;
-    st.firstBidderNext = loser;
-  }
+  _applyPenalty(st, loser);
   st.roundState = null;
 
   const left = activeSeats(st);
@@ -901,9 +924,11 @@ function renderResult(result, history, showNextBtn) {
     ? `${callerName} called the bluff — pool was only ${pbStr} (bid was ${bidStr})!`
     : `${callerName}'s call failed — pool had ${pbStr} ≥ ${bidStr}!`;
 
+  const isCountdown = G.st && G.st.mode === 'countdown';
+  const penaltyTxt  = isCountdown ? '−1 card penalty' : '+1 card penalty';
   let titleCls, titleTxt;
   if (result.loserSeat === G.humanSeat) {
-    titleCls = 'result-title lose'; titleTxt = 'You lost this round — +1 card penalty';
+    titleCls = 'result-title lose'; titleTxt = `You lost this round — ${penaltyTxt}`;
   } else if (result.winnerSeat === G.humanSeat) {
     titleCls = 'result-title win'; titleTxt = 'You won this round!';
   } else {
@@ -932,10 +957,13 @@ const RULES_HTML = `
   <summary><h3>Game Rules</h3></summary>
   <div class="rules-content">
     <h4>Objective</h4>
-    <ul><li>Last player standing wins. Players are eliminated when they reach 5 cards.</li></ul>
+    <ul>
+      <li><span class="hl">Count Up</span> (default): Start with 1 card. Loser of each round gains a card. Eliminated at 6 cards. Last player standing wins.</li>
+      <li><span class="hl">Count Down</span>: Start with 5 cards. Loser of each round loses a card. Eliminated at 0 cards. Last player standing wins.</li>
+    </ul>
     <h4>Each Round</h4>
     <ul>
-      <li>Every active player is dealt fresh private cards. You start with <span class="hl">1 card</span>; count grows when you lose rounds.</li>
+      <li>Every active player is dealt fresh private cards equal to their current card count.</li>
       <li>The designated first bidder names a <span class="hl">poker hand</span>. Each subsequent player must name a <span class="hl">strictly stronger hand</span> or <span class="hl">Call Bluff</span>.</li>
     </ul>
     <h4>Calling Bluff</h4>
@@ -951,6 +979,12 @@ const RULES_HTML = `
       <li><span class="hl">Blind Baseline</span> — bids the highest hand where P(pool &ge; bid) &ge; 50% given total card count, ignoring private cards.</li>
       <li><span class="hl">Conditional</span> — threshold strategy that detects its private hand condition (pair, trips, suited, etc.) and bids more aggressively when holding a strong partial hand.</li>
     </ul>
+    <p style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid #2a3a5e">
+      <label style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;color:#c9a84c">
+        <input type="checkbox" id="cfg-fiveKings" style="width:auto;margin-bottom:0">
+        Did you accidentally shuffle in a King of Beers? 🍺
+      </label>
+    </p>
   </div>
 </details>`;
 
@@ -958,7 +992,7 @@ function renderSetup() {
   return RULES_HTML + `
 <div class="panel">
   <h3>New Game</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:0.75rem">
     <div>
       <label>Number of Players</label>
       <select id="cfg-np">
@@ -987,6 +1021,23 @@ function renderSetup() {
         <option value="conditional">Conditional (hand-aware threshold)</option>
       </select>
     </div>
+    <div>
+      <label>Game Mode</label>
+      <select id="cfg-mode">
+        <option value="countup" selected>Count Up (start 1 card)</option>
+        <option value="countdown">Count Down (start 5 cards)</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+    <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem;color:#a0a8c0">
+      <input type="checkbox" id="cfg-hh" style="width:auto;margin-bottom:0">
+      High Hand Declaration
+    </label>
+    <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem;color:#a0a8c0">
+      <input type="checkbox" id="cfg-exact" style="width:auto;margin-bottom:0">
+      Exact Hand Rules <span style="font-size:0.78rem;color:#5a6a8a">(agents uncalibrated)</span>
+    </label>
   </div>
   <button onclick="startGame()">Start Game</button>
 </div>`;
@@ -1049,9 +1100,13 @@ function startGame() {
   const np    = parseInt(document.getElementById('cfg-np').value);
   const seat  = parseInt(document.getElementById('cfg-seat').value);
   const atype = document.getElementById('cfg-agent').value;
+  const mode  = document.getElementById('cfg-mode').value;
+  const highHand   = document.getElementById('cfg-hh')?.checked || false;
+  const exactRules = document.getElementById('cfg-exact')?.checked || false;
+  const fiveKings  = document.getElementById('cfg-fiveKings')?.checked || false;
   G.humanSeat = (seat === -1) ? -1 : Math.max(0, Math.min(seat, np - 1));
   G.agentType = atype;
-  G.st = newMatch(np);
+  G.st = newMatch(np, {mode, highHand, exactRules, fiveKings});
   G.agents = {};
   for (let s = 0; s < np; s++) {
     if (s !== G.humanSeat) {
