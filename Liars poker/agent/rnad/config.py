@@ -63,6 +63,13 @@ class RNaDConfig:
     eval_episodes: int  = 500    # games per evaluation
 
     # ------------------------------------------------------------------ #
+    # Stage B — full match with elimination
+    # ------------------------------------------------------------------ #
+    # Maximum rounds per match episode (safety cap; real matches end much
+    # sooner; with N=2, expected match length is O(hand_size²) rounds).
+    max_match_rounds: int = 200
+
+    # ------------------------------------------------------------------ #
     # Checkpointing & logging
     # ------------------------------------------------------------------ #
     checkpoint_dir: str  = "agent/checkpoints"

@@ -167,6 +167,95 @@ def collect_round(
 
 
 # ---------------------------------------------------------------------------
+# Episode collection (Stage B: full match with elimination)
+# ---------------------------------------------------------------------------
+
+def collect_match(
+    policy:      LiarsPokerNet,
+    anchor:      LiarsPokerNet,
+    num_players: int = 2,
+    warm_start=None,
+    max_rounds:  int = 200,
+) -> List[Step]:
+    """
+    Play one full match of Liar's Poker until a winner emerges (or max_rounds
+    is hit as a safety cap).  Hand sizes start at 1 and grow naturally as
+    players lose rounds; eliminated players stop acting.
+
+    Match-level rewards are assigned at the end:
+        +1  to the match winner's Steps
+        −1  to all other players' Steps
+
+    Parameters
+    ----------
+    policy      : current policy network (used for action sampling)
+    anchor      : regularisation anchor (frozen copy, used for log_prob_reg)
+    num_players : seats at the table (2 for Stage B)
+    warm_start  : optional WarmStartLookup (for aux target extraction)
+    max_rounds  : safety cap on round count to prevent infinite loops
+    """
+    state = new_match(num_players)
+    all_steps: List[Step] = []
+
+    for _ in range(max_rounds):
+        if state.terminal:
+            break
+        state.start_next_round()
+
+        while state.round_state is not None:
+            cp    = state.round_state.current_player
+            info  = state.info_state(cp)
+            legal = state.legal_actions()
+
+            with torch.no_grad():
+                obs_p = policy.encode_obs(info)
+                obs_r = anchor.encode_obs(info)
+
+                logits_p, value_t = policy.forward(obs_p)
+                logits_r, _       = anchor.forward(obs_r)
+
+            logits_p = _mask_logits(logits_p, legal)
+            logits_r = _mask_logits(logits_r, legal)
+
+            dist_p = Categorical(logits=logits_p)
+            dist_r = Categorical(logits=logits_r)
+            action = int(dist_p.sample().item())
+
+            log_prob_old = float(dist_p.log_prob(torch.tensor(action)).item())
+            log_prob_reg = float(dist_r.log_prob(torch.tensor(action)).item())
+
+            aux_tgt = None
+            if warm_start is not None:
+                active     = info["active"]
+                hand_sizes = info["hand_sizes"]
+                n = sum(hand_sizes[s] for s, a in enumerate(active) if a)
+                _, _, cond_key = warm_start.get_features(info["own_hand"], n)
+                if cond_key is not None:
+                    aux_tgt = warm_start.get_aux_target(cond_key, n)
+
+            all_steps.append(Step(
+                info          = info,
+                action        = action,
+                log_prob_old  = log_prob_old,
+                log_prob_reg  = log_prob_reg,
+                value_old     = float(value_t.item()),
+                seat          = cp,
+                legal_actions = legal,
+                aux_target    = aux_tgt,
+            ))
+
+            state.apply_action(action)
+
+    # Assign match-level rewards.  If the safety cap fired the steps have
+    # reward=0 (no gradient signal) — this should never happen in practice.
+    if state.terminal:
+        for step in all_steps:
+            step.reward = 1.0 if step.seat == state.winner else -1.0
+
+    return all_steps
+
+
+# ---------------------------------------------------------------------------
 # R-NaD return computation
 # ---------------------------------------------------------------------------
 
@@ -386,6 +475,7 @@ class RNaDTrainer:
                     num_episodes=self.config.eval_episodes,
                     hand_size=self.config.stage_a_hand_size,
                     num_players=self.config.num_players,
+                    stage=self.config.stage,
                     device=self.device,
                 )
                 self._log_eval(it, results)
@@ -402,18 +492,28 @@ class RNaDTrainer:
     # ------------------------------------------------------------------
 
     def _collect_batch(self) -> List[Step]:
-        """Collect config.episodes_per_update round episodes."""
+        """Collect config.episodes_per_update episodes (rounds for Stage A,
+        full matches for Stage B)."""
         self.policy.eval()
         all_steps: List[Step] = []
 
         for _ in range(self.config.episodes_per_update):
-            steps = collect_round(
-                policy      = self.policy,
-                anchor      = self.anchor,
-                hand_size   = self.config.stage_a_hand_size,
-                num_players = self.config.num_players,
-                warm_start  = self._warm_start,
-            )
+            if self.config.stage == "B":
+                steps = collect_match(
+                    policy      = self.policy,
+                    anchor      = self.anchor,
+                    num_players = self.config.num_players,
+                    warm_start  = self._warm_start,
+                    max_rounds  = self.config.max_match_rounds,
+                )
+            else:
+                steps = collect_round(
+                    policy      = self.policy,
+                    anchor      = self.anchor,
+                    hand_size   = self.config.stage_a_hand_size,
+                    num_players = self.config.num_players,
+                    warm_start  = self._warm_start,
+                )
             all_steps.extend(steps)
 
         return all_steps
@@ -448,11 +548,15 @@ class RNaDTrainer:
         )
 
     def _log_eval(self, it: int, results: dict) -> None:
+        extra = ""
+        if "avg_rounds" in results:
+            extra = f"  avg_rounds={results['avg_rounds']:.1f}"
         print(
             f"[{it:6d}] EVAL  "
             f"vs_random={results.get('win_rate_vs_random', 0):.3f}  "
             f"vs_blind={results.get('win_rate_vs_blind', 0):.3f}  "
             f"avg_entropy={results.get('avg_entropy', 0):.3f}"
+            f"{extra}"
         )
 
     # ------------------------------------------------------------------
@@ -498,7 +602,10 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="R-NaD trainer for Liar's Poker")
-    parser.add_argument("--hand-size",   type=int,   default=1)
+    parser.add_argument("--stage",        type=str,   default="A",  choices=["A", "B"],
+                        help="A=fixed hand size (single round), B=full match (elimination)")
+    parser.add_argument("--hand-size",   type=int,   default=1,
+                        help="Stage A only: hand size to freeze at")
     parser.add_argument("--num-players", type=int,   default=2)
     parser.add_argument("--eta",         type=float, default=0.2)
     parser.add_argument("--iterations",  type=int,   default=20_000)
@@ -512,7 +619,7 @@ if __name__ == "__main__":
         trainer = RNaDTrainer.load_checkpoint(args.resume)
     else:
         cfg = RNaDConfig(
-            stage                = "A",
+            stage                = args.stage,
             stage_a_hand_size    = args.hand_size,
             num_players          = args.num_players,
             eta                  = args.eta,

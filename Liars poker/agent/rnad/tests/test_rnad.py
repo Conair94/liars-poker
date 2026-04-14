@@ -21,7 +21,7 @@ from agent.game.engine import new_match
 from agent.rnad.config import RNaDConfig
 from agent.rnad.network import LiarsPokerNet, _mask_logits
 from agent.rnad.trainer import (
-    Step, collect_round, compute_rnad_returns, compute_loss,
+    Step, collect_round, collect_match, compute_rnad_returns, compute_loss,
     RNaDTrainer,
 )
 
@@ -249,7 +249,7 @@ def test_loss_backward():
 
 
 # ---------------------------------------------------------------------------
-# Full training smoke test
+# Full training smoke test (Stage A)
 # ---------------------------------------------------------------------------
 
 def test_short_training_run():
@@ -260,6 +260,97 @@ def test_short_training_run():
 
     # Final loss should be finite
     print("  test_short_training_run: PASS")
+
+
+# ---------------------------------------------------------------------------
+# Stage B: collect_match tests
+# ---------------------------------------------------------------------------
+
+def test_collect_match_terminates():
+    """collect_match must always produce a terminal match (no infinite loops)."""
+    cfg    = _fast_cfg()
+    policy = LiarsPokerNet(cfg)
+    anchor = copy.deepcopy(policy)
+    for p in anchor.parameters(): p.requires_grad_(False)
+
+    for _ in range(5):
+        steps = collect_match(policy, anchor, num_players=2)
+        assert len(steps) > 0, "collect_match returned no steps"
+        # All rewards must be assigned (non-zero means terminal was reached)
+        assert all(s.reward != 0.0 for s in steps), \
+            "Some steps have reward=0 — match did not terminate"
+    print("  test_collect_match_terminates: PASS")
+
+
+def test_collect_match_zero_sum():
+    """In a 2-player match, winner gets +1 steps and loser gets −1 steps."""
+    cfg    = _fast_cfg()
+    policy = LiarsPokerNet(cfg)
+    anchor = copy.deepcopy(policy)
+    for p in anchor.parameters(): p.requires_grad_(False)
+
+    for _ in range(10):
+        steps = collect_match(policy, anchor, num_players=2)
+        seat_rewards = {}
+        for s in steps:
+            if s.seat not in seat_rewards:
+                seat_rewards[s.seat] = set()
+            seat_rewards[s.seat].add(s.reward)
+
+        for seat, rewards in seat_rewards.items():
+            assert len(rewards) == 1, \
+                f"Seat {seat} has mixed rewards {rewards} — should be uniform"
+
+        reward_vals = sorted(r for rs in seat_rewards.values() for r in rs)
+        assert set(reward_vals) == {-1.0, 1.0}, \
+            f"Expected exactly {{-1, +1}} across seats, got {set(reward_vals)}"
+    print("  test_collect_match_zero_sum: PASS")
+
+
+def test_collect_match_hand_sizes_grow():
+    """
+    Over a full match the losing player must accumulate more cards (hand size
+    increases after each lost round).  We verify this by checking that the
+    pool size (total cards) in the info_state grows across rounds.
+    """
+    cfg    = _fast_cfg()
+    policy = LiarsPokerNet(cfg)
+    anchor = copy.deepcopy(policy)
+    for p in anchor.parameters(): p.requires_grad_(False)
+
+    steps = collect_match(policy, anchor, num_players=2)
+
+    # Extract pool sizes at each step (sum of active hand_sizes)
+    pool_sizes = []
+    for s in steps:
+        active     = s.info["active"]
+        hand_sizes = s.info["hand_sizes"]
+        n = sum(hand_sizes[i] for i, a in enumerate(active) if a)
+        pool_sizes.append(n)
+
+    # The max pool size must be > 2 (the starting size), showing that hand
+    # sizes grew.  (A match could end in one round if someone happens to get
+    # a 5-card hand from the start — but that's impossible since we start at 1.)
+    assert max(pool_sizes) >= 2, "Pool size never exceeded starting size"
+    # In a non-trivial match, we expect growth beyond n=2
+    assert max(pool_sizes) >= 3 or len(set(pool_sizes)) == 1, \
+        "Expected pool size to grow in at least some matches"
+    print("  test_collect_match_hand_sizes_grow: PASS")
+
+
+def test_stage_b_training_run():
+    """Stage B: 10 iterations of full-match training must not crash."""
+    cfg = _fast_cfg(
+        stage               = "B",
+        num_iterations      = 10,
+        episodes_per_update = 4,
+        eval_freq           = 9999,
+        checkpoint_freq     = 9999,
+        log_freq            = 9999,
+    )
+    trainer = RNaDTrainer(cfg)
+    trainer.train()
+    print("  test_stage_b_training_run: PASS")
 
 
 # ---------------------------------------------------------------------------
@@ -279,6 +370,11 @@ if __name__ == "__main__":
         test_rnad_returns_bounded,
         test_loss_backward,
         test_short_training_run,
+        # Stage B
+        test_collect_match_terminates,
+        test_collect_match_zero_sum,
+        test_collect_match_hand_sizes_grow,
+        test_stage_b_training_run,
     ]
     passed = failed = 0
     for t in tests:

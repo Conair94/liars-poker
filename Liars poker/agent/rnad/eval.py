@@ -160,6 +160,59 @@ def _bid_accuracy_episode(
 
 
 # ---------------------------------------------------------------------------
+# Full-match evaluation helper (Stage B)
+# ---------------------------------------------------------------------------
+
+def play_match(
+    policy:      LiarsPokerNet,
+    opponent,
+    policy_seat: int,
+    num_players: int = 2,
+) -> Dict[str, float]:
+    """
+    Play one full match.  policy occupies `policy_seat`; opponent fills all
+    other seats.
+
+    Returns a dict with:
+        "win"     : 1.0 if policy won the match, 0.0 if eliminated
+        "entropy" : average policy entropy across the match's decisions
+        "rounds"  : number of rounds played
+    """
+    from agent.game.engine import new_match as _new_match
+
+    state = _new_match(num_players)
+    entropies: List[float] = []
+
+    while not state.terminal:
+        state.start_next_round()
+        while state.round_state is not None:
+            cp    = state.round_state.current_player
+            legal = state.legal_actions()
+
+            if cp == policy_seat:
+                info = state.info_state(cp)
+                with torch.no_grad():
+                    obs    = policy.encode_obs(info)
+                    logits, _ = policy.forward(obs)
+                masked = _mask_logits(logits, legal)
+                dist   = Categorical(logits=masked)
+                action = int(dist.sample().item())
+                entropies.append(float(dist.entropy().item()))
+            else:
+                action = opponent.choose_action(state)
+
+            state.apply_action(action)
+
+    won    = 1.0 if state.winner == policy_seat else 0.0
+    rounds = float(len(state.round_history))
+    return {
+        "win":     won,
+        "entropy": float(np.mean(entropies)) if entropies else 0.0,
+        "rounds":  rounds,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Full evaluation suite
 # ---------------------------------------------------------------------------
 
@@ -168,16 +221,17 @@ def evaluate_policy(
     num_episodes: int   = 500,
     hand_size:    int   = 1,
     num_players:  int   = 2,
+    stage:        str   = "A",
     device:       Optional[torch.device] = None,
 ) -> Dict[str, float]:
     """
     Run the full evaluation suite and return a metrics dict.
 
-    Metrics returned:
-        win_rate_vs_random   float
-        win_rate_vs_blind    float
-        avg_entropy          float
-        bid_accuracy         float  (vs blind baseline greedy action)
+    For Stage A (single-round, fixed hand size):
+        win_rate_vs_random, win_rate_vs_blind, avg_entropy, bid_accuracy
+
+    For Stage B (full match):
+        win_rate_vs_random, win_rate_vs_blind, avg_entropy, avg_rounds
     """
     policy.eval()
 
@@ -193,26 +247,35 @@ def evaluate_policy(
     wins_vs_blind  = []
     entropies      = []
     accuracies     = []
+    rounds_list    = []
 
     for ep in range(num_episodes):
         seat = ep % num_players  # rotate which seat the policy occupies
 
-        r_random = play_round(policy, random_agent, seat, hand_size, num_players)
-        r_blind  = play_round(policy, blind_agent,  seat, hand_size, num_players)
+        if stage == "B":
+            r_random = play_match(policy, random_agent, seat, num_players)
+            r_blind  = play_match(policy, blind_agent,  seat, num_players)
+            rounds_list.append(r_blind["rounds"])
+        else:
+            r_random = play_round(policy, random_agent, seat, hand_size, num_players)
+            r_blind  = play_round(policy, blind_agent,  seat, hand_size, num_players)
+            if ep < 200:  # bid accuracy is slower; sample fewer
+                accuracies.append(_bid_accuracy_episode(policy, hand_size, num_players))
 
         wins_vs_random.append(r_random["win"])
         wins_vs_blind.append(r_blind["win"])
         entropies.append(r_blind["entropy"])
 
-        if ep < 200:  # bid accuracy is slower; sample fewer
-            accuracies.append(_bid_accuracy_episode(policy, hand_size, num_players))
-
-    return {
+    out = {
         "win_rate_vs_random": float(np.mean(wins_vs_random)),
         "win_rate_vs_blind":  float(np.mean(wins_vs_blind)),
         "avg_entropy":        float(np.mean(entropies)),
-        "bid_accuracy":       float(np.mean(accuracies)) if accuracies else 0.0,
     }
+    if stage == "B":
+        out["avg_rounds"] = float(np.mean(rounds_list))
+    else:
+        out["bid_accuracy"] = float(np.mean(accuracies)) if accuracies else 0.0
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -317,6 +380,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate a saved R-NaD checkpoint")
     parser.add_argument("--checkpoint", type=str, required=True,
                         help="Path to .pt checkpoint file")
+    parser.add_argument("--stage",       type=str, default="A", choices=["A", "B"])
     parser.add_argument("--hand-size",   type=int, default=1)
     parser.add_argument("--num-players", type=int, default=2)
     parser.add_argument("--episodes",    type=int, default=500)
@@ -337,6 +401,7 @@ if __name__ == "__main__":
         num_episodes = args.episodes,
         hand_size    = args.hand_size,
         num_players  = args.num_players,
+        stage        = args.stage,
     )
     for k, v in results.items():
         print(f"  {k:<30}: {v:.4f}")

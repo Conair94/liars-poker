@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 -c ':*)"
+      "Bash(python3 -c ':*)",
+      "Bash(python -m agent.rnad.tests.test_rnad)",
+      "Bash(python3 -c \"import torch; print\\('torch', torch.__version__\\)\")",
+      "Bash(pip3 install:*)",
+      "Bash(python3 -m agent.rnad.tests.test_rnad)"
     ]
   }
 }

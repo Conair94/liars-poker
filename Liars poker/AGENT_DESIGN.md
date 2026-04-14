@@ -15,7 +15,7 @@
 | M2 | Blind-game baseline strategy | `agent/baseline/blind_equilibrium.py`; backward induction for N=2; 8/8 tests | ✅ Done |
 | M2b | Warm-start lookup | `agent/rnad/warm_start.py`; marginal + conditional vectors for R-NaD network; 16/16 tests | ✅ Done |
 | M6a | Minimal web interface | FastAPI + HTMX; playable vs. random and blind baseline; `agent/web/` | ✅ Done |
-| M3 | R-NaD trainer (self-play) | `agent/rnad/config.py`, `network.py`, `trainer.py`, `eval.py`; 10/10 tests; Stage A (fixed hand size) complete | ✅ Done (Stage A) |
+| M3 | R-NaD trainer (self-play) | `agent/rnad/config.py`, `network.py`, `trainer.py`, `eval.py`; 14/14 tests; Stage A + Stage B (full match/elimination) complete | ✅ Done (Stage A + B) |
 | M6b | Full web interface | Trained agent, stats recording, session replay, match history | 🔲 After M3 |
 | M4 | Full-game R-NaD agent with private information | Trained network checkpoint + evaluation vs. blind baseline and random | 🔲 Planned |
 | M5 | Test-time compute extension | Search-augmented inference (MCTS-style or iterative best-response) | 🔲 Planned |
