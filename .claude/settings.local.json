@@ -5,7 +5,9 @@
       "Bash(python -m agent.rnad.tests.test_rnad)",
       "Bash(python3 -c \"import torch; print\\('torch', torch.__version__\\)\")",
       "Bash(pip3 install:*)",
-      "Bash(python3 -m agent.rnad.tests.test_rnad)"
+      "Bash(python3 -m agent.rnad.tests.test_rnad)",
+      "Bash(python3 generate_prob_tables.py)",
+      "Bash(python3 compute_conditional_probs.py)"
     ]
   }
 }

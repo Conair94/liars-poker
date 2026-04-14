@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2023.2.13)  14 APR 2026 14:13
+This is pdfTeX, Version 3.141592653-2.6-1.40.24 (TeX Live 2022) (preloaded format=pdflatex 2023.2.13)  14 APR 2026 15:15
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -698,90 +698,90 @@ Package pdftex.def Info: figures/hand_at_least.pdf  used on input line 216.
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 [3 <./figures/hand_probabilities.pdf>] [4 <./figures/hand_distribution.pdf> <./figures/hand_at_least.pdf>] [5]
-<figures/conditional_pair.pdf, id=366, 787.49083pt x 423.15604pt>
+<figures/conditional_pair.pdf, id=366, 787.6715pt x 423.15604pt>
 File: figures/conditional_pair.pdf Graphic file (type pdf)
 <use figures/conditional_pair.pdf>
 Package pdftex.def Info: figures/conditional_pair.pdf  used on input line 254.
-(pdftex.def)             Requested size: 452.9679pt x 243.40321pt.
-<figures/conditional_pair_atleast.pdf, id=367, 787.46007pt x 421.26898pt>
+(pdftex.def)             Requested size: 452.9679pt x 243.34511pt.
+<figures/conditional_pair_atleast.pdf, id=367, 787.73111pt x 421.26898pt>
 File: figures/conditional_pair_atleast.pdf Graphic file (type pdf)
 <use figures/conditional_pair_atleast.pdf>
 Package pdftex.def Info: figures/conditional_pair_atleast.pdf  used on input line 262.
-(pdftex.def)             Requested size: 452.9679pt x 242.33063pt.
-<figures/conditional_trips.pdf, id=368, 787.49083pt x 423.15604pt>
+(pdftex.def)             Requested size: 452.9679pt x 242.24065pt.
+<figures/conditional_trips.pdf, id=368, 787.6715pt x 423.15604pt>
 File: figures/conditional_trips.pdf Graphic file (type pdf)
 <use figures/conditional_trips.pdf>
 Package pdftex.def Info: figures/conditional_trips.pdf  used on input line 271.
-(pdftex.def)             Requested size: 452.9679pt x 243.40321pt.
+(pdftex.def)             Requested size: 452.9679pt x 243.34511pt.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-<figures/conditional_trips_atleast.pdf, id=369, 787.46007pt x 421.26898pt>
+<figures/conditional_trips_atleast.pdf, id=369, 787.73111pt x 421.26898pt>
 File: figures/conditional_trips_atleast.pdf Graphic file (type pdf)
 <use figures/conditional_trips_atleast.pdf>
 Package pdftex.def Info: figures/conditional_trips_atleast.pdf  used on input line 279.
-(pdftex.def)             Requested size: 452.9679pt x 242.33063pt.
+(pdftex.def)             Requested size: 452.9679pt x 242.24065pt.
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 [6
 
  <./figures/conditional_pair.pdf> <./figures/conditional_pair_atleast.pdf>] [7 <./figures/conditional_trips.pdf> <./figures/conditional_trips_atleast.pdf>] [8]
-<figures/conditional_suited.pdf, id=669, 787.49083pt x 423.15604pt>
+<figures/conditional_suited.pdf, id=669, 787.6715pt x 423.15604pt>
 File: figures/conditional_suited.pdf Graphic file (type pdf)
 <use figures/conditional_suited.pdf>
 Package pdftex.def Info: figures/conditional_suited.pdf  used on input line 312.
-(pdftex.def)             Requested size: 452.9679pt x 243.40321pt.
-<figures/conditional_suited_atleast.pdf, id=670, 787.46007pt x 421.26898pt>
+(pdftex.def)             Requested size: 452.9679pt x 243.34511pt.
+<figures/conditional_suited_atleast.pdf, id=670, 787.73111pt x 421.26898pt>
 File: figures/conditional_suited_atleast.pdf Graphic file (type pdf)
 <use figures/conditional_suited_atleast.pdf>
 Package pdftex.def Info: figures/conditional_suited_atleast.pdf  used on input line 321.
-(pdftex.def)             Requested size: 452.9679pt x 242.33063pt.
-<figures/conditional_3suited.pdf, id=671, 787.49083pt x 423.15604pt>
+(pdftex.def)             Requested size: 452.9679pt x 242.24065pt.
+<figures/conditional_3suited.pdf, id=671, 787.6715pt x 423.15604pt>
 File: figures/conditional_3suited.pdf Graphic file (type pdf)
 <use figures/conditional_3suited.pdf>
 Package pdftex.def Info: figures/conditional_3suited.pdf  used on input line 330.
-(pdftex.def)             Requested size: 452.9679pt x 243.40321pt.
+(pdftex.def)             Requested size: 452.9679pt x 243.34511pt.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-<figures/conditional_3suited_atleast.pdf, id=672, 787.46007pt x 421.26898pt>
+<figures/conditional_3suited_atleast.pdf, id=672, 787.73111pt x 421.26898pt>
 File: figures/conditional_3suited_atleast.pdf Graphic file (type pdf)
 <use figures/conditional_3suited_atleast.pdf>
 Package pdftex.def Info: figures/conditional_3suited_atleast.pdf  used on input line 339.
-(pdftex.def)             Requested size: 452.9679pt x 242.33063pt.
+(pdftex.def)             Requested size: 452.9679pt x 242.24065pt.
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
 [9
 
  <./figures/conditional_suited.pdf> <./figures/conditional_suited_atleast.pdf>] [10 <./figures/conditional_3suited.pdf> <./figures/conditional_3suited_atleast.pdf>]
-<figures/conditional_adjacent.pdf, id=968, 787.49083pt x 423.15604pt>
+<figures/conditional_adjacent.pdf, id=968, 787.6715pt x 423.15604pt>
 File: figures/conditional_adjacent.pdf Graphic file (type pdf)
 <use figures/conditional_adjacent.pdf>
 Package pdftex.def Info: figures/conditional_adjacent.pdf  used on input line 368.
-(pdftex.def)             Requested size: 452.9679pt x 243.40321pt.
-<figures/conditional_adjacent_atleast.pdf, id=969, 787.46007pt x 421.26898pt>
+(pdftex.def)             Requested size: 452.9679pt x 243.34511pt.
+<figures/conditional_adjacent_atleast.pdf, id=969, 787.73111pt x 421.26898pt>
 File: figures/conditional_adjacent_atleast.pdf Graphic file (type pdf)
 <use figures/conditional_adjacent_atleast.pdf>
 Package pdftex.def Info: figures/conditional_adjacent_atleast.pdf  used on input line 377.
-(pdftex.def)             Requested size: 452.9679pt x 242.33063pt.
-<figures/conditional_3range.pdf, id=970, 787.49083pt x 423.15604pt>
+(pdftex.def)             Requested size: 452.9679pt x 242.24065pt.
+<figures/conditional_3range.pdf, id=970, 787.6715pt x 423.15604pt>
 File: figures/conditional_3range.pdf Graphic file (type pdf)
 <use figures/conditional_3range.pdf>
 Package pdftex.def Info: figures/conditional_3range.pdf  used on input line 386.
-(pdftex.def)             Requested size: 452.9679pt x 243.40321pt.
+(pdftex.def)             Requested size: 452.9679pt x 243.34511pt.
 
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
-<figures/conditional_3range_atleast.pdf, id=971, 787.46007pt x 421.26898pt>
+<figures/conditional_3range_atleast.pdf, id=971, 787.73111pt x 421.26898pt>
 File: figures/conditional_3range_atleast.pdf Graphic file (type pdf)
 <use figures/conditional_3range_atleast.pdf>
 Package pdftex.def Info: figures/conditional_3range_atleast.pdf  used on input line 396.
-(pdftex.def)             Requested size: 452.9679pt x 242.33063pt.
+(pdftex.def)             Requested size: 452.9679pt x 242.24065pt.
 
 LaTeX Warning: `!h' float specifier changed to `!ht'.
 
@@ -827,7 +827,7 @@ Here is how much of TeX's memory you used:
  1141 hyphenation exceptions out of 8191
  60i,6n,68p,809b,1278s stack positions out of 10000i,1000n,20000p,200000b,200000s
 {/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/cm-super/cm-super-t1.enc}{/usr/local/texlive/2022/texmf-dist/fonts/enc/dvips/cm-super/cm-super-ts1.enc}</usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx8.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy8.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfbx1000.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfbx1095.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfbx1200.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfbx1440.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfrm1000.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfrm1200.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfrm1728.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfti1095.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sfti1200.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sftt1095.pfb></usr/local/texlive/2022/texmf-dist/fonts/type1/public/cm-super/sftt1200.pfb>
-Output written on Liars-poker.pdf (17 pages, 771480 bytes).
+Output written on Liars-poker.pdf (17 pages, 776054 bytes).
 PDF statistics:
  1549 PDF objects out of 1728 (max. 8388607)
  451 compressed objects within 5 object streams
