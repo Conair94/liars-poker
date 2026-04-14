@@ -36,7 +36,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 from .bids import (
-    Bid, CALL_ACTION, NUM_ACTIONS, NUM_BIDS,
+    Bid, CALL_ACTION, HH_ACTION, NUM_ACTIONS, NUM_BIDS,
     bid_to_index, index_to_bid, normalize_hand_type,
 )
 
@@ -51,6 +51,30 @@ from poker_math_exact import _evaluate_ranked  # noqa: E402
 MAX_HAND_SIZE = 5
 MIN_PLAYERS = 2
 MAX_PLAYERS = 5
+
+
+# ---------------------------------------------------------------------------
+# Exact-rules hand check
+# ---------------------------------------------------------------------------
+
+def has_exact_hand(pool: List[int], bid: Bid) -> bool:
+    """Return True if some 5-card subset of pool evaluates to EXACTLY bid.
+
+    Used in exact-rules mode: a bid of 'Pair A' only holds if the pool contains
+    a 5-card combination whose best hand is precisely Pair A (not three-of-a-kind
+    aces, not better, not worse).
+    """
+    from itertools import combinations
+    if len(pool) < 5:
+        raw_t, raw_p = _evaluate_ranked(pool)
+        t, p = normalize_hand_type(raw_t, raw_p)
+        return t == bid.hand_type and p == bid.primary_rank
+    for combo in combinations(pool, 5):
+        raw_t, raw_p = _evaluate_ranked(list(combo))
+        t, p = normalize_hand_type(raw_t, raw_p)
+        if t == bid.hand_type and p == bid.primary_rank:
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +108,8 @@ class RoundResult:
     pool: List[int]
     pool_best: Bid              # (hand_type, primary_rank) of the pool's best 5-card hand
     call_succeeded: bool        # True if the caller won (bid was a lie)
+    is_high_hand: bool = False  # True if resolved by High Hand declaration
+    declaration_correct: bool = False  # True if HH declaration was correct
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +171,10 @@ class MatchState:
             return list(range(NUM_BIDS))
         # Otherwise any strictly stronger bid, or a call.
         cur_idx = bid_to_index(rs.current_bid)
-        return list(range(cur_idx + 1, NUM_BIDS)) + [CALL_ACTION]
+        actions = list(range(cur_idx + 1, NUM_BIDS)) + [CALL_ACTION]
+        if self.high_hand:
+            actions.append(HH_ACTION)
+        return actions
 
     def apply_action(self, action: int) -> Optional[RoundResult]:
         """
@@ -169,6 +198,8 @@ class MatchState:
 
         if action == CALL_ACTION:
             return self._resolve_call(actor)
+        if action == HH_ACTION:
+            return self._resolve_high_hand(actor)
 
         # It's a raise (bid).
         new_bid = index_to_bid(action)
@@ -187,8 +218,10 @@ class MatchState:
         if self.round_state is not None:
             raise RuntimeError("a round is already in progress")
 
-        # Deal fresh hands to active players from a shuffled 52-card deck.
+        # Deal fresh hands to active players (53 cards if five-kings mode active).
         deck = list(range(52))
+        if self.five_kings:
+            deck.append(52)  # card 52 = King of Beers
         self.rng.shuffle(deck)
         hands: List[List[int]] = [[] for _ in range(self.num_players)]
         idx = 0
@@ -283,6 +316,86 @@ class MatchState:
 
     # --- internal helpers -------------------------------------------------
 
+    def _apply_high_hand_penalty_reward(self, penalized: int, rewarded: int) -> None:
+        """Apply High Hand card changes. Rules differ from standard call penalty."""
+        if self.mode == 'countdown':
+            new_pen = self.hand_sizes[penalized] - 1
+            if new_pen < 1:
+                self.active[penalized] = False
+                self.hand_sizes[penalized] = 0
+            else:
+                self.hand_sizes[penalized] = new_pen
+            if self.hand_sizes[rewarded] < MAX_HAND_SIZE:
+                self.hand_sizes[rewarded] += 1
+        else:
+            # Count up: rewarded loses a card; penalized gains a card
+            if self.hand_sizes[rewarded] == 1:
+                # Can't reduce rewarded to 0 — penalized gets double penalty
+                new_pen = self.hand_sizes[penalized] + 2
+                if new_pen > MAX_HAND_SIZE:
+                    self.active[penalized] = False
+                    self.hand_sizes[penalized] = 0
+                else:
+                    self.hand_sizes[penalized] = new_pen
+                # rewarded stays at 1
+            else:
+                self.hand_sizes[rewarded] -= 1
+                new_pen = self.hand_sizes[penalized] + 1
+                if new_pen > MAX_HAND_SIZE:
+                    self.active[penalized] = False
+                    self.hand_sizes[penalized] = 0
+                else:
+                    self.hand_sizes[penalized] = new_pen
+        # First bidder next round: penalized (or next active if eliminated)
+        if self.active[penalized]:
+            self.first_bidder_next = penalized
+        elif self.num_active() > 0:
+            self.first_bidder_next = self._next_active_seat(penalized)
+        else:
+            self.first_bidder_next = penalized
+
+    def _resolve_high_hand(self, declarer_seat: int) -> RoundResult:
+        rs = self.round_state
+        assert rs is not None and rs.current_bid is not None and rs.last_bidder >= 0
+
+        bid = rs.current_bid
+        bidder = rs.last_bidder
+
+        pool: List[int] = []
+        for s in range(self.num_players):
+            if self.active[s]:
+                pool.extend(rs.hands[s])
+
+        raw_type, raw_primary = _evaluate_ranked(pool)
+        pool_type, pool_primary = normalize_hand_type(raw_type, raw_primary)
+        pool_best = Bid(pool_type, pool_primary)
+
+        # Correct if pool best exactly equals the standing bid
+        correct = (pool_type == bid.hand_type and pool_primary == bid.primary_rank)
+        penalized = bidder if correct else declarer_seat
+        rewarded  = declarer_seat if correct else bidder
+
+        result = RoundResult(
+            loser_seat=penalized,
+            winner_seat=rewarded,
+            bid=bid,
+            caller_seat=declarer_seat,
+            pool=list(pool),
+            pool_best=pool_best,
+            call_succeeded=correct,
+            is_high_hand=True,
+            declaration_correct=correct,
+        )
+        self.round_history.append(result)
+        self._apply_high_hand_penalty_reward(penalized, rewarded)
+        self.round_state = None
+
+        if self.num_active() == 1:
+            self.terminal = True
+            self.winner = self.active_seats()[0]
+
+        return result
+
     def _apply_penalty(self, loser: int) -> None:
         """Apply card penalty to loser. Handles both countup and countdown modes."""
         if self.mode == 'countdown':
@@ -339,8 +452,11 @@ class MatchState:
         pool_type, pool_primary = normalize_hand_type(raw_type, raw_primary)
         pool_best = Bid(pool_type, pool_primary)
 
-        # Compare: pool_best >= bid?
-        bid_holds = (pool_type, pool_primary) >= (bid.hand_type, bid.primary_rank)
+        # Compare: standard mode = pool_best >= bid; exact mode = pool has exact bid subset
+        if self.exact_rules:
+            bid_holds = has_exact_hand(pool, bid)
+        else:
+            bid_holds = (pool_type, pool_primary) >= (bid.hand_type, bid.primary_rank)
 
         if bid_holds:
             loser = caller_seat

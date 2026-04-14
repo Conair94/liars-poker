@@ -23,9 +23,9 @@ for _p in (_PAPER_DIR, _AGENT_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from agent.game.engine import MatchState                      # noqa: E402
-from agent.game.bids import CALL_ACTION, NUM_BIDS, bid_to_index   # noqa: E402
-import numpy as np                                            # noqa: E402
+from agent.game.engine import MatchState                                     # noqa: E402
+from agent.game.bids import CALL_ACTION, HH_ACTION, NUM_BIDS, bid_to_index   # noqa: E402
+import numpy as np                                                             # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -54,16 +54,27 @@ class BlindBaselineAgent:
     def __init__(self) -> None:
         self._rng = random.Random()
 
-    def _get_p_at_least(self, n: int) -> Optional[np.ndarray]:
-        """Return (NUM_BIDS,) array of P(pool >= bid_i | pool size n)."""
+    def _get_p_at_least(self, n: int, state: MatchState) -> Optional[np.ndarray]:
+        """Return (NUM_BIDS,) P(pool >= bid_i | n) appropriate to game mode."""
         if n >= 5:
             try:
                 lookup = _get_warm_start()
+                # Exact rules mode: use dedicated exact-rules probability table if available
+                if getattr(state, 'exact_rules', False):
+                    exact_pal = lookup.get_exact_rules_at_least(n)
+                    if exact_pal is not None:
+                        return exact_pal
+                # Five-kings mode: use 53-card deck table if available
+                if getattr(state, 'five_kings', False):
+                    fk_pal = lookup.get_five_kings_at_least(n)
+                    if fk_pal is not None:
+                        return fk_pal
+                # Standard: marginal cumulative
                 marginal, _, _ = lookup.get_features([], n)
                 return np.flip(np.cumsum(np.flip(marginal))).astype(np.float32)
             except Exception:
                 pass
-        # n < 5 or WarmStart unavailable: use exact blind equilibrium p_at_least
+        # n < 5 or WarmStart unavailable: exact blind equilibrium
         try:
             from agent.baseline.blind_equilibrium import get_blind_equilibrium
             eq = get_blind_equilibrium(n)
@@ -74,7 +85,7 @@ class BlindBaselineAgent:
     def choose_action(self, state: MatchState) -> int:
         n = sum(state.hand_sizes[s] for s in state.active_seats())
 
-        p_at_least = self._get_p_at_least(n)
+        p_at_least = self._get_p_at_least(n, state)
         if p_at_least is None:
             return self._rng.choice(state.legal_actions())
 
@@ -106,7 +117,7 @@ class BlindBaselineAgent:
         if CALL_ACTION in legal and float(p_at_least[cur_idx]) < 0.5:
             return CALL_ACTION
 
-        bid_candidates = [a for a in legal if a != CALL_ACTION]
+        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
         if not bid_candidates:
             return CALL_ACTION
 
@@ -154,6 +165,11 @@ class ConditionalAgent:
         seat  = rs.current_player
         legal = state.legal_actions()
 
+        # Exact rules or five-kings: conditional tables aren't calibrated for these modes,
+        # so fall back to BlindBaselineAgent which will use the mode-specific PAL tables.
+        if getattr(state, 'exact_rules', False) or getattr(state, 'five_kings', False):
+            return self._blind.choose_action(state)
+
         # WarmStartLookup covers n=5..25; for small n use blind equilibrium.
         if n < 5 or n > 25:
             return self._blind.choose_action(state)
@@ -190,7 +206,7 @@ class ConditionalAgent:
             return CALL_ACTION
 
         # Standing bid is still within range: raise to the threshold (or just above).
-        bid_candidates = [a for a in legal if a != CALL_ACTION]
+        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
         if not bid_candidates:
             return CALL_ACTION
 

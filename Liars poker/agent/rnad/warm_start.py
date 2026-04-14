@@ -63,8 +63,10 @@ from agent.game.bids import all_bids, NUM_BIDS, Bid  # noqa: E402
 _RANK_NAMES = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
 _RANK_OF    = {name: i for i, name in enumerate(_RANK_NAMES)}
 
-_RANKED_COND_CACHE = os.path.join(_DATA_DIR, "extended_conditional_probs_ranked.json")
-_MARGINAL_CACHE    = os.path.join(_DATA_DIR, "hand_rank_probs_matrix.json")
+_RANKED_COND_CACHE  = os.path.join(_DATA_DIR, "extended_conditional_probs_ranked.json")
+_MARGINAL_CACHE     = os.path.join(_DATA_DIR, "hand_rank_probs_matrix.json")
+_EXACT_RULES_CACHE  = os.path.join(_DATA_DIR, "exact_rules_probs.json")
+_FIVE_KINGS_CACHE   = os.path.join(_DATA_DIR, "five_kings_probs.json")
 
 _BIDS = all_bids()  # stable reference, length NUM_BIDS
 
@@ -350,6 +352,44 @@ class WarmStartLookup:
     @property
     def known_conditions(self) -> set:
         return set(_KNOWN_CONDITIONS)
+
+    # ------------------------------------------------------------------
+    # Mode-specific probability tables (loaded lazily on first access)
+
+    def get_exact_rules_at_least(self, n: int) -> Optional[np.ndarray]:
+        """
+        Return P(pool contains 5-card exact match >= bid_i | n) for exact-rules mode.
+        Returns None if the cache file has not been generated yet.
+        Run agent/data/compute_exact_rules_probs.py to generate it.
+        """
+        if not hasattr(self, '_exact_rules'):
+            if not os.path.exists(_EXACT_RULES_CACHE):
+                return None
+            with open(_EXACT_RULES_CACHE) as f:
+                raw = json.load(f)
+            self._exact_rules: Dict[int, np.ndarray] = {
+                int(k): np.array(v["at_least"], dtype=np.float32)
+                for k, v in raw.items() if k not in ("n_samples",)
+            }
+        return self._exact_rules.get(n)
+
+    def get_five_kings_at_least(self, n: int) -> Optional[np.ndarray]:
+        """
+        Return P(pool_best >= bid_i | n, 53-card deck) for five-kings mode.
+        Index 110 = Five of a Kind Kings.
+        Returns None if the cache has not been generated yet.
+        Run agent/data/compute_five_kings_probs.py to generate it.
+        """
+        if not hasattr(self, '_five_kings'):
+            if not os.path.exists(_FIVE_KINGS_CACHE):
+                return None
+            with open(_FIVE_KINGS_CACHE) as f:
+                raw = json.load(f)
+            self._five_kings: Dict[int, np.ndarray] = {
+                int(k): np.array(v["at_least"], dtype=np.float32)
+                for k, v in raw.items() if k not in ("n_samples", "deck_size")
+            }
+        return self._five_kings.get(n)
 
     def coverage_report(self) -> None:
         """Print a summary of condition coverage and marginal availability."""

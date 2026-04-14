@@ -155,11 +155,35 @@ for (let ht = 0; ht <= 8; ht++) {
   const [lo, hi] = _PR[ht];
   for (let pr = lo; pr <= hi; pr++) ALL_BIDS.push({ht, pr});
 }
-const NUM_BIDS   = ALL_BIDS.length; // 110
-const CALL_ACTION = NUM_BIDS;       // 110
+let NUM_BIDS    = ALL_BIDS.length; // 110 (111 with five-kings)
+let CALL_ACTION = NUM_BIDS;        // 110 (111 with five-kings)
+let HH_ACTION   = NUM_BIDS + 1;   // 111 (112 with five-kings)
 
 const _BIDMAP = new Map();
 ALL_BIDS.forEach(({ht, pr}, i) => _BIDMAP.set(ht * 16 + pr, i));
+
+// ============================================================
+// FIVE-KINGS EASTER EGG helpers (toggled at game-start only)
+// ============================================================
+function _activateFiveKings() {
+  if (_BIDMAP.has(9 * 16 + 11)) return; // already active
+  ALL_BIDS.push({ht: 9, pr: 11});
+  _BIDMAP.set(9 * 16 + 11, ALL_BIDS.length - 1);
+  HAND_NAMES.push('Five of a Kind');
+  NUM_BIDS    = ALL_BIDS.length;  // 111
+  CALL_ACTION = NUM_BIDS;         // 111
+  HH_ACTION   = NUM_BIDS + 1;    // 112
+}
+
+function _deactivateFiveKings() {
+  if (!_BIDMAP.has(9 * 16 + 11)) return; // already off
+  ALL_BIDS.pop();
+  _BIDMAP.delete(9 * 16 + 11);
+  HAND_NAMES.pop();
+  NUM_BIDS    = ALL_BIDS.length;  // 110
+  CALL_ACTION = NUM_BIDS;         // 110
+  HH_ACTION   = NUM_BIDS + 1;    // 111
+}
 
 function bidToIndex(ht, pr)  { return _BIDMAP.get(ht * 16 + pr); }
 function indexToBid(i)       { return ALL_BIDS[i]; }
@@ -192,28 +216,29 @@ class RNG {
 function evaluateRanked(cards) {
   if (!cards.length) return {ht: 0, pr: 0};
 
-  const ranks = cards.map(c => c >> 2);
-  const suits = cards.map(c => c & 3);
+  // Card 52 = 5th King (King of Beers); treat as rank 11 (K), no suit for flush purposes
+  const ranks = cards.map(c => c === 52 ? 11 : (c >> 2));
+  const suits = cards.map((c, i) => c === 52 ? -1 : (c & 3)); // suit=-1 won't match flush
 
   const RC = new Int32Array(13);
   for (const r of ranks) RC[r]++;
 
   const SC = new Int32Array(4);
-  for (const s of suits) SC[s]++;
+  for (const s of suits) { if (s >= 0) SC[s]++; } // s=-1 for card 52 (no suit)
 
-  // Best flush suit (highest max-rank among qualifying suits)
+  // Best flush suit (highest max-rank among qualifying suits; card 52 has no suit)
   let flushSuit = -1, flushMax = -1;
   for (let s = 0; s < 4; s++) {
     if (SC[s] >= 5) {
       let mx = 0;
-      for (const c of cards) { if ((c & 3) === s && (c >> 2) > mx) mx = c >> 2; }
+      for (const c of cards) { if (c !== 52 && (c & 3) === s && (c >> 2) > mx) mx = c >> 2; }
       if (mx > flushMax) { flushMax = mx; flushSuit = s; }
     }
   }
   let flushRanks = null, flushSet = null;
   if (flushSuit >= 0) {
     flushRanks = [];
-    for (const c of cards) { if ((c & 3) === flushSuit) flushRanks.push(c >> 2); }
+    for (const c of cards) { if (c !== 52 && (c & 3) === flushSuit) flushRanks.push(c >> 2); }
     flushSet = new Set(flushRanks);
   }
 
@@ -227,6 +252,9 @@ function evaluateRanked(cards) {
     if (rSet.has(12)&&rSet.has(0)&&rSet.has(1)&&rSet.has(2)&&rSet.has(3)) return 3; // 5-high
     return -1;
   }
+
+  // Five of a Kind Kings (only possible with 5-kings easter egg)
+  if (RC[11] >= 5) return {ht: 9, pr: 11};
 
   // Straight Flush
   if (flushSet) {
@@ -268,6 +296,27 @@ function evaluateRanked(cards) {
   if (pairs.length === 1) return {ht: 1, pr: pairs[0]};
 
   return {ht: 0, pr: Math.max(...ranks)};
+}
+
+// hasExactHand: true if some 5-card subset of pool evaluates to EXACTLY {ht,pr}.
+// Used in Exact Hand Rules mode — a bid of "Pair A" requires a 5-card combo that
+// IS a pair of aces (not three of a kind aces, not better, not worse).
+function hasExactHand(pool, bid) {
+  const n = pool.length;
+  if (n < 5) {
+    const ev = evaluateRanked(pool);
+    return ev.ht === bid.ht && ev.pr === bid.pr;
+  }
+  // Enumerate all C(n,5) 5-card subsets (worst case n=25: 53,130 iterations)
+  for (let a = 0; a < n-4; a++)
+  for (let b = a+1; b < n-3; b++)
+  for (let c = b+1; c < n-2; c++)
+  for (let d = c+1; d < n-1; d++)
+  for (let e = d+1; e < n;   e++) {
+    const ev = evaluateRanked([pool[a],pool[b],pool[c],pool[d],pool[e]]);
+    if (ev.ht === bid.ht && ev.pr === bid.pr) return true;
+  }
+  return false;
 }
 
 // ============================================================
@@ -313,11 +362,13 @@ function legalActions(st) {
   const out = [];
   for (let i = base + 1; i < NUM_BIDS; i++) out.push(i);
   out.push(CALL_ACTION);
+  if (st.highHand) out.push(HH_ACTION); // declare standing bid is highest hand in pool
   return out;
 }
 
 function startRound(st) {
   const deck = Array.from({length: 52}, (_, i) => i);
+  if (st.fiveKings) deck.push(52); // add King of Beers
   st.rng.shuffle(deck);
   const hands = st.active.map(() => []);
   let idx = 0;
@@ -360,11 +411,91 @@ function _applyPenalty(st, loserSeat) {
   }
 }
 
+// Apply High Hand reward/penalty (different from call penalty — bidder may be rewarded).
+// Count Up:  penalty = +1 card; reward = -1 card.
+//            Edge case: if rewarded player has 1 card, penalized gains 2 instead of 1.
+// Count Down: penalty = -1 card; reward = +1 card.
+function _applyHighHandPenaltyReward(st, penalized, rewarded) {
+  if (st.mode === 'countdown') {
+    // Penalized loses a card
+    const newPenSz = st.handSizes[penalized] - 1;
+    if (newPenSz < 1) {
+      st.active[penalized] = false;
+      st.handSizes[penalized] = 0;
+    } else {
+      st.handSizes[penalized] = newPenSz;
+    }
+    // Rewarded gains a card (better in countdown — further from 0)
+    if (st.handSizes[rewarded] < 5) st.handSizes[rewarded]++;
+  } else {
+    // Count up: rewarded loses a card; penalized gains a card
+    if (st.handSizes[rewarded] === 1) {
+      // Can't go to 0 — penalized gets double penalty instead
+      const newPenSz = st.handSizes[penalized] + 2;
+      if (newPenSz > 5) {
+        st.active[penalized] = false;
+        st.handSizes[penalized] = 0;
+      } else {
+        st.handSizes[penalized] = newPenSz;
+      }
+      // Rewarded stays at 1
+    } else {
+      st.handSizes[rewarded]--;
+      const newPenSz = st.handSizes[penalized] + 1;
+      if (newPenSz > 5) {
+        st.active[penalized] = false;
+        st.handSizes[penalized] = 0;
+      } else {
+        st.handSizes[penalized] = newPenSz;
+      }
+    }
+  }
+  // First bidder for next round: penalized player (or next active if eliminated)
+  const left = activeSeats(st);
+  st.firstBidderNext = (st.active[penalized])
+    ? penalized
+    : (left.length > 0 ? nextActive(st, penalized) : penalized);
+}
+
+function _resolveHighHand(st) {
+  const rs = st.roundState;
+  const declarerSeat = rs.currentPlayer;
+  const bidder = rs.lastBidder;
+  const bid = rs.currentBid;
+
+  const pool = [];
+  for (let s = 0; s < st.numPlayers; s++) { if (st.active[s]) pool.push(...rs.hands[s]); }
+  const poolBest = evaluateRanked(pool);
+
+  // Correct if pool's best hand exactly equals the standing bid
+  const correct = (poolBest.ht === bid.ht && poolBest.pr === bid.pr);
+  const penalized = correct ? bidder : declarerSeat;
+  const rewarded  = correct ? declarerSeat : bidder;
+
+  const result = {
+    loserSeat: penalized, winnerSeat: rewarded,
+    bid: {...bid}, callerSeat: declarerSeat,
+    pool: [...pool], poolBest,
+    callSucceeded: correct,
+    isHighHand: true, declarationCorrect: correct
+  };
+  st.roundHistory.push(result);
+
+  _applyHighHandPenaltyReward(st, penalized, rewarded);
+  st.roundState = null;
+
+  const left = activeSeats(st);
+  if (left.length === 1) { st.terminal = true; st.winner = left[0]; }
+  return result;
+}
+
 function applyAction(st, action) {
   // Returns RoundResult or null
   const rs = st.roundState;
   const actor = rs.currentPlayer;
   rs.history.push([actor, action]);
+
+  if (action === HH_ACTION) return _resolveHighHand(st);
 
   if (action !== CALL_ACTION) {
     const b = indexToBid(action);
@@ -381,7 +512,7 @@ function applyAction(st, action) {
   for (let s = 0; s < st.numPlayers; s++) { if (st.active[s]) pool.push(...rs.hands[s]); }
 
   const poolBest = evaluateRanked(pool);
-  const bidHolds = bidGe(poolBest, bid);
+  const bidHolds = st.exactRules ? hasExactHand(pool, bid) : bidGe(poolBest, bid);
   const loser  = bidHolds ? actor : bidder;
   const winner = bidHolds ? bidder : actor;
 
@@ -443,7 +574,7 @@ class BlindBaselineAgent {
     const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
     if (legal.includes(CALL_ACTION) && palAt[curIdx] < 0.5) return CALL_ACTION;
 
-    const bidCands = legal.filter(a => a !== CALL_ACTION);
+    const bidCands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
     if (!bidCands.length) return CALL_ACTION;
     for (const a of bidCands) { if (a >= threshIdx) return a; }
     return bidCands[0];
@@ -513,7 +644,7 @@ class ConditionalAgent {
     const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
     if (legal.includes(CALL_ACTION) && palAt[curIdx] < 0.5) return CALL_ACTION;
 
-    const bidCands = legal.filter(a => a !== CALL_ACTION);
+    const bidCands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
     if (!bidCands.length) return CALL_ACTION;
     for (const a of bidCands) { if (a >= threshIdx) return a; }
     return bidCands[0];
@@ -747,6 +878,8 @@ function advanceAgents() {
 // 9. RENDERING HELPERS
 // ============================================================
 function cardHTML(cardIdx) {
+  if (cardIdx === 52)
+    return `<span class="card-chip" style="color:#c9a84c;border-color:#c9a84c">K🍺</span>`;
   const rank = cardIdx >> 2;
   const suit = cardIdx & 3;
   return `<span class="card-chip" style="color:${SUIT_CLR[suit]}">${RANK_NAMES[rank]}${SUIT_SYM[suit]}</span>`;
@@ -814,6 +947,7 @@ function renderBidHistory() {
   const items = rs.history.map(([seat, act]) => {
     const who = playerLabel(seat);
     if (act === CALL_ACTION) return `<li><b>${who}</b>: CALL</li>`;
+    if (act === HH_ACTION)   return `<li><b>${who}</b>: <span style="color:#5ba3d0">Declare Highest Hand</span></li>`;
     const b = indexToBid(act);
     return `<li class="cur"><b>${who}</b>: ${bidLabel(b.ht, b.pr)}</li>`;
   });
@@ -827,7 +961,7 @@ function renderBidHistory() {
 
 function _buildBidGroups() {
   const legal = legalActions(G.st);
-  const bidIdxs = legal.filter(a => a !== CALL_ACTION);
+  const bidIdxs = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
   const groups = {};
   for (const idx of bidIdxs) {
     const b = indexToBid(idx);
@@ -858,13 +992,12 @@ function renderActionArea() {
   let bidForm = '';
   if (bidIdxs.length) {
     const groups = _buildBidGroups();
-    // Hand type options (only those with legal bids)
+    // Hand type options (only those with legal bids; dynamic — supports ht=9 Five of a Kind)
     let htOpts = '';
     let firstHt = -1;
-    for (let ht = 0; ht <= 8; ht++) {
-      if (!groups[ht]) continue;
-      if (firstHt < 0) firstHt = ht;
-      htOpts += `<option value="${ht}">${HAND_NAMES[ht]}</option>`;
+    for (const htKey of Object.keys(groups).map(Number).sort((a,b)=>a-b)) {
+      if (firstHt < 0) firstHt = htKey;
+      htOpts += `<option value="${htKey}">${HAND_NAMES[htKey]}</option>`;
     }
     // Rank options for first legal hand type
     let prOpts = '';
@@ -886,14 +1019,18 @@ function renderActionArea() {
     </div>`;
   }
 
+  const canHH  = legal.includes(HH_ACTION);
   const callBtn = canCall
     ? `<button class="danger" onclick="doCall()" style="margin-top:1.55rem">Call Bluff</button>`
+    : '';
+  const hhBtn = canHH
+    ? `<button class="secondary" onclick="doHighHand()" style="margin-top:1.55rem" title="Declare the standing bid is the best hand in the pool">Declare Highest Hand</button>`
     : '';
 
   return `<div class="panel action-area">
     <h3>Your Action</h3>
     <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-start">
-      ${bidForm}${callBtn}
+      ${bidForm}${callBtn}${hhBtn}
     </div>
   </div>`;
 }
@@ -903,6 +1040,7 @@ function renderRoundHistory(history) {
   const items = history.map(([seat, act]) => {
     const who = playerLabel(seat);
     if (act === CALL_ACTION) return `<li><b>${who}</b>: <span style="color:#c0392b">Call Bluff</span></li>`;
+    if (act === HH_ACTION)   return `<li><b>${who}</b>: <span style="color:#5ba3d0">Declare Highest Hand</span></li>`;
     const b = indexToBid(act);
     return `<li><b>${who}</b>: ${bidLabel(b.ht, b.pr)}</li>`;
   });
@@ -920,19 +1058,33 @@ function renderResult(result, history, showNextBtn) {
   const callerName = playerLabel(result.callerSeat);
   const loserName  = playerLabel(result.loserSeat);
 
-  const outcome = result.callSucceeded
-    ? `${callerName} called the bluff — pool was only ${pbStr} (bid was ${bidStr})!`
-    : `${callerName}'s call failed — pool had ${pbStr} ≥ ${bidStr}!`;
+  let outcome;
+  if (result.isHighHand) {
+    outcome = result.declarationCorrect
+      ? `${callerName} declared correctly — pool best was exactly ${pbStr}! Bidder penalized.`
+      : `${callerName}'s highest-hand declaration was wrong — pool best was ${pbStr}, not exactly ${bidStr}!`;
+  } else {
+    outcome = result.callSucceeded
+      ? `${callerName} called the bluff — pool was only ${pbStr} (bid was ${bidStr})!`
+      : `${callerName}'s call failed — pool had ${pbStr} ≥ ${bidStr}!`;
+  }
 
   const isCountdown = G.st && G.st.mode === 'countdown';
   const penaltyTxt  = isCountdown ? '−1 card penalty' : '+1 card penalty';
   let titleCls, titleTxt;
   if (result.loserSeat === G.humanSeat) {
-    titleCls = 'result-title lose'; titleTxt = `You lost this round — ${penaltyTxt}`;
+    titleCls = 'result-title lose';
+    titleTxt = result.isHighHand
+      ? `You were penalized — ${penaltyTxt}`
+      : `You lost this round — ${penaltyTxt}`;
   } else if (result.winnerSeat === G.humanSeat) {
-    titleCls = 'result-title win'; titleTxt = 'You won this round!';
+    titleCls = 'result-title win';
+    titleTxt = result.isHighHand ? 'Your highest-hand declaration was correct!' : 'You won this round!';
   } else {
-    titleCls = 'result-title info'; titleTxt = `${loserName} lost this round`;
+    titleCls = 'result-title info';
+    titleTxt = result.isHighHand
+      ? `${loserName} was penalized (High Hand)`
+      : `${loserName} lost this round`;
   }
 
   const nextBtn = showNextBtn
@@ -1104,6 +1256,8 @@ function startGame() {
   const highHand   = document.getElementById('cfg-hh')?.checked || false;
   const exactRules = document.getElementById('cfg-exact')?.checked || false;
   const fiveKings  = document.getElementById('cfg-fiveKings')?.checked || false;
+  // Sync the bid space with the easter egg state before creating the match
+  if (fiveKings) _activateFiveKings(); else _deactivateFiveKings();
   G.humanSeat = (seat === -1) ? -1 : Math.max(0, Math.min(seat, np - 1));
   G.agentType = atype;
   G.st = newMatch(np, {mode, highHand, exactRules, fiveKings});
@@ -1147,6 +1301,17 @@ function doCall() {
   if (!legal.includes(CALL_ACTION)) return;
   G.curHistory.push([G.st.roundState.currentPlayer, CALL_ACTION]);
   const result = applyAction(G.st, CALL_ACTION);
+  G.lastResult = result;
+  G.lastHistory = [...G.curHistory];
+  G.waitingNext = true;
+  render();
+}
+
+function doHighHand() {
+  const legal = legalActions(G.st);
+  if (!legal.includes(HH_ACTION)) return;
+  G.curHistory.push([G.st.roundState.currentPlayer, HH_ACTION]);
+  const result = applyAction(G.st, HH_ACTION);
   G.lastResult = result;
   G.lastHistory = [...G.curHistory];
   G.waitingNext = true;

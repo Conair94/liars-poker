@@ -55,6 +55,7 @@ FULL_HOUSE      = 6
 FOUR_OF_A_KIND  = 7
 STRAIGHT_FLUSH  = 8
 ROYAL_FLUSH     = 9
+FIVE_OF_A_KIND  = 9  # reuses slot 9 when five-kings mode is active (RF not a distinct bid)
 
 HAND_NAMES = [
     "High Card", "Pair", "Two Pair", "Three of a Kind", "Straight",
@@ -124,7 +125,8 @@ _BID_TO_INDEX = {b: i for i, b in enumerate(_ALL_BIDS)}
 
 NUM_BIDS     = len(_ALL_BIDS)
 CALL_ACTION  = NUM_BIDS             # one past the last bid index
-NUM_ACTIONS  = NUM_BIDS + 1
+HH_ACTION    = NUM_BIDS + 1        # declare standing bid is highest hand in pool
+NUM_ACTIONS  = NUM_BIDS + 2        # standard action space includes CALL and HH
 
 
 def bid_to_index(bid: Bid) -> int:
