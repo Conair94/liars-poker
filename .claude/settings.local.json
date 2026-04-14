@@ -10,7 +10,14 @@
       "Bash(python3 compute_conditional_probs.py)",
       "Bash(python3 -)",
       "Bash(sort -t'\"' -k2 -n)",
-      "Bash(python3 -m pytest agent/game/tests/ agent/baseline/tests/ -q)"
+      "Bash(python3 -m pytest agent/game/tests/ agent/baseline/tests/ -q)",
+      "Bash(grep -E \"\\\\.\\(js|html|json\\)$\")",
+      "Bash(awk 'NR>=450 && NR<=650' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(awk 'NR>=696 && NR<=870' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(awk 'NR>=870 && NR<=1121' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(awk 'NR>=677 && NR<=697' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(awk 'NR>=682 && NR<=698' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(awk 'NR>=136 && NR<=170' \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")"
     ]
   }
 }
