@@ -7,7 +7,9 @@
       "Bash(pip3 install:*)",
       "Bash(python3 -m agent.rnad.tests.test_rnad)",
       "Bash(python3 generate_prob_tables.py)",
-      "Bash(python3 compute_conditional_probs.py)"
+      "Bash(python3 compute_conditional_probs.py)",
+      "Bash(python3 -)",
+      "Bash(sort -t'\"' -k2 -n)"
     ]
   }
 }
