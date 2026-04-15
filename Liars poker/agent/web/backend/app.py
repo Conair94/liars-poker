@@ -32,7 +32,8 @@ from agent.game.bids import (  # noqa: E402
     CALL_ACTION, NUM_BIDS, all_bids, bid_to_index, index_to_bid,
     HAND_NAMES, RANK_NAMES,
 )
-from .agents import BlindBaselineAgent, ConditionalAgent, RandomAgent  # noqa: E402
+from .agents import (BlindBaselineAgent, ConditionalAgent, RandomAgent,  # noqa: E402
+                     ExactRulesConditionalAgent, FiveKingsBlindAgent)
 
 app = FastAPI(title="Liar's Poker")
 
@@ -725,6 +726,10 @@ def new_game(
                 agents[seat] = BlindBaselineAgent()
             elif agent_type == "conditional":
                 agents[seat] = ConditionalAgent()
+            elif agent_type == "exactconditional":
+                agents[seat] = ExactRulesConditionalAgent()
+            elif agent_type == "fivekingsblind":
+                agents[seat] = FiveKingsBlindAgent()
             else:
                 agents[seat] = RandomAgent()
 

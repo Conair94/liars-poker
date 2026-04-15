@@ -27,7 +27,9 @@
       "Bash(awk '{print $1, $2, $3, $10, $11, $12, $13}')",
       "Bash(awk '{print $2, $3, $11, $12, $13}')",
       "Bash(awk '{print $2, $3, $11}')",
-      "Bash(python -m agent.data.embed_pal_tables)"
+      "Bash(python -m agent.data.embed_pal_tables)",
+      "Bash(md5 \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
+      "Bash(python3)"
     ]
   }
 }

@@ -356,22 +356,42 @@ class WarmStartLookup:
     # ------------------------------------------------------------------
     # Mode-specific probability tables (loaded lazily on first access)
 
+    def _load_exact_rules_cache(self) -> None:
+        if hasattr(self, '_exact_rules_exact'):
+            return
+        if not os.path.exists(_EXACT_RULES_CACHE):
+            self._exact_rules_exact: Dict[int, np.ndarray] = {}
+            self._exact_rules_at_least: Dict[int, np.ndarray] = {}
+            return
+        with open(_EXACT_RULES_CACHE) as f:
+            raw = json.load(f)
+        self._exact_rules_exact = {
+            int(k): np.array(v["exact"], dtype=np.float32)
+            for k, v in raw.items() if k not in ("n_samples",)
+        }
+        self._exact_rules_at_least = {
+            int(k): np.array(v["at_least"], dtype=np.float32)
+            for k, v in raw.items() if k not in ("n_samples",)
+        }
+
+    def get_exact_rules_exact(self, n: int) -> Optional[np.ndarray]:
+        """
+        Return P(pool contains 5-card subset with best hand exactly == bid_i | n).
+        This is a per-bid probability, NOT a cumulative at-least table.
+        Returns None if the cache has not been generated yet.
+        """
+        self._load_exact_rules_cache()
+        return self._exact_rules_exact.get(n)
+
     def get_exact_rules_at_least(self, n: int) -> Optional[np.ndarray]:
         """
         Return P(pool contains 5-card exact match >= bid_i | n) for exact-rules mode.
+        NOTE: This is the cumulative union sum — use get_exact_rules_exact() for
+        the per-bid exact probabilities needed by ExactRulesConditionalAgent.
         Returns None if the cache file has not been generated yet.
-        Run agent/data/compute_exact_rules_probs.py to generate it.
         """
-        if not hasattr(self, '_exact_rules'):
-            if not os.path.exists(_EXACT_RULES_CACHE):
-                return None
-            with open(_EXACT_RULES_CACHE) as f:
-                raw = json.load(f)
-            self._exact_rules: Dict[int, np.ndarray] = {
-                int(k): np.array(v["at_least"], dtype=np.float32)
-                for k, v in raw.items() if k not in ("n_samples",)
-            }
-        return self._exact_rules.get(n)
+        self._load_exact_rules_cache()
+        return self._exact_rules_at_least.get(n)
 
     def get_five_kings_at_least(self, n: int) -> Optional[np.ndarray]:
         """

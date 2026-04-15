@@ -228,57 +228,141 @@ class ConditionalAgent:
 # ---------------------------------------------------------------------------
 class ExactRulesBlindAgent:
     """
-    Marginal 50% threshold strategy calibrated for Exact Hand Rules mode.
+    "Peak probability" strategy for Exact Hand Rules mode (internal fallback).
 
-    Uses P(pool contains a 5-card subset with best hand >= bid | n) from
-    exact_rules_probs.json.  Falls back to BlindBaselineAgent (standard
-    probabilities) if the exact-rules cache has not been generated yet.
+    Uses exact_prob[i] = P(pool contains 5-card subset with best hand exactly == bid_i | n)
+    from exact_rules_probs.json.  This is a per-bid probability, NOT a cumulative table.
+
+    Strategy:
+      call_threshold = 0.3 * max(exact_prob[n])
+      Call when standing bid's exact prob < call_threshold.
+      Bid: among legal raises, pick the one with the highest exact probability.
+
+    Falls back to random if the cache has not been generated yet.
 
     See agent/AGENT_CATALOG.md for details.
     """
 
     def __init__(self) -> None:
-        self._blind = BlindBaselineAgent()
-        self._rng   = random.Random()
+        self._rng = random.Random()
+
+    @staticmethod
+    def _best_bid(candidates: list, exact_prob: np.ndarray) -> int:
+        return max(candidates, key=lambda a: float(exact_prob[a]) if a < len(exact_prob) else 0.0)
 
     def choose_action(self, state: MatchState) -> int:
-        n = sum(state.hand_sizes[s] for s in state.active_seats())
+        n     = sum(state.hand_sizes[s] for s in state.active_seats())
         rs    = state.round_state
         legal = state.legal_actions()
 
-        # Try exact-rules probability table first.
-        p_at_least: Optional[np.ndarray] = None
+        exact_prob: Optional[np.ndarray] = None
         if n >= 5:
             try:
                 lookup = _get_warm_start()
-                p_at_least = lookup.get_exact_rules_at_least(n)
+                exact_prob = lookup.get_exact_rules_exact(n)
             except Exception:
                 pass
 
-        if p_at_least is None:
-            # Cache not generated yet — degrade gracefully to standard blind.
-            return self._blind.choose_action(state)
+        if exact_prob is None:
+            return self._rng.choice(legal)
 
-        threshold_idx = 0
-        for i in range(len(p_at_least) - 1, -1, -1):
-            if p_at_least[i] >= 0.5:
-                threshold_idx = i
-                break
+        max_p = float(np.max(exact_prob))
+        call_threshold = 0.3 * max_p
+        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
 
         if rs.current_bid is None:
-            return threshold_idx if threshold_idx in legal else legal[0]
+            return self._best_bid(bid_candidates, exact_prob) if bid_candidates else legal[0]
 
         cur_idx = bid_to_index(rs.current_bid)
-        if CALL_ACTION in legal and float(p_at_least[cur_idx]) < 0.5:
+        cur_p = float(exact_prob[cur_idx]) if cur_idx < len(exact_prob) else 0.0
+        if CALL_ACTION in legal and cur_p < call_threshold:
             return CALL_ACTION
-
-        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
         if not bid_candidates:
             return CALL_ACTION
-        for a in bid_candidates:
-            if a >= threshold_idx:
-                return a
-        return bid_candidates[0]
+        return self._best_bid(bid_candidates, exact_prob)
+
+
+# ---------------------------------------------------------------------------
+class ExactRulesConditionalAgent:
+    """
+    Conditional "peak probability" strategy for Exact Hand Rules mode.
+
+    Adjusts per-bid exact probabilities using the agent's private hand via a
+    Bayesian likelihood-ratio correction:
+
+        adj_exact[i] ≈ exact_prob[i] × (cond_pmf[i] / marginal_pmf[i])
+
+    Where cond_pmf and marginal_pmf are derived from the conditional and marginal
+    p_at_least tables (CONDITIONAL_PAL / MARGINAL_PAL) converted to PMFs.
+    Ratio is capped at 10 to prevent runaway values.
+
+    Falls back to ExactRulesBlindAgent if no condition matches or cache missing.
+
+    See agent/AGENT_CATALOG.md for details.
+    """
+
+    def __init__(self) -> None:
+        self._blind = ExactRulesBlindAgent()
+
+    @staticmethod
+    def _pmf_from(pal: np.ndarray) -> np.ndarray:
+        """Convert p_at_least vector to PMF."""
+        pmf = np.zeros_like(pal)
+        pmf[:-1] = np.maximum(0, pal[:-1] - pal[1:])
+        pmf[-1]  = max(0.0, float(pal[-1]))
+        return pmf
+
+    def choose_action(self, state: MatchState) -> int:
+        n     = sum(state.hand_sizes[s] for s in state.active_seats())
+        rs    = state.round_state
+        seat  = rs.current_player
+        legal = state.legal_actions()
+
+        if n < 5 or n > 25:
+            return self._blind.choose_action(state)
+
+        try:
+            lookup = _get_warm_start()
+            exact_prob = lookup.get_exact_rules_exact(n)
+        except Exception:
+            exact_prob = None
+
+        if exact_prob is None:
+            return self._blind.choose_action(state)
+
+        # Likelihood-ratio adjustment from own hand condition.
+        adj_exact = exact_prob.copy()
+        try:
+            marginal, cond_vec, _ = lookup.get_features(rs.hands[seat], n)
+            marg_pmf = self._pmf_from(
+                np.flip(np.cumsum(np.flip(marginal))).astype(np.float32)
+            )
+            cond_pmf = self._pmf_from(
+                np.flip(np.cumsum(np.flip(cond_vec))).astype(np.float32)
+            )
+            mask = marg_pmf > 1e-9
+            ratio = np.where(mask, np.minimum(cond_pmf / np.where(mask, marg_pmf, 1.0), 10.0), 1.0)
+            adj_exact = exact_prob * ratio
+        except Exception:
+            pass  # Fall through with unadjusted exact_prob
+
+        max_p = float(np.max(adj_exact))
+        call_threshold = 0.3 * max_p
+        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
+
+        def best_bid(cands: list) -> int:
+            return max(cands, key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
+
+        if rs.current_bid is None:
+            return best_bid(bid_candidates) if bid_candidates else legal[0]
+
+        cur_idx = bid_to_index(rs.current_bid)
+        cur_p = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
+        if CALL_ACTION in legal and cur_p < call_threshold:
+            return CALL_ACTION
+        if not bid_candidates:
+            return CALL_ACTION
+        return best_bid(bid_candidates)
 
 
 # ---------------------------------------------------------------------------

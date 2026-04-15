@@ -63,7 +63,7 @@ def embed(dry_run: bool = False) -> None:
         html = f.read()
 
     # Build replacement strings
-    exact_js = _build_pal_js(EXACT_RULES_FILE, key="at_least")
+    exact_js = _build_pal_js(EXACT_RULES_FILE, key="exact")   # exact_prob[i], NOT at_least
     fk_js    = _build_pal_js(FIVE_KINGS_FILE,  key="at_least")
 
     # Replace placeholder or existing const declarations
