@@ -1292,7 +1292,7 @@ function renderResult(result, history, showNextBtn) {
     titleCls = 'result-title lose';
     titleTxt = result.isHighHand
       ? `You were penalized — ${penaltyTxt}`
-      : `Shoulda had the read — ${penaltyTxt}`;
+      : `Shoulda had the read, or at least believed in yourself — ${penaltyTxt}`;
   } else if (result.winnerSeat === G.humanSeat) {
     titleCls = 'result-title win';
     titleTxt = result.isHighHand ? 'Your highest-hand declaration was correct!' : 'You won this round!';
