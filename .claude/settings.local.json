@@ -23,7 +23,11 @@
       "Bash(python -m agent.data.compute_exact_rules_probs --samples 10000 --workers 8)",
       "Bash(python -m agent.data.compute_five_kings_probs --workers 8)",
       "Bash(ls -la \"/Users/connorlockhart/Documents/GitHub/liars-poker/Liars poker/agent/data/\"*.json)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(awk '{print $1, $2, $3, $10, $11, $12, $13}')",
+      "Bash(awk '{print $2, $3, $11, $12, $13}')",
+      "Bash(awk '{print $2, $3, $11}')",
+      "Bash(python -m agent.data.embed_pal_tables)"
     ]
   }
 }
