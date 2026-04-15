@@ -472,12 +472,15 @@ function _resolveHighHand(st) {
   const penalized = correct ? bidder : declarerSeat;
   const rewarded  = correct ? declarerSeat : bidder;
 
+  const hhHandsSnap = {};
+  for (let s = 0; s < st.numPlayers; s++) { if (st.active[s]) hhHandsSnap[s] = [...rs.hands[s]]; }
   const result = {
     loserSeat: penalized, winnerSeat: rewarded,
     bid: {...bid}, callerSeat: declarerSeat,
     pool: [...pool], poolBest,
     callSucceeded: correct,
-    isHighHand: true, declarationCorrect: correct
+    isHighHand: true, declarationCorrect: correct,
+    hands: hhHandsSnap
   };
   st.roundHistory.push(result);
 
@@ -516,8 +519,11 @@ function applyAction(st, action) {
   const loser  = bidHolds ? actor : bidder;
   const winner = bidHolds ? bidder : actor;
 
+  const handsSnap = {};
+  for (let s = 0; s < st.numPlayers; s++) { if (st.active[s]) handsSnap[s] = [...rs.hands[s]]; }
   const result = { loserSeat: loser, winnerSeat: winner, bid: {...bid},
-                   callerSeat: actor, pool: [...pool], poolBest, callSucceeded: !bidHolds };
+                   callerSeat: actor, pool: [...pool], poolBest, callSucceeded: !bidHolds,
+                   hands: handsSnap };
   st.roundHistory.push(result);
 
   _applyPenalty(st, loser);
@@ -581,39 +587,96 @@ class BlindBaselineAgent {
   }
 }
 
-class ConditionalAgent {
-  // Threshold strategy that adjusts the bid threshold based on the agent's private hand.
-  // Conditions (most-to-least specific): trips > pair > 3suited > suited > 3range > adjacent
-  // Positive conditions (e.g. pair) lower the threshold → agent bids more aggressively.
-  _matchCondition(hand) {
-    if (!hand || !hand.length) return null;
-    const ranks = hand.map(c => c >> 2);
-    const suits = hand.map(c => c & 3);
-    const RC = {}, SC = {};
-    for (const r of ranks) RC[r] = (RC[r] || 0) + 1;
-    for (const s of suits) SC[s] = (SC[s] || 0) + 1;
+// estimateConditionalPAL: online Monte Carlo estimation of P(pool_best >= bid_i | ownCards, n).
+// Removes own cards from the deck, samples the remaining opponent cards, evaluates the
+// full pool (own + opponent), and accumulates a p_at_least vector.
+// This is the correct conditional computation — it captures the card-removal effect
+// (own cards cannot appear in opponent hands) and conditions on exact held cards.
+//
+// nSamples=2000 takes ~5ms in modern JS and gives <1% standard error for most bids.
+function estimateConditionalPAL(ownCards, n, fiveKings, nSamples) {
+  nSamples = nSamples || 2000;
+  const deckSize = fiveKings ? 53 : 52;
+  const ownSet = new Set(ownCards);
+  const deck = [];
+  for (let i = 0; i < deckSize; i++) { if (!ownSet.has(i)) deck.push(i); }
 
-    if (Object.values(RC).some(c => c >= 3)) return 'trips';
-    if (Object.values(RC).some(c => c === 2)) return 'pair';
-    if (Object.values(SC).some(c => c >= 3)) return '3suited';
-    if (Object.values(SC).some(c => c === 2)) return 'suited';
+  const opponentCount = n - ownCards.length;
+  if (opponentCount < 0 || opponentCount > deck.length) return MARGINAL_PAL[String(n)] || null;
 
-    if (ranks.length >= 3) {
-      const ur = [...new Set(ranks)].sort((a, b) => a - b);
-      for (let i = 0; i <= ur.length - 3; i++) {
-        if (ur.filter(r => r - ur[i] <= 4).length >= 3) return '3range';
-      }
+  const counts = new Array(NUM_BIDS).fill(0);
+  for (let s = 0; s < nSamples; s++) {
+    // Partial Fisher-Yates: shuffle only the first opponentCount slots
+    for (let i = 0; i < opponentCount; i++) {
+      const j = i + Math.floor(Math.random() * (deck.length - i));
+      const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
     }
-    const ur = [...new Set(ranks)].sort((a, b) => a - b);
-    for (let i = 0; i < ur.length - 1; i++) {
-      if (ur[i + 1] - ur[i] === 1) return 'adjacent';
-    }
-    return null;
+    const pool = ownCards.concat(deck.slice(0, opponentCount));
+    const ev = evaluateRanked(pool);
+    const idx = bidToIndex(ev.ht, ev.pr);
+    if (idx >= 0 && idx < NUM_BIDS) counts[idx]++;
   }
 
-  _threshIdx(palAt, threshold) {
+  // Build p_at_least from counts (cumsum from top)
+  const palAt = new Array(NUM_BIDS).fill(0);
+  let running = 0;
+  for (let i = NUM_BIDS - 1; i >= 0; i--) {
+    running += counts[i] / nSamples;
+    palAt[i] = Math.min(running, 1.0);
+  }
+  return palAt;
+}
+
+// estimateExactConditionalProbs: online MC estimation of
+//   exact_prob[i] = P(pool contains 5-card subset with best hand exactly bid_i | ownCards, n)
+// Used by ExactRulesConditionalAgent for exact-rules mode.
+function estimateExactConditionalProbs(ownCards, n, nSamples) {
+  nSamples = nSamples || 2000;
+  const ownSet = new Set(ownCards);
+  const deck = [];
+  for (let i = 0; i < 52; i++) { if (!ownSet.has(i)) deck.push(i); }
+
+  const opponentCount = n - ownCards.length;
+  if (opponentCount < 0 || opponentCount > deck.length) return EXACT_RULES_PAL[String(n)] || null;
+
+  const counts = new Array(NUM_BIDS).fill(0);
+  for (let s = 0; s < nSamples; s++) {
+    for (let i = 0; i < opponentCount; i++) {
+      const j = i + Math.floor(Math.random() * (deck.length - i));
+      const tmp = deck[i]; deck[i] = deck[j]; deck[j] = tmp;
+    }
+    const pool = ownCards.concat(deck.slice(0, opponentCount));
+    // Collect all exact hands present (single O(C(n,5)) pass)
+    const present = new Set();
+    const pn = pool.length;
+    if (pn < 5) {
+      const ev = evaluateRanked(pool);
+      present.add(bidToIndex(ev.ht, ev.pr));
+    } else {
+      for (let a=0;a<pn-4;a++) for (let b=a+1;b<pn-3;b++) for (let c=b+1;c<pn-2;c++)
+      for (let d=c+1;d<pn-1;d++) for (let e=d+1;e<pn;e++) {
+        const ev = evaluateRanked([pool[a],pool[b],pool[c],pool[d],pool[e]]);
+        present.add(bidToIndex(ev.ht, ev.pr));
+      }
+    }
+    for (const idx of present) { if (idx >= 0 && idx < NUM_BIDS) counts[idx]++; }
+  }
+  return counts.map(c => c / nSamples);
+}
+
+class ConditionalAgent {
+  // Threshold strategy using online Monte Carlo to estimate P(pool_best >= bid | ownCards, n).
+  // Samples opponent cards from the remaining deck (after removing own cards), evaluating
+  // the full pool (own + sampled) to build a per-bid p_at_least vector.
+  //
+  // This correctly accounts for:
+  //   - Card removal: own cards cannot appear in opponent hands
+  //   - Exact card identities: conditions on specific held cards, not just hand type
+  //
+  // Falls back to MARGINAL_PAL for n outside 2..25 or if own hand is unavailable.
+  _threshIdx(palAt) {
     for (let i = NUM_BIDS - 1; i >= 0; i--) {
-      if (palAt[i] >= threshold) return i;
+      if (palAt[i] >= 0.5) return i;
     }
     return 0;
   }
@@ -621,21 +684,18 @@ class ConditionalAgent {
   choose(st) {
     const seats = activeSeats(st);
     const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
-    const nStr = String(n);
-
     const rs = st.roundState;
     const legal = legalActions(st);
-
-    // Detect private hand condition → use actual conditional p_at_least table.
-    // Falls back to MARGINAL_PAL when condition is unrecognised or n is out of range.
     const seat = rs.currentPlayer;
     const ownHand = (rs.hands && rs.hands[seat]) || [];
-    const condition = this._matchCondition(ownHand);
-    const condTable = condition && CONDITIONAL_PAL[condition];
-    const palAt = (condTable && condTable[nStr]) || MARGINAL_PAL[nStr];
+
+    // Online MC conditional PAL — conditions on exact own cards
+    const palAt = ownHand.length > 0
+      ? estimateConditionalPAL(ownHand, n, st.fiveKings)
+      : MARGINAL_PAL[String(n)];
     if (!palAt) return new RandomAgent().choose(st);
 
-    const threshIdx = this._threshIdx(palAt, 0.5);
+    const threshIdx = this._threshIdx(palAt);
 
     if (!rs.currentBid) {
       return legal.includes(threshIdx) ? threshIdx : legal[0];
@@ -687,79 +747,41 @@ class ExactRulesBlindAgent {
 
 class ExactRulesConditionalAgent {
   // Conditional "peak probability" strategy for Exact Hand Rules mode.
-  // Adjusts per-bid exact probs using own hand via a Bayesian likelihood-ratio:
+  // Uses online Monte Carlo to estimate exact_prob[i] = P(pool contains 5-card subset
+  // with best hand exactly bid_i | ownCards, n) by sampling opponent cards from the
+  // reduced deck (own cards removed).
   //
-  //   adj_exact[i] ≈ exact_prob[i] × (cond_pmf[i] / marginal_pmf[i])
-  //
-  // Where cond_pmf and marginal_pmf are derived from CONDITIONAL_PAL and MARGINAL_PAL
-  // (converted from p_at_least to PMF). Ratio is capped at 10.
-  // Falls back to ExactRulesBlindAgent behavior if no condition matches.
-  _pmfFrom(palAt) {
-    const pmf = new Array(palAt.length).fill(0);
-    for (let i = 0; i < palAt.length - 1; i++) pmf[i] = Math.max(0, palAt[i] - palAt[i+1]);
-    pmf[palAt.length - 1] = Math.max(0, palAt[palAt.length - 1]);
-    return pmf;
-  }
-
-  _matchCondition(hand) {
-    if (!hand || !hand.length) return null;
-    const ranks = hand.map(c => c >> 2);
-    const suits = hand.map(c => c & 3);
-    const RC = {}, SC = {};
-    for (const r of ranks) RC[r] = (RC[r] || 0) + 1;
-    for (const s of suits) SC[s] = (SC[s] || 0) + 1;
-    if (Object.values(RC).some(c => c >= 3)) return 'trips';
-    if (Object.values(RC).some(c => c === 2)) return 'pair';
-    if (Object.values(SC).some(c => c >= 3)) return '3suited';
-    if (Object.values(SC).some(c => c === 2)) return 'suited';
-    if (ranks.length >= 3) {
-      const ur = [...new Set(ranks)].sort((a,b) => a-b);
-      for (let i = 0; i <= ur.length-3; i++) {
-        if (ur.filter(r => r-ur[i] <= 4).length >= 3) return '3range';
-      }
-    }
-    const ur = [...new Set(ranks)].sort((a,b) => a-b);
-    for (let i = 0; i < ur.length-1; i++) { if (ur[i+1]-ur[i] === 1) return 'adjacent'; }
-    return null;
-  }
-
+  // Strategy:
+  //   callThreshold = 0.3 × max(adj_exact_prob[n])
+  //   Call when standing bid exact prob < callThreshold.
+  //   Bid: among legal raises, pick the one with the highest estimated exact prob.
   choose(st) {
     const seats = activeSeats(st);
     const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
-    const exactProb = EXACT_RULES_PAL[String(n)];
-    if (!exactProb) return new RandomAgent().choose(st);
-
-    const nStr = String(n);
     const rs = st.roundState;
     const legal = legalActions(st);
     const seat = rs.currentPlayer;
     const ownHand = (rs.hands && rs.hands[seat]) || [];
-    const condition = this._matchCondition(ownHand);
 
-    // Build adjusted exact probs via likelihood-ratio correction from own hand condition.
-    let adjExact = exactProb.slice();
-    const margPal = MARGINAL_PAL[nStr];
-    const condPal = condition && CONDITIONAL_PAL[condition] && CONDITIONAL_PAL[condition][nStr];
-    if (margPal && condPal) {
-      const margPmf = this._pmfFrom(margPal);
-      const condPmf = this._pmfFrom(condPal);
-      for (let i = 0; i < exactProb.length; i++) {
-        const ratio = margPmf[i] > 1e-9 ? Math.min(condPmf[i] / margPmf[i], 10) : 1;
-        adjExact[i] = exactProb[i] * ratio;
-      }
-    }
+    // Online MC exact conditional probs — conditions on exact own cards
+    // Use fewer samples than standard mode because the C(n,5) inner loop is expensive
+    const nSamples = n <= 7 ? 500 : n <= 9 ? 300 : n <= 11 ? 150 : 75;
+    const exactProb = ownHand.length > 0
+      ? estimateExactConditionalProbs(ownHand, n, nSamples)
+      : EXACT_RULES_PAL[String(n)];
+    if (!exactProb) return new RandomAgent().choose(st);
 
-    const maxP = Math.max(...adjExact);
+    const maxP = Math.max(...exactProb);
     const callThreshold = 0.3 * maxP;
     const cands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
     const bestBid = cands.length
-      ? cands.reduce((best, a) => (adjExact[a] || 0) > (adjExact[best] || 0) ? a : best, cands[0])
+      ? cands.reduce((best, a) => (exactProb[a] || 0) > (exactProb[best] || 0) ? a : best, cands[0])
       : CALL_ACTION;
 
     if (!rs.currentBid) return cands.length ? bestBid : legal[0];
 
     const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
-    if (legal.includes(CALL_ACTION) && (adjExact[curIdx] || 0) < callThreshold) return CALL_ACTION;
+    if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
     return cands.length ? bestBid : CALL_ACTION;
   }
 }
@@ -1248,7 +1270,6 @@ function renderRoundHistory(history) {
 }
 
 function renderResult(result, history, showNextBtn) {
-  const pool = result.pool.sort((a,b)=>a-b).map(cardHTML).join('');
   const pb = result.poolBest;
   const pbStr = bidLabel(pb.ht, pb.pr);
   const bidStr = bidLabel(result.bid.ht, result.bid.pr);
@@ -1284,15 +1305,30 @@ function renderResult(result, history, showNextBtn) {
       : `${loserName} lost this round`;
   }
 
+  // Per-player hand reveal
+  const handRows = result.hands
+    ? Object.entries(result.hands).map(([s, cards]) => {
+        const sNum = parseInt(s);
+        const label = sNum === G.humanSeat ? 'You' : playerLabel(sNum);
+        const cardSpans = [...cards].sort((a,b)=>a-b).map(cardHTML).join('');
+        const isLoser  = sNum === result.loserSeat;
+        const isWinner = sNum === result.winnerSeat;
+        const marker = isLoser ? ' ✗' : isWinner ? ' ✓' : '';
+        const color  = isLoser ? '#e05050' : isWinner ? '#50c878' : '#8090a8';
+        return `<div style="margin-bottom:0.35rem">
+          <span style="color:${color};font-size:0.85rem;min-width:72px;display:inline-block">${label}${marker}</span>
+          <span class="cards-row" style="display:inline-flex">${cardSpans}</span>
+        </div>`;
+      }).join('')
+    : `<div class="pool-cards"><span style="color:#8090a8;font-size:0.85rem">Pool: </span>${result.pool.sort((a,b)=>a-b).map(cardHTML).join('')}</div>`;
+
   const nextBtn = showNextBtn
     ? `<button onclick="doNextRound()" style="margin-top:0.75rem">Next Round →</button>` : '';
 
   return `<div class="result-box">
     <div class="${titleCls}">${titleTxt}</div>
     <div style="margin:0.4rem 0;font-size:0.9rem">${outcome}</div>
-    <div class="pool-cards" style="margin:0.5rem 0">
-      <span style="color:#8090a8;font-size:0.85rem">Pool: </span>${pool}
-    </div>
+    <div style="margin:0.5rem 0">${handRows}</div>
   </div>
   ${renderRoundHistory(history)}
   ${nextBtn}`;
@@ -1372,7 +1408,6 @@ function renderSetup() {
         </optgroup>
         <optgroup label="Mode-Specific">
           <option value="exactconditional">Exact Rules Conditional (exact-mode)</option>
-          <option value="fivekingsblind">Five-Kings Blind (53-card calibrated)</option>
         </optgroup>
       </select>
     </div>
@@ -1467,10 +1502,9 @@ function startGame() {
   G.agents = {};
   for (let s = 0; s < np; s++) {
     if (s !== G.humanSeat) {
-      G.agents[s] = atype === 'blind'          ? new BlindBaselineAgent()
-                 : atype === 'conditional'     ? new ConditionalAgent()
+      G.agents[s] = atype === 'blind'           ? new BlindBaselineAgent()
+                 : atype === 'conditional'      ? new ConditionalAgent()
                  : atype === 'exactconditional' ? new ExactRulesConditionalAgent()
-                 : atype === 'fivekingsblind'   ? new FiveKingsBlindAgent()
                  : new RandomAgent();
     }
   }
