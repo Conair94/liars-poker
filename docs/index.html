@@ -1242,9 +1242,7 @@ function renderActionArea() {
   const callBtn = canCall
     ? `<button class="danger" onclick="doCall()" style="margin-top:1.55rem">Call Bluff</button>`
     : '';
-  const hhBtn = canHH
-    ? `<button class="secondary" onclick="doHighHand()" style="margin-top:1.55rem" title="Declare the standing bid is the best hand in the pool">Declare Highest Hand</button>`
-    : '';
+  const hhBtn = ''; // High Hand Declaration temporarily hidden
 
   return `<div class="panel action-area">
     <h3>Your Action</h3>
@@ -1420,10 +1418,13 @@ function renderSetup() {
     </div>
   </div>
   <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
+    <!-- High Hand Declaration: hidden until feature is re-enabled
     <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem;color:#a0a8c0">
       <input type="checkbox" id="cfg-hh" style="width:auto;margin-bottom:0">
       High Hand Declaration
     </label>
+    -->
+    <input type="checkbox" id="cfg-hh" style="display:none">
     <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem;color:#a0a8c0">
       <input type="checkbox" id="cfg-exact" style="width:auto;margin-bottom:0">
       Exact Hand Rules <span style="font-size:0.78rem;color:#5a6a8a">(agents uncalibrated)</span>
