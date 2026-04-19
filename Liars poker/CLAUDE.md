@@ -156,6 +156,26 @@ def get_hand_rank_counts(n, n_samples=3_000_000, seed=42)
 
 ---
 
+## Official Game Rules (this project's canonical rule set)
+
+These rules are NOT identical to any published standard — Liar's Poker has no canonical rule set. The following are the project's defined variants, each selectable via flags in `new_match()`.
+
+### Bid space
+All bids are valid: **High Card 2 through Straight Flush A** (110 bids total). High Card bids (HC 2..HC A) are explicitly included as the weakest bid tier. This is a deliberate design choice: including High Card makes the game more strategically balanced, particularly at small pool sizes where Pair+ bids are rare.
+
+### Resolution variants (mutually exclusive via `exact_rules` flag)
+- **At-least rules** (`exact_rules=False`, default): bid holds if pool's best 5-card hand ≥ bid. The blind equilibrium first bid tracks the ~50% probability threshold.
+- **Exact rules** (`exact_rules=True`): bid holds only if some 5-card subset of the pool evaluates to **exactly** the bid (same hand type AND primary rank). Structurally closer to Texas Hold'em — requires opponent hand range modeling. The blind equilibrium first bid is always HC A for n=2..10; the first bidder has EV<0 for small pools.
+
+### Match mode variants
+- **Count-up** (`mode='countup'`, default): start at hand_size=1, grow on loss, eliminated at 6
+- **Count-down** (`mode='countdown'`): start at hand_size=5, shrink on loss, eliminated at 0
+
+### High Card bids are OFFICIAL
+High Card bids must always be accepted as valid bids in all rule variants. Do not disable or filter them. Under exact rules at small pool sizes, HC A is the theoretically optimal first bid.
+
+---
+
 ## Important Design Notes
 
 ### Wu & Wu "contains" vs. "best-hand-equals"
