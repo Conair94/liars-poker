@@ -80,6 +80,24 @@ Under **exact rules** a bid B resolves to "does any 5-card subset of the opponen
 
 **Consequence for the agent:** The at-least agent can get by with good probability tables and a minimal history encoder. The exact-rules agent needs an explicit Bayesian range tracker that updates a per-opponent range estimate from each observed bid. The range tracker output — not just the marginal pool probabilities — becomes the primary input for both the call/raise decision and the value function.
 
+**Blind equilibrium comparison results (n=2..10, cached):**
+
+| n | At-least 1st bid | p(holds) | EV₀ | Exact 1st bid | p(holds) | EV₀ |
+|---|---|---|---|---|---|---|
+| 2 | HC J | 0.566 | +0.085 | HC A | 0.145 | **−0.709** |
+| 5 | Pair 2 | 0.500 | +0.000 | HC A | 0.194 | **−0.612** |
+| 8 | Two Pair 10 | 0.503 | +0.006 | HC A | 0.496 | **−0.009** |
+| 9 | Two Pair K | 0.561 | +0.005 | HC A | 0.543 | **+0.087** |
+| 10 | Straight 9 | 0.503 | +0.006 | HC A | 0.586 | **+0.173** |
+
+Key findings:
+
+1. **Exact first bid = HC A for all n=2..10.** Under at-least rules the first bid tracks the ~50% probability threshold across hand types (HC J, Pair 2, Two Pair 10, Straight 9 as n grows). Under exact rules the first bid is always High Card Ace, because HC A is the most probable single exact hand outcome for any pool size — an Ace is the most common max-rank card and High Card is the dominant hand type when pools are small.
+
+2. **First-mover DISADVANTAGE under exact rules at small n.** At n=2 (Stage A hand sizes), EV₀=−0.709 — whoever is forced to bid first has a severe structural disadvantage. This inverts around n≈8 and the first bidder gains advantage at n=9..10. Under at-least rules EV₀≈0 for all n. This is a critical meta-game consequence for the elimination match: losing a round (which forces you to bid first next round at a larger hand size) transitions from a penalty → neutral → bonus as hand sizes grow.
+
+3. **The forcing mechanism.** Bidding HC A forces the opponent to either (a) call a low-probability bid (good for first bidder when n is small and P_exact(HC A) is low) or (b) raise to Pair or higher, committing to a harder-to-hold exact subset. As n grows and P_exact(HC A) approaches and exceeds 0.5, the first bid becomes more credible and the first bidder gains power.
+
 **Note on rule standardization:** Neither "at-least" nor "exact-subset" resolution is formally standardized in Liar's Poker. The game has no canonical rule set across variants and cultures. Both are folk rules; this project defines them precisely in §2 and treats them as two distinct games.
 
 ### 2.7 Tests against ground truth
@@ -300,6 +318,6 @@ Per workspace convention, all Stage 2 code lives inside the paper folder — no 
 4. **Extended conditional granularity ceiling.** Do we stop at "pair of 2s" level, or push to "pair of 2s + adjacent suited kicker"-type compound conditions? Each level of granularity multiplies MC compute; diminishing returns are likely past single-feature conditioning.
 5. **Paper vs. product.** Is the web interface part of the academic artifact (reproducible demo) or a separate side project? Affects polish level.
 6. **Range tracker likelihood initialization.** The Bayesian range tracker (§5.4) needs a likelihood function L(bid | range) to compute updates. Before the network is trained, what prior to use? Options: (a) uniform over legal bids, (b) blind-equilibrium bid frequencies per pool size, (c) learned jointly with the policy. Option (b) is the natural warm-start: the blind equilibrium tells us what a rational player with no private info would bid, giving a plausible default likelihood.
-7. **Exact-rules blind equilibrium.** The at-least blind equilibrium is cached and validated (§4.1). The exact-rules blind equilibrium must be recomputed from scratch using the `has_exact_hand()` resolution path in `engine.py`. The backward induction solver in `agent/baseline/blind_equilibrium.py` already supports `exact_rules=True` via the engine — need to run and cache for n=2..10.
+7. ~~**Exact-rules blind equilibrium.**~~ **RESOLVED.** Computed and cached for n=2..10 via `get_blind_equilibrium_exact()`. First bid = HC A for all n; see §2.6 results table. Cache key prefix: `"exact_{n}"` in `agent/data/blind_equilibrium.json`.
 
 These should be resolved as training progresses through Stages A–C.
