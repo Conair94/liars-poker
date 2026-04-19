@@ -29,7 +29,10 @@
       "Bash(awk '{print $2, $3, $11}')",
       "Bash(python -m agent.data.embed_pal_tables)",
       "Bash(md5 \"/Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html\")",
-      "Bash(python3)"
+      "Bash(python3)",
+      "WebSearch",
+      "Skill(claude-coding:commit)",
+      "Skill(claude-coding:commit:*)"
     ]
   }
 }
