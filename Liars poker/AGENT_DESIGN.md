@@ -80,6 +80,22 @@ Under **exact rules** a bid B resolves to "does any 5-card subset of the opponen
 
 **Consequence for the agent:** The at-least agent can get by with good probability tables and a minimal history encoder. The exact-rules agent needs an explicit Bayesian range tracker that updates a per-opponent range estimate from each observed bid. The range tracker output — not just the marginal pool probabilities — becomes the primary input for both the call/raise decision and the value function.
 
+**Critical limitation of the blind equilibrium under exact rules:**
+
+The blind equilibrium computes the correct Nash for the *blind game* (no private info). Under exact rules, private cards create a **massive conditional shift** that the blind equilibrium cannot see:
+
+| Situation | P(HC A holds \| n=2) | Call EV |
+|---|---|---|
+| Blind (no info) | 0.145 | +0.710 |
+| You hold an Ace | **0.941** | −0.883 ← never call |
+| You hold a King | **0.078** | +0.843 ← always call |
+
+The ratio is **12x**. The blind equilibrium's recommendation to "bid HC A" is correct only for a player who holds an Ace. A non-Ace holder bidding HC A will be called almost every time and lose. Similarly, the rational first bid for a player holding rank r is approximately HC r (not HC A), since P(HC r \| hold rank r) ≈ 0.63 — the player commits to the exact hand they know they can support.
+
+**Implication:** Under exact rules, the blind equilibrium is a **convergence sanity check only** — not a strategy guide for the full game. The real strategic signal is the private-card-conditioned probability P_exact(b \| my cards), which is the dominant input to any sensible exact-rules policy. The Bayesian range tracker (§5.4) and conditional probability warm-start (§4.2) become primary, not secondary.
+
+Under at-least rules the private-info shift is small (a pair in hand shifts the ~50% threshold by a few bids). Under exact rules the shift is enormous and the blind equilibrium is misleading if applied to the full game.
+
 **Blind equilibrium comparison results (n=2..10, cached):**
 
 | n | At-least 1st bid | p(holds) | EV₀ | Exact 1st bid | p(holds) | EV₀ |
@@ -135,8 +151,9 @@ Stage 1 produced blind marginal tables (`hand_probabilities.json`) and condition
 The **blind variant** removes private cards — players bid over the shared public pool prior only. This is a family of small extensive-form games, one per `(N, hand_size_profile)`, each with a known common prior.
 
 - Ground-truth equilibrium computable by backward induction / LP on the small EFG.
-- Each configuration produces an equilibrium bid-frequency table, cached to `baseline_blind_{N}_{profile}.json`.
-- Serves as: (a) R-NaD sanity check (trainer must recover the cached policy within ε on the blind variant), and (b) a curriculum stage (pretrain on blind, fine-tune on full game).
+- Each configuration produces an equilibrium bid-frequency table, cached to `agent/data/blind_equilibrium.json` (keys `"{n}"` for at-least, `"exact_{n}"` for exact).
+- **Under at-least rules:** serves as both (a) R-NaD convergence sanity check and (b) a reasonable first-approximation strategy (private cards shift the threshold only slightly).
+- **Under exact rules:** serves as (a) R-NaD convergence sanity check **only**. The blind equilibrium's strategy (bid HC A, call everything) is NOT a useful approximation for the full game. Private cards shift the effective probability by up to 12x (see §2.6). Do not use the blind equilibrium as a warm-start strategy target under exact rules — use the conditional probability tables (§4.2) instead.
 
 ### 4.2 Probability tables as network warm-start
 The Stage 1 marginal and conditional probability tables feed directly into the policy/value network as **fixed auxiliary features**, so the agent starts from Bayesian-optimal beliefs rather than learning them from scratch:

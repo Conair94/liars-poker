@@ -446,7 +446,298 @@ def test_engine_exact_rules_resolution():
 
 
 # ===========================================================================
-# D. Rule-set checks — High Card bids are legal
+# D. Conditional private-info shift — blind equilibrium limitations
+#
+# The blind equilibrium computes the correct Nash for the BLIND game (no
+# private info). Under exact rules, private cards dramatically change the
+# effective probability that a bid holds. These tests make that concrete and
+# serve as a warning against over-interpreting the blind equilibrium as
+# strategy guidance for the full game.
+# ===========================================================================
+
+def _p_exact_conditional_n2(my_card: int, bid: Bid) -> float:
+    """
+    Enumerate all 51 possible opponent cards and compute
+    P(has_exact_hand(pool={my_card, opp_card}, bid)) exactly.
+    """
+    deck = list(range(52))
+    deck.remove(my_card)
+    hits = sum(
+        1 for opp in deck
+        if has_exact_hand([my_card, opp], bid)
+    )
+    return hits / len(deck)
+
+
+def test_conditional_hca_given_ace_vs_no_ace():
+    """
+    KEY INSIGHT TEST: The blind P_exact(HC A, n=2) = 0.145 is a weighted
+    average of two wildly different conditional probabilities:
+
+      P(HC A holds | I hold Ace)    ≈ 0.94  → bidding HC A is VERY safe
+      P(HC A holds | I hold non-Ace) ≈ 0.08  → bidding HC A is FOOLISH
+
+    Under at-least rules the private-info shift is small (the blind
+    equilibrium is a reasonable first approximation). Under exact rules
+    the shift is enormous: the blind equilibrium's recommendation to
+    "bid HC A" is ONLY valid for a player holding an Ace.
+
+    This test verifies those conditional values and confirms the blind
+    equilibrium is NOT a meaningful strategy guide for the full exact game.
+    """
+    hca_bid = Bid(HIGH_CARD, 12)
+    ace_c   = _card(12, 0)   # A♣
+    king_h  = _card(11, 2)   # K♥
+
+    # P(HC A holds | I hold Ace)
+    p_given_ace = _p_exact_conditional_n2(ace_c, hca_bid)
+    # P(HC A holds | I hold King, no Ace)
+    p_given_king = _p_exact_conditional_n2(king_h, hca_bid)
+
+    # Blind (marginal) probability
+    blind_p = 192 / 1326  # exact = 0.14480
+
+    # Conditional with Ace should be very high (~0.94: only fails if opp also has Ace)
+    # 3 other Aces out of 51 remaining cards → P(pair Aces) = 3/51 ≈ 0.059
+    # HC A holds iff no pair Aces: P ≈ 1 - 3/51 = 48/51
+    assert p_given_ace > 0.90, (
+        f"P(HC A holds | hold Ace) = {p_given_ace:.4f}; expected ~48/51 ≈ 0.941"
+    )
+
+    # Conditional without Ace should be very low (~0.08: only holds if opp has Ace)
+    # 4 Aces out of 51 remaining cards → P = 4/51 ≈ 0.078
+    assert p_given_king < 0.10, (
+        f"P(HC A holds | hold King) = {p_given_king:.4f}; expected ~4/51 ≈ 0.078"
+    )
+
+    # The ratio should be enormous — private info is the dominant signal
+    ratio = p_given_ace / max(p_given_king, 1e-9)
+    assert ratio > 10, (
+        f"Conditional ratio should be >10x: P(Ace)={p_given_ace:.4f} / "
+        f"P(no-Ace)={p_given_king:.4f} = {ratio:.1f}x"
+    )
+
+    print(
+        f"  test_conditional_hca_given_ace_vs_no_ace: PASS\n"
+        f"    Blind P_exact(HC A)     = {blind_p:.4f}\n"
+        f"    P(HC A | hold Ace)      = {p_given_ace:.4f}  ← rational to bid\n"
+        f"    P(HC A | hold King)     = {p_given_king:.4f}  ← irrational to bid\n"
+        f"    Ratio                   = {ratio:.1f}x\n"
+        f"    → Blind equilibrium should NOT be used as strategy guidance "
+        f"for the full exact game."
+    )
+
+
+def test_rational_first_bid_depends_on_private_card():
+    """
+    Verify the rational first bid for a player holding rank r is to bid
+    HC r (not HC A, unless they hold an Ace).
+
+    For a player holding card of rank r:
+      - P(HC r holds | hold rank r) = P(opp has no rank ≥ r AND no pair with r)
+      - P(HC r+1 holds | hold rank r) ≈ P(opp has rank r+1 and no higher) << above
+      - P(HC A holds | hold rank r < A) ≈ 4/51 ≈ 0.08
+
+    The conditionally optimal bid is approximately HC r: the player commits
+    to the one HC bid they know is the pool's best HC if opponent has no Ace.
+    """
+    # For a player holding rank 8 (T = index 8):
+    ten_c = _card(8, 0)  # T♣
+    hct_bid = Bid(HIGH_CARD, 8)   # HC T
+    hca_bid = Bid(HIGH_CARD, 12)  # HC A
+
+    p_hct_given_ten = _p_exact_conditional_n2(ten_c, hct_bid)
+    p_hca_given_ten = _p_exact_conditional_n2(ten_c, hca_bid)
+
+    assert p_hct_given_ten > p_hca_given_ten, (
+        f"P(HC T | hold T) = {p_hct_given_ten:.4f} should exceed "
+        f"P(HC A | hold T) = {p_hca_given_ten:.4f}"
+    )
+
+    # Holding a Ten: HC T should hold whenever opp has no card ranked > T and no pair with T
+    # HC A should only hold if opp has an Ace (~0.08)
+    print(
+        f"  test_rational_first_bid_depends_on_private_card: PASS\n"
+        f"    P(HC T | hold T) = {p_hct_given_ten:.4f}  ← commit to what you know\n"
+        f"    P(HC A | hold T) = {p_hca_given_ten:.4f}  ← bluff you'd never make"
+    )
+
+
+def test_calling_hca_rational_without_ace():
+    """
+    If the opponent bids HC A and you don't hold an Ace, calling is
+    conditionally correct: P(HC A holds | you no Ace) ≈ 0.08.
+    Call EV = 1 - 2 * 0.08 = +0.84 >> the blind equilibrium's +0.71.
+
+    This test verifies the call EV conditioned on your private card is
+    much more favorable than the blind EV, explaining why a rational
+    non-Ace holder always calls HC A.
+    """
+    king_h = _card(11, 2)  # K♥
+    hca_bid = Bid(HIGH_CARD, 12)
+
+    p_holds_given_king = _p_exact_conditional_n2(king_h, hca_bid)
+    conditional_call_ev = 1.0 - 2.0 * p_holds_given_king
+
+    # Blind call EV ≈ +0.71; conditional (non-Ace) call EV should be higher
+    blind_call_ev = 1.0 - 2.0 * (192 / 1326)
+
+    assert conditional_call_ev > blind_call_ev + 0.05, (
+        f"Conditional call EV (non-Ace) = {conditional_call_ev:.4f} should be "
+        f"significantly better than blind call EV = {blind_call_ev:.4f}"
+    )
+    assert conditional_call_ev > 0.80, (
+        f"Non-Ace holder calling HC A should have EV > 0.80, got {conditional_call_ev:.4f}"
+    )
+
+    print(
+        f"  test_calling_hca_rational_without_ace: PASS\n"
+        f"    Blind call EV at HC A:         {blind_call_ev:+.4f}\n"
+        f"    Conditional call EV (hold K):  {conditional_call_ev:+.4f}\n"
+        f"    → Non-Ace holder calling HC A is near-certain to win."
+    )
+
+
+# ===========================================================================
+# E. High Hand action — available and correct under exact rules
+#
+# High Hand (HH) declaration says "the standing bid IS the pool's best hand."
+# Under exact rules this is a critical escape valve: if the opponent bids
+# HC A and you also hold an Ace, calling is bad (HC A likely holds) and
+# overbidding is risky. HH lets you declare the bid is the ceiling and win
+# a card if correct (penalizing the bidder).
+# ===========================================================================
+
+def test_high_hand_available_after_bid():
+    """High Hand action must appear in legal_actions after a bid when high_hand=True."""
+    from agent.game.bids import HH_ACTION
+    state = new_match(2, seed=0, exact_rules=True, high_hand=True)
+    state.start_next_round()
+    # Before any bid: HH should NOT be legal (nothing to declare on)
+    assert HH_ACTION not in state.legal_actions(), (
+        "HH should not be legal before any bid"
+    )
+    # After P0 bids HC A:
+    hca_idx = bid_to_index(Bid(HIGH_CARD, 12))
+    state.apply_action(hca_idx)
+    legal = state.legal_actions()
+    assert HH_ACTION in legal, "HH should be legal after a bid when high_hand=True"
+    assert CALL_ACTION in legal, "CALL should also still be legal"
+    print("  test_high_hand_available_after_bid: PASS")
+
+
+def test_high_hand_not_available_without_flag():
+    """High Hand action must NOT appear when high_hand=False."""
+    from agent.game.bids import HH_ACTION
+    state = new_match(2, seed=0, exact_rules=True, high_hand=False)
+    state.start_next_round()
+    hca_idx = bid_to_index(Bid(HIGH_CARD, 12))
+    state.apply_action(hca_idx)
+    assert HH_ACTION not in state.legal_actions(), (
+        "HH should not be legal when high_hand=False"
+    )
+    print("  test_high_hand_not_available_without_flag: PASS")
+
+
+def test_high_hand_correct_declaration_penalizes_bidder():
+    """
+    Scenario: P0 bids HC A. Pool is [A, K] so pool best = HC A.
+    P1 declares High Hand (correct: HC A IS pool best).
+    P0 (bidder) should be penalized; P1 (declarer) rewarded.
+    """
+    from agent.game.bids import HH_ACTION
+    state = new_match(2, seed=0, exact_rules=True, high_hand=True)
+    state.start_next_round()
+
+    ace_c   = _card(12, 0)  # A♣
+    king_h  = _card(11, 2)  # K♥
+    state.round_state.hands = [[ace_c], [king_h]]
+
+    hca_idx = bid_to_index(Bid(HIGH_CARD, 12))
+    state.apply_action(hca_idx)   # P0 bids HC A
+
+    result = state.apply_action(HH_ACTION)  # P1 declares High Hand
+    assert result is not None
+    assert result.is_high_hand, "Should be flagged as a High Hand resolution"
+    assert result.declaration_correct, (
+        "HC A IS pool best for [A, K] — declaration should be correct"
+    )
+    assert result.loser_seat == 0, (
+        "Correct HH declaration: bidder (P0) is penalized"
+    )
+    assert result.winner_seat == 1, (
+        "Correct HH declaration: declarer (P1) is rewarded"
+    )
+    print("  test_high_hand_correct_declaration_penalizes_bidder: PASS  "
+          f"(pool [A,K]: HC A is pool best; bidder P0 penalized)")
+
+
+def test_high_hand_incorrect_declaration_penalizes_declarer():
+    """
+    Scenario: P0 bids HC K. Pool is [A, K] so pool best = HC A (not HC K).
+    P1 declares High Hand (incorrect: HC K is NOT pool best).
+    P1 (declarer) should be penalized.
+    """
+    from agent.game.bids import HH_ACTION
+    state = new_match(2, seed=0, exact_rules=True, high_hand=True)
+    state.start_next_round()
+
+    ace_c   = _card(12, 0)  # A♣
+    king_h  = _card(11, 2)  # K♥
+    state.round_state.hands = [[ace_c], [king_h]]
+
+    hck_idx = bid_to_index(Bid(HIGH_CARD, 11))  # HC K
+    state.apply_action(hck_idx)   # P0 bids HC K
+
+    result = state.apply_action(HH_ACTION)  # P1 declares High Hand
+    assert result is not None
+    assert result.is_high_hand
+    assert not result.declaration_correct, (
+        "HC K is NOT pool best ([A,K] → HC A) — declaration should be incorrect"
+    )
+    assert result.loser_seat == 1, (
+        "Incorrect HH declaration: declarer (P1) is penalized"
+    )
+    print("  test_high_hand_incorrect_declaration_penalizes_declarer: PASS  "
+          f"(pool [A,K]: HC K is NOT pool best; declarer P1 penalized)")
+
+
+def test_high_hand_ace_scenario_user_insight():
+    """
+    The user's scenario: if you hold an Ace and opponent bids HC A,
+    calling is bad (HC A likely holds). High Hand declaration is the
+    rational alternative: declare HC A IS the ceiling and penalize bidder.
+
+    P0 holds Ace, bids HC A. P1 holds Ace too.
+    Pool = [A♣, A♦] → pool best = Pair A (NOT HC A).
+    P1 declaring HH on HC A would be INCORRECT (pool best ≠ HC A).
+    P1 should instead CALL (which wins since HC A doesn't hold as exact
+    subset: two Aces → pair, not HC A).
+    """
+    ace_c = _card(12, 0)   # A♣
+    ace_d = _card(12, 1)   # A♦
+
+    # Verify pool = [A, A] → HC A does NOT hold as exact hand (it's a Pair)
+    assert not has_exact_hand([ace_c, ace_d], Bid(HIGH_CARD, 12)), (
+        "Pool [A♣, A♦] → Pair A, not HC A: HC A should NOT hold"
+    )
+    # Calling HC A wins (bid doesn't hold) — the rational move when you hold an Ace
+    # and suspect opponent also holds one
+
+    # Also verify: pool [A♣, K♥] → HC A DOES hold
+    king_h = _card(11, 2)
+    assert has_exact_hand([ace_c, king_h], Bid(HIGH_CARD, 12)), (
+        "Pool [A♣, K♥] → HC A should hold"
+    )
+    print("  test_high_hand_ace_scenario_user_insight: PASS\n"
+          "    If you hold Ace and opponent bids HC A:\n"
+          "      - If opp also has Ace: pool = Pair A → CALL (HC A doesn't hold)\n"
+          "      - If opp has non-Ace: pool = HC A → HH declaration correct\n"
+          "    → High Hand gives a third option beyond call/raise.")
+
+
+# ===========================================================================
+# F. Rule-set checks — High Card bids are legal
 # ===========================================================================
 
 def test_high_card_bids_in_bid_space():
@@ -524,14 +815,28 @@ if __name__ == "__main__":
         test_has_exact_hand_straight_flush,
         test_engine_exact_rules_resolution,
     ]
-    print("\nCategory D: Rule-set checks")
+    print("\nCategory D: Private-info conditional shift (blind equilibrium limitations)")
     tests_d = [
+        test_conditional_hca_given_ace_vs_no_ace,
+        test_rational_first_bid_depends_on_private_card,
+        test_calling_hca_rational_without_ace,
+    ]
+    print("\nCategory E: High Hand action")
+    tests_e = [
+        test_high_hand_available_after_bid,
+        test_high_hand_not_available_without_flag,
+        test_high_hand_correct_declaration_penalizes_bidder,
+        test_high_hand_incorrect_declaration_penalizes_declarer,
+        test_high_hand_ace_scenario_user_insight,
+    ]
+    print("\nCategory F: Rule-set checks")
+    tests_f = [
         test_high_card_bids_in_bid_space,
         test_high_card_is_legal_first_bid,
         test_high_card_bids_cover_all_ranks,
     ]
 
-    all_tests = tests_a + tests_b + tests_c + tests_d
+    all_tests = tests_a + tests_b + tests_c + tests_d + tests_e + tests_f
     passed = 0
     failed = 0
     for t in all_tests:
