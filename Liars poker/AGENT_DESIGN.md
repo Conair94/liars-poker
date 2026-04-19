@@ -66,7 +66,23 @@ Ordered list of (hand_type, primary_rank) pairs per `_evaluate_ranked` in `poker
 - Match history summary (round outcomes, optional — may be compressed to per-player lose counts)
 - Current player to act and previous bidder's seat
 
-### 2.6 Tests against ground truth
+### 2.6 Exact-Rules Information Structure (key strategic shift)
+
+Under **at-least rules** a bid B resolves to "does the pool's best 5-card hand ≥ B?" — a pure threshold question over the marginal pool distribution. Private cards shift the prior slightly; the blind equilibrium (bid at the 50% threshold) captures most of the strategy. This is **blackjack-like**: optimize against a known distributional quantity.
+
+Under **exact rules** a bid B resolves to "does any 5-card subset of the opponents' hands evaluate to exactly B?" This changes the problem in three fundamental ways:
+
+1. **Bids become claims about opponent holdings, not pool statistics.** A bid of "Full House Aces" claims that at least one opponent holds the specific cards needed to complete that hand. This is only plausible if the bidder believes the opponents' ranges contain those cards. The prior probability tables (marginal/conditional) become secondary; opponent range estimates become primary.
+
+2. **Bid history carries range-narrowing information.** Each bid in the sequence signals which hand categories the bidder believes the opponents can hold. This is structurally analogous to betting in Texas Hold'em: each action updates the Bayesian posterior over opponent holdings. The information content of the history therefore grows faster under exact rules than at-least rules.
+
+3. **Call/fold decisions require opponent range models.** Under at-least rules, the caller asks: "is P(pool ≥ standing bid) < 0.5?" Under exact rules, the caller asks: "can I construct a 5-card subset of plausible opponent holdings that completes the bid?" The second question requires an explicit model of what opponents might hold, weighted by the bid history.
+
+**Consequence for the agent:** The at-least agent can get by with good probability tables and a minimal history encoder. The exact-rules agent needs an explicit Bayesian range tracker that updates a per-opponent range estimate from each observed bid. The range tracker output — not just the marginal pool probabilities — becomes the primary input for both the call/raise decision and the value function.
+
+**Note on rule standardization:** Neither "at-least" nor "exact-subset" resolution is formally standardized in Liar's Poker. The game has no canonical rule set across variants and cultures. Both are folk rules; this project defines them precisely in §2 and treats them as two distinct games.
+
+### 2.7 Tests against ground truth
 For each (n, round-size-profile) configuration with n ∈ {2..7}, enumerate all deals and verify:
 - Legal bid space size matches spec
 - Terminal payoff computation matches `_evaluate()` on the concatenated pool
@@ -112,6 +128,8 @@ The Stage 1 marginal and conditional probability tables feed directly into the p
 - **Auxiliary loss (optional, empirical).** Add a supervised auxiliary head that must predict the pool hand distribution given the private cards; target is the tabulated conditional probability. This regularizes the representation toward probabilistic ground truth and typically speeds convergence substantially.
 
 Expected benefit: the network never has to rediscover "a pair of 2s in my hand means the pool is more likely to contain at least a pair" from scratch — that fact is baked into the input features.
+
+**Under exact rules**, the probability tables remain useful but play a secondary role. The primary warm-start feature shifts to the **opponent range tracker** described in §5.4. The marginal/conditional tables are still valid as a uniform-prior baseline (before any bid history is observed), but the range tracker quickly dominates once bids reveal information about opponent holdings. The auxiliary loss target should therefore be changed: instead of predicting the pool distribution from private cards alone, predict the updated opponent range distribution from (private cards + bid history). See §5.4 for the full architecture.
 
 ### 4.3 Extended conditional probability tables (M2 compute task)
 Stage 1's conditional tables are coarse: `pair` aggregates all pair ranks, `trips` aggregates all trip ranks, etc. For warm-start to carry maximum information, we need **rank-specific conditions**:
@@ -176,17 +194,22 @@ Single network, shared weights across all (N, hand-size) configurations.
   These features are computed from static lookup tables, not learned — they are deterministic state features.
 - **Opponent encoder.** Transformer over N−1 opponent descriptors `(hand_size, seat_offset_from_self, eliminated_flag)`. Variable length; handles N ∈ {2..5} with the same weights.
 - **Bid history encoder.** Small causal transformer or GRU over the sequence of bids in the current round, with positional encoding for seat and turn index. The previous bidder is marked with a distinguished flag (reflecting the pairwise structure from §2.3).
-- **Trunk.** Concatenate (private-card summary, prior features, opponent summary, bid-history summary, scalar state features like `n`, `round_index`, `match_hand_size_profile`). Pass through 3–6 transformer/MLP layers.
+- **[Exact-rules addition] Bayesian range tracker.** A deterministic module (not learned weights) that processes the bid history and maintains a per-opponent range distribution — a probability vector over plausible hand categories the opponent might hold, conditioned on all bids observed so far. Updated via Bayes' rule: each bid shifts probability mass toward hand categories consistent with rationally making that bid. Implementation:
+  - Per-opponent range vector: dim = (num_hand_types × num_primary_ranks) ≈ 100-dim, initialized to the marginal prior from Stage 1 tables.
+  - At each observed bid b by opponent o: multiply the range vector by the likelihood L(b | range) — the probability a player with that hand distribution would make bid b — then normalize. Likelihood L can be bootstrapped from the uniform R-NaD policy and refined during training.
+  - Output: N−1 range vectors, each ~100-dim, concatenated as a fixed-dim block fed into the trunk.
+  - Reference: Ganzfried & Sandholm 2015 (joint distribution via Bayes from blueprint strategy); Johanson et al. 2007 (Restricted Nash Response — range-conditioned exploitation).
+- **Trunk.** Concatenate (private-card summary, prior features, opponent summary, bid-history summary, **opponent range vectors**, scalar state features like `n`, `round_index`, `match_hand_size_profile`). Pass through 3–6 transformer/MLP layers.
 - **Heads.**
   - Policy head: categorical over the bid space (~100 bids) + 1 "call" action. Illegal-action mask applied.
-  - Value head: scalar ∈ [−1, 1] for match-level reward.
-  - (Optional) Auxiliary prior-prediction head (§4.2): predicts the pool hand distribution given private cards; supervised against the tabulated conditional probabilities. Auxiliary loss, not used at inference.
+  - Value head: scalar ∈ [−1, 1] for match-level reward. Receives opponent range vectors as additional input (range advantage affects value directly per Ganzfried & Chiswick 2019).
+  - **[Exact-rules addition] Auxiliary range-prediction head:** Predicts the final revealed opponent hand from the bid history at episode end; supervised against true holdings. Replaces (or augments) the pool-distribution auxiliary head from the at-least design. This trains the representation to extract range information from bids — the core skill for exact-rules play.
 
 ### 5.5 Curriculum
-1. **Stage A — fixed hand size, N=2.** Freeze everyone at hand_size=1 (then 2, 3, ...). Verify R-NaD convergence against the blind baseline equilibrium on each small variant. Sanity check only.
-2. **Stage B — dynamic hand size, N=2.** Turn on the full match structure with elimination. This is the first "real" game.
-3. **Stage C — variable N ∈ {2..5}.** Randomize N per episode. Train the same network to generality across table sizes.
-4. **Stage D — test-time compute (M5).** Wrap the trained network in a search procedure.
+1. **Stage A — fixed hand size=1, N=2.** With one card per player the pool is 2 cards total; only High Card and the rare Pair can appear. The exact-rules Nash equilibrium is **tractable to compute exactly** (tiny extensive-form game, LP-solvable) and serves as a hard ground-truth sanity check for R-NaD convergence. The range tracker has almost no work to do here — bids carry little range information with 2-card pools. Stage A validates that the trainer converges and produces correct call frequencies before any complexity is added.
+2. **Stage B — dynamic hand size, N=2.** Full match structure with elimination (hand sizes 1→5). The blind equilibrium under exact rules must be recomputed (different from the at-least equilibrium; see §4.1 and §2.6). Range tracking becomes meaningful at hand_size ≥ 2 (pool ≥ 4 cards). This is the first "real" game; the range tracker begins to matter.
+3. **Stage C — variable N ∈ {2..5}.** This is the **critical leap in difficulty**: multiple opponents means the range tracker must maintain N−1 simultaneous per-opponent posteriors, joint distribution complexity grows, and APU (Shi et al. 2022) must be applied for training stability. Randomize N per episode. Train the same network to generality across table sizes. Formal exploitability claims remain N=2 only.
+4. **Stage D — test-time compute (M5).** Wrap the trained network in a search procedure. The range tracker provides the belief state needed for ReBeL-style subgame solving; Stage C's trained range representations are the prerequisite.
 
 ---
 
@@ -273,8 +296,10 @@ Per workspace convention, all Stage 2 code lives inside the paper folder — no 
 **Still open:**
 1. **Game length.** Long bidding sequences inflate the state space. Do we cap the number of raises per round, or rely on natural termination?
 2. **Public state reconstruction for ReBeL.** How expensive is belief propagation over card Liar's Poker public states? Dice are exchangeable; cards are not (suits break symmetry). Affects M5 method choice.
-3. **Auxiliary loss weight.** How aggressively should the conditional-prediction auxiliary head (§5.4) be weighted? Too high → overfits to the tabulated prior; too low → no benefit. Sweep empirically.
+3. **Auxiliary loss weight (range prediction).** Under exact rules, the auxiliary head predicts opponent range from bid history (§5.4). How aggressively to weight this loss vs. the main R-NaD objective? Too high → overfits to short bid histories; too low → the range representation doesn't develop. Sweep empirically.
 4. **Extended conditional granularity ceiling.** Do we stop at "pair of 2s" level, or push to "pair of 2s + adjacent suited kicker"-type compound conditions? Each level of granularity multiplies MC compute; diminishing returns are likely past single-feature conditioning.
 5. **Paper vs. product.** Is the web interface part of the academic artifact (reproducible demo) or a separate side project? Affects polish level.
+6. **Range tracker likelihood initialization.** The Bayesian range tracker (§5.4) needs a likelihood function L(bid | range) to compute updates. Before the network is trained, what prior to use? Options: (a) uniform over legal bids, (b) blind-equilibrium bid frequencies per pool size, (c) learned jointly with the policy. Option (b) is the natural warm-start: the blind equilibrium tells us what a rational player with no private info would bid, giving a plausible default likelihood.
+7. **Exact-rules blind equilibrium.** The at-least blind equilibrium is cached and validated (§4.1). The exact-rules blind equilibrium must be recomputed from scratch using the `has_exact_hand()` resolution path in `engine.py`. The backward induction solver in `agent/baseline/blind_equilibrium.py` already supports `exact_rules=True` via the engine — need to run and cache for n=2..10.
 
-These should be resolved as the literature survey (§3.2) completes and before M3 starts in earnest.
+These should be resolved as training progresses through Stages A–C.

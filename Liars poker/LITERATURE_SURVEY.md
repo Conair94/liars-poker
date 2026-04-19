@@ -133,6 +133,42 @@ Imperfect-information games require tracking belief distributions over opponent 
 
 ---
 
+---
+
+## 7. Opponent Modeling and Range Estimation
+
+This section covers literature newly relevant under the **exact-rules** variant of card Liar's Poker, where bids must be matched by a specific 5-card subset of the pool. Under exact rules, the strategic problem shifts from pure combinatorial threshold optimization (blackjack-like) toward opponent hand range reasoning (poker-like), making these references critical for the architecture design.
+
+### Johanson, Zinkevich & Bowling 2007 — Computing Robust Counter-Strategies
+- **Venue/ID:** NeurIPS 2007; https://poker.cs.ualberta.ca/publications/NIPS07-rnash.pdf
+- **Summary:** Introduces the **Restricted Nash Response (RNR)** algorithm: given a suspected opponent tendency (an opponent model), compute a strategy that trades off between minimizing exploitability and maximizing exploitation. A single parameter p interpolates between the Nash equilibrium (p=1, fully safe) and the pure best response to the model (p=0, fully exploitative). Demonstrated in two-player Texas Hold'em. Builds on CFR as the underlying equilibrium solver.
+- **Relevance to project:** Under exact rules, we may want to exploit observable opponent tendencies (e.g., overbidding certain hand types) while remaining robust. RNR formalizes exactly this tradeoff. The p parameter maps naturally onto the η regularization temperature in R-NaD: high η = near-Nash (robust), low η = near-best-response (exploitative). When we add opponent modeling features to the network, RNR provides the theoretical basis for deciding how aggressively to use them.
+
+### Johanson & Bowling 2009 — Data-Biased Robust Counter-Strategies
+- **Venue/ID:** AISTATS 2009; https://poker.cs.ualberta.ca/publications/AISTATS09.pdf
+- **Summary:** Extends RNR by learning the opponent model from observed play data rather than assuming a fixed prior. Uses a Dirichlet prior over opponent action frequencies and updates it via Bayesian inference from match history. The posterior opponent model drives a best-response computation constrained to remain near Nash. Evaluated in full Texas Hold'em with large-scale experiments.
+- **Relevance to project:** In the multi-round elimination match, we observe several rounds of opponent play before the match ends. Data-biased RNR is the principled way to exploit this accumulated evidence about opponent tendencies (e.g., bluffing rate, preferred bid escalation patterns) while staying robust. The Dirichlet prior maps cleanly onto the bid history encoder's output — observable bid frequencies become the sufficient statistic for the posterior.
+
+### Ganzfried & Sandholm 2015 — Endgame Solving in Large Imperfect-Information Games
+- **Venue/ID:** AAAI Workshop on Computer Poker 2015 / AAMAS; https://www.cs.cmu.edu/~sandholm/Endgame_AAAI15_workshop_cr_1.pdf
+- **Summary:** Improves endgame (subgame) solving by computing the **joint** distribution of opponent private hands leading into an endgame, rather than assuming independent marginals. The joint distribution is derived via Bayes' rule applied to the full history of public actions under the pre-computed blueprint strategy. This corrects a systematic bias in prior endgame solvers and improved performance in the Annual Computer Poker Competition.
+- **Relevance to project:** Directly applicable to our exact-rules game. Under exact rules, a call resolves based on whether any 5-card subset of the opponents' hands completes the bid — so the *joint* distribution of opponent holdings matters, not just per-opponent marginals. When implementing the Bayesian range tracker (§5.4), the update rule must track the joint distribution over all opponents' hands conditioned on the full bid history, exactly as Ganzfried & Sandholm prescribe.
+
+### Bard, Johanson et al. 2013 — Online Implicit Agent Modelling
+- **Venue/ID:** AAMAS 2013; https://poker.cs.ualberta.ca/publications/AAMAS13-modelling.pdf
+- **Summary:** Introduces **implicit opponent modeling**: instead of estimating a generative model of the opponent's strategy (explicit modeling), maintain a portfolio of pre-computed counter-strategies and use a bandit algorithm to select among them online. The portfolio is constructed offline via submodular optimization and exploits variance reduction at inference. Won the 2011 Annual Computer Poker Competition by >95% confidence margin.
+- **Relevance to project:** Implicit modeling is a lightweight alternative to explicit Bayesian range tracking. If full range tracking is too expensive or unstable in training, a portfolio of R-NaD checkpoints (each trained against a different opponent archetype) selected by a bandit at inference time is a practical fallback. The approach also informs how to structure the M5 test-time compute stage: rather than a single search, maintain a portfolio of subgame policies selected online.
+
+### Ganzfried & Chiswick 2019 — Most Important Fundamental Rule of Poker Strategy
+- **Venue/ID:** arXiv:1906.09895; AAAI 2019 Workshop
+- **Summary:** Derives the **Range Advantage (RA)** correction to Minimum Defense Frequency (MDF). Standard MDF = b/(b+P) gives the fraction of hands a defender must call to make bluffs break even. This paper shows the optimal defense frequency is MDF − 0.5·RA + 0.25 where RA ∈ [0,1] measures how much stronger the bettor's range is than the defender's. Learned via machine learning on large databases of solver solutions; outperforms raw MDF by >60%.
+- **Relevance to project:** Under exact rules, **range advantage is the central strategic concept**: a player who knows their opponent holds low-value hands can bid aggressively (polarized range) because the opponent cannot construct a completing 5-card subset for high bids. The RA formula provides a closed-form target for the call/fold decision that can be used as (a) a warm-start auxiliary loss target — predict RA from bid history — and (b) a sanity check for trained agent call frequencies. This is the academic formalization of the "polarized vs. merged range" practitioner concept.
+
+### Notes on Exact-Rules Game Semantics
+No academic paper specifically compares equilibrium structure under "at-least" vs. "exact-subset" resolution in bidding games. The "exact bid" is noted as a folk-rule variant in Liar's Dice (e.g., Wikipedia; UCLA "Models for the Game of Liar's Dice" by Tom Ferguson) but not analyzed in a game-theoretic paper. **This makes the exact-rules analysis in this project a genuine research novelty** — no existing equilibrium benchmark exists and the blind equilibrium must be computed fresh. Note also that neither "at-least" nor "exact" rules are formally standardized across Liar's Poker variants; the game has no canonical rule set.
+
+---
+
 ## Summary Table
 
 | Topic | Primary Reference | Alternative |
@@ -145,12 +181,16 @@ Imperfect-information games require tracking belief distributions over opponent 
 | Warm-Start | Ash et al. 2020 | Jaderberg et al. (Auxiliary tasks) |
 | Belief States | ReBeL (Brown et al. 2020) | Sokota et al. 2023 |
 | Liar's Poker | Dewey et al. 2025 | Wu & Wu 2024 (Combinatorics) |
+| **Opponent Modeling** | **Johanson et al. 2007 (RNR)** | **Bard et al. 2013 (Implicit Modeling)** |
+| **Range Estimation** | **Ganzfried & Sandholm 2015 (Joint dist.)** | **Ganzfried & Chiswick 2019 (RA+MDF)** |
 
 ---
 
 ## Key Novelties of This Project (per survey)
 
 1. **First application of R-NaD to card-based Liar's Poker** (not dice variant).
-2. **Test-time search for non-exchangeable public states** (cards break the symmetry dice have; belief propagation cost is an open question).
-3. **Warm-start via tabulated conditional probability features** (Bayesian prior as fixed network input, not initialization — no published precedent).
-4. **Multi-round elimination meta-game** (dynamic hand sizes 1→5 with elimination; not studied in prior Liar's Poker work).
+2. **First equilibrium analysis of the exact-rules variant** — no prior academic work on exact-subset resolution in Liar's Poker or Liar's Dice; the exact-rules blind equilibrium must be computed from scratch.
+3. **Test-time search for non-exchangeable public states** (cards break the symmetry dice have; belief propagation cost is an open question).
+4. **Warm-start via tabulated conditional probability features** (Bayesian prior as fixed network input, not initialization — no published precedent).
+5. **Multi-round elimination meta-game** (dynamic hand sizes 1→5 with elimination; not studied in prior Liar's Poker work).
+6. **Opponent range tracking as a primary strategic feature** under exact rules — formalized using joint distribution updates (Ganzfried & Sandholm) and RA-adjusted call frequencies (Ganzfried & Chiswick).
