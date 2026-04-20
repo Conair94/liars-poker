@@ -11,6 +11,10 @@ Exact Hand Rules mode (52-card deck, exact 5-card subset required):
 
 Five-Kings mode (53-card deck, 5K Kings > SF):
   FiveKingsBlindAgent — threshold strategy calibrated for 53-card deck
+
+AGENT_REGISTRY maps agent_key → metadata including the exact ruleset the agent
+was designed for. Add new agents here; the web UI and new_game route read from
+this registry so rules are always consistent with the agent.
 """
 
 from __future__ import annotations
@@ -366,6 +370,94 @@ class ExactRulesConditionalAgent:
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Agent registry
+# ---------------------------------------------------------------------------
+# Each entry maps an agent key to its display metadata and the exact match
+# configuration it was designed for. The web UI reads this to auto-populate
+# rule settings when the user picks an agent.
+#
+# Rules fields map directly to kwargs accepted by new_match():
+#   exact_rules  — bool: bid must hold exactly (vs. at-least)
+#   high_hand    — bool: High Hand declaration action enabled
+#   five_kings   — bool: 53-card deck with Five of a Kind Kings
+#
+# To add a new agent: append an entry here and implement its class below.
+AGENT_REGISTRY: dict = {
+    "random": {
+        "display":      "Random",
+        "description":  "Picks any legal action uniformly at random. Useful as a baseline.",
+        "rules": {
+            "exact_rules": False,
+            "high_hand":   False,
+            "five_kings":  False,
+        },
+        "rules_label":  "Standard — at-least rules, 52-card deck",
+        "class":        "RandomAgent",
+    },
+    "blind": {
+        "display":      "Blind Baseline",
+        "description":  "Bids at the ~50% probability threshold, ignoring private cards (N=2 backward-induction equilibrium).",
+        "rules": {
+            "exact_rules": False,
+            "high_hand":   False,
+            "five_kings":  False,
+        },
+        "rules_label":  "Standard — at-least rules, 52-card deck",
+        "class":        "BlindBaselineAgent",
+    },
+    "conditional": {
+        "display":      "Conditional (private-card priors)",
+        "description":  "Adjusts the 50% threshold bid using private-hand conditional probability tables.",
+        "rules": {
+            "exact_rules": False,
+            "high_hand":   False,
+            "five_kings":  False,
+        },
+        "rules_label":  "Standard — at-least rules, 52-card deck",
+        "class":        "ConditionalAgent",
+    },
+    "exactconditional": {
+        "display":      "Exact Rules Conditional",
+        "description":  "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand declaration, 52-card deck",
+        "class":        "ExactRulesConditionalAgent",
+    },
+    "fivekingsblind": {
+        "display":      "Five Kings Blind",
+        "description":  "50% threshold strategy calibrated for the 53-card Five Kings deck.",
+        "rules": {
+            "exact_rules": False,
+            "high_hand":   False,
+            "five_kings":  True,
+        },
+        "rules_label":  "Five Kings — 53-card deck (5K Kings ranks above Straight Flush)",
+        "class":        "FiveKingsBlindAgent",
+    },
+}
+
+_AGENT_CLASS_MAP = {
+    "RandomAgent":              lambda: RandomAgent(),
+    "BlindBaselineAgent":       lambda: BlindBaselineAgent(),
+    "ConditionalAgent":         lambda: ConditionalAgent(),
+    "ExactRulesConditionalAgent": lambda: ExactRulesConditionalAgent(),
+    "FiveKingsBlindAgent":      lambda: FiveKingsBlindAgent(),
+}
+
+
+def build_agent(agent_key: str):
+    """Instantiate the agent for a given registry key."""
+    entry = AGENT_REGISTRY.get(agent_key)
+    if entry is None:
+        return RandomAgent()
+    return _AGENT_CLASS_MAP[entry["class"]]()
+
+
 class FiveKingsBlindAgent:
     """
     Marginal 50% threshold strategy calibrated for Five-Kings mode (53-card deck).

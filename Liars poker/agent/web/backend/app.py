@@ -32,8 +32,7 @@ from agent.game.bids import (  # noqa: E402
     CALL_ACTION, NUM_BIDS, all_bids, bid_to_index, index_to_bid,
     HAND_NAMES, RANK_NAMES,
 )
-from .agents import (BlindBaselineAgent, ConditionalAgent, RandomAgent,  # noqa: E402
-                     ExactRulesConditionalAgent, FiveKingsBlindAgent)
+from .agents import AGENT_REGISTRY, build_agent  # noqa: E402
 
 app = FastAPI(title="Liar's Poker")
 
@@ -323,20 +322,43 @@ _RULES_HTML = """
 """
 
 
+def _agent_registry_js() -> str:
+    """Emit the agent registry as a JS object for the setup-form rule display."""
+    import json
+    entries = {
+        key: {
+            "description": v["description"],
+            "rules_label": v["rules_label"],
+        }
+        for key, v in AGENT_REGISTRY.items()
+    }
+    return json.dumps(entries)
+
+
 def _render_setup_form() -> str:
-    return _RULES_HTML + """
+    # Build agent <option> elements from registry (order preserved in Python 3.7+).
+    agent_options = ""
+    for key, meta in AGENT_REGISTRY.items():
+        selected = 'selected' if key == "blind" else ""
+        agent_options += f'<option value="{key}" {selected}>{meta["display"]}</option>\n'
+
+    # Default display values (for "blind" which is selected by default).
+    default_key   = "blind"
+    default_desc  = AGENT_REGISTRY[default_key]["description"]
+    default_rules = AGENT_REGISTRY[default_key]["rules_label"]
+
+    registry_js = _agent_registry_js()
+
+    return _RULES_HTML + f"""
 <div class="panel" id="setup-panel">
   <h3>New Game</h3>
   <form hx-post="/game/new" hx-target="#game-area" hx-swap="outerHTML"
         hx-indicator="#spinner">
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:1rem;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:0.75rem;">
       <div>
-        <label>Number of Players</label>
-        <select name="num_players">
-          <option value="2" selected>2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
+        <label>Opponent Agent</label>
+        <select name="agent_type" id="agent-select" onchange="updateAgentInfo(this.value)">
+          {agent_options}
         </select>
       </div>
       <div>
@@ -350,20 +372,45 @@ def _render_setup_form() -> str:
           <option value="4">Seat 4</option>
         </select>
       </div>
+    </div>
+
+    <!-- Agent description and auto-populated rules — updated by JS on agent change -->
+    <div id="agent-info" style="background:#0f3460; border:1px solid #2a4a7e;
+         border-radius:6px; padding:0.75rem 1rem; margin-bottom:0.75rem; font-size:0.88rem;">
+      <div id="agent-desc" style="color:#c0d0f0; margin-bottom:0.35rem;">{default_desc}</div>
+      <div style="color:#8090a8; font-size:0.82rem;">
+        <span style="color:#6080a0;">Rules:</span>
+        <span id="agent-rules" style="color:#c9a84c; font-weight:600;">{default_rules}</span>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr; gap:1rem; margin-bottom:0.75rem;">
       <div>
-        <label>Opponent</label>
-        <select name="agent_type">
-          <option value="random">Random</option>
-          <option value="blind" selected>Blind Baseline (N=2 equilibrium)</option>
-          <option value="conditional">Conditional (private-card priors)</option>
+        <label>Number of Players</label>
+        <select name="num_players">
+          <option value="2" selected>2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
         </select>
       </div>
     </div>
+
     <button type="submit">Start Game</button>
     <span id="spinner" class="htmx-indicator status-msg"> Loading...</span>
   </form>
 </div>
 <div id="game-area"></div>
+
+<script>
+const _AGENTS = {registry_js};
+function updateAgentInfo(key) {{
+  const a = _AGENTS[key];
+  if (!a) return;
+  document.getElementById('agent-desc').textContent  = a.description;
+  document.getElementById('agent-rules').textContent = a.rules_label;
+}}
+</script>
 """
 
 
@@ -710,28 +757,23 @@ def setup_fragment():
 def new_game(
     num_players: int  = Form(2),
     human_seat:  int  = Form(0),
-    agent_type:  str  = Form("random"),
+    agent_type:  str  = Form("blind"),
 ):
     # -1 = spectator; otherwise clamp to valid seat range
     if human_seat != -1:
         human_seat = max(0, min(human_seat, num_players - 1))
 
+    # Pull rules from the registry so they always match the agent's training.
+    registry_entry = AGENT_REGISTRY.get(agent_type, AGENT_REGISTRY["random"])
+    rules = registry_entry["rules"]
+
     session_id = uuid.uuid4().hex[:8]
-    state = new_match(num_players)
+    state = new_match(num_players, **rules)
 
     agents = {}
     for seat in range(num_players):
         if seat != human_seat:  # human_seat == -1 fills every seat
-            if agent_type == "blind":
-                agents[seat] = BlindBaselineAgent()
-            elif agent_type == "conditional":
-                agents[seat] = ConditionalAgent()
-            elif agent_type == "exactconditional":
-                agents[seat] = ExactRulesConditionalAgent()
-            elif agent_type == "fivekingsblind":
-                agents[seat] = FiveKingsBlindAgent()
-            else:
-                agents[seat] = RandomAgent()
+            agents[seat] = build_agent(agent_type)
 
     _SESSIONS[session_id] = {
         "state":                  state,
