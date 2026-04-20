@@ -1,990 +1,862 @@
 {
-  "iterations": 700,
+  "iterations": 2900,
   "max_bids": 3,
   "bid_space_size": 26,
   "include_hh": true,
-  "exploitability": 0.7574769204572956,
-  "game_value": -0.22473389216936615,
+  "exploitability": 0.7415244712335638,
+  "game_value": -0.22644291436844768,
   "opening_mix": {
     "0": {
-      "High Card 10": 0.02493,
-      "High Card J": 0.17869,
-      "High Card Q": 0.22674,
-      "High Card K": 0.26781,
-      "High Card A": 0.29958
+      "High Card 8": 0.07558,
+      "High Card 9": 0.19721,
+      "High Card 10": 0.15456,
+      "High Card J": 0.12826,
+      "High Card Q": 0.16142,
+      "High Card K": 0.11478,
+      "High Card A": 0.1678
     },
     "1": {
-      "High Card 8": 0.00863,
-      "High Card 9": 0.04459,
-      "High Card 10": 0.16062,
-      "High Card J": 0.15202,
-      "High Card Q": 0.0788,
-      "High Card K": 0.33991,
-      "High Card A": 0.21361
+      "High Card 8": 0.03393,
+      "High Card 9": 0.09813,
+      "High Card 10": 0.14674,
+      "High Card J": 0.19431,
+      "High Card Q": 0.16116,
+      "High Card K": 0.16626,
+      "High Card A": 0.19903
     },
     "2": {
-      "High Card 4": 0.002,
-      "High Card 8": 0.13634,
-      "High Card 9": 0.18845,
-      "High Card 10": 0.1792,
-      "High Card J": 0.14883,
-      "High Card Q": 0.09296,
-      "High Card K": 0.1388,
-      "High Card A": 0.11116,
-      "Pair 6": 0.00145
+      "High Card 8": 0.03726,
+      "High Card 9": 0.07799,
+      "High Card 10": 0.16776,
+      "High Card J": 0.18606,
+      "High Card Q": 0.12443,
+      "High Card K": 0.22883,
+      "High Card A": 0.17664
     },
     "3": {
-      "High Card 4": 0.00228,
-      "High Card 5": 0.00211,
-      "High Card 6": 0.00303,
-      "High Card 8": 0.06122,
-      "High Card 9": 0.11786,
-      "High Card 10": 0.17694,
-      "High Card J": 0.22599,
-      "High Card Q": 0.20476,
-      "High Card K": 0.08884,
-      "High Card A": 0.11644
+      "High Card 8": 0.07857,
+      "High Card 9": 0.13886,
+      "High Card 10": 0.13367,
+      "High Card J": 0.13428,
+      "High Card Q": 0.11521,
+      "High Card K": 0.19422,
+      "High Card A": 0.20326
     },
     "4": {
-      "High Card 5": 0.00216,
-      "High Card 6": 0.00455,
-      "High Card 7": 0.00437,
-      "High Card 8": 0.07198,
-      "High Card 9": 0.21538,
-      "High Card 10": 0.18344,
-      "High Card J": 0.15245,
-      "High Card Q": 0.17036,
-      "High Card K": 0.08497,
-      "High Card A": 0.11017
+      "High Card 6": 0.0011,
+      "High Card 7": 0.00105,
+      "High Card 8": 0.08422,
+      "High Card 9": 0.13357,
+      "High Card 10": 0.14222,
+      "High Card J": 0.15395,
+      "High Card Q": 0.16903,
+      "High Card K": 0.15575,
+      "High Card A": 0.15854
     },
     "5": {
-      "High Card 6": 0.00279,
-      "High Card 7": 0.01006,
-      "High Card 8": 0.10468,
-      "High Card 9": 0.27299,
-      "High Card 10": 0.17543,
-      "High Card J": 0.10456,
-      "High Card Q": 0.15643,
-      "High Card K": 0.06221,
-      "High Card A": 0.11022
+      "High Card 7": 0.00243,
+      "High Card 8": 0.09147,
+      "High Card 9": 0.17591,
+      "High Card 10": 0.169,
+      "High Card J": 0.16562,
+      "High Card Q": 0.18491,
+      "High Card K": 0.11368,
+      "High Card A": 0.09616
     },
     "6": {
-      "High Card 7": 0.00626,
-      "High Card 8": 0.37874,
-      "High Card 9": 0.21363,
-      "High Card 10": 0.09944,
-      "High Card J": 0.07719,
-      "High Card Q": 0.10282,
-      "High Card K": 0.04929,
-      "High Card A": 0.07171
+      "High Card 7": 0.00151,
+      "High Card 8": 0.45126,
+      "High Card 9": 0.13764,
+      "High Card 10": 0.11906,
+      "High Card J": 0.08181,
+      "High Card Q": 0.12943,
+      "High Card K": 0.05869,
+      "High Card A": 0.02037
     },
     "7": {
-      "High Card 8": 0.00576,
-      "High Card 9": 0.99325
+      "High Card 8": 0.0577,
+      "High Card 9": 0.94206
     },
     "8": {
-      "High Card 9": 0.00214,
-      "High Card 10": 0.99761
+      "High Card 10": 0.99942
     },
     "9": {
-      "High Card 10": 0.00162,
-      "High Card J": 0.99815
+      "High Card J": 0.99955
     },
     "10": {
-      "High Card Q": 0.99889
+      "High Card Q": 0.99973
     },
     "11": {
-      "High Card Q": 0.00301,
-      "High Card K": 0.99551
+      "High Card K": 0.99892
     },
     "12": {
-      "High Card A": 0.99864
+      "High Card A": 0.99967
     }
   },
   "response_mixes": {
     "after_HC_0": {
       "0": {
-        "CALL": 0.99989
+        "CALL": 0.99997
       },
       "1": {
-        "CALL": 0.75322,
-        "High Card 9": 0.23735,
-        "Pair 3": 0.00249
+        "CALL": 0.75706,
+        "High Card 9": 0.24067
       },
       "2": {
-        "CALL": 0.99803,
-        "High Card 4": 0.0014
+        "CALL": 0.99952
       },
       "3": {
-        "CALL": 0.99201,
-        "High Card 4": 0.00162,
-        "High Card 5": 0.00579
+        "CALL": 0.99807,
+        "High Card 5": 0.0014
       },
       "4": {
-        "CALL": 0.9188,
-        "High Card 4": 0.00237,
-        "High Card 6": 0.00932,
-        "High Card 9": 0.06893
+        "CALL": 0.92692,
+        "High Card 6": 0.00225,
+        "High Card 9": 0.07011
       },
       "5": {
-        "CALL": 0.98873,
-        "High Card 4": 0.0023,
-        "High Card 6": 0.00229,
-        "High Card 7": 0.00631
+        "CALL": 0.99728,
+        "High Card 7": 0.00152
       },
       "6": {
-        "CALL": 0.97118,
-        "High Card 4": 0.00104,
-        "High Card 6": 0.00103,
-        "High Card 8": 0.00581,
-        "High Card 9": 0.02015
+        "CALL": 0.97744,
+        "High Card 8": 0.0014,
+        "High Card 9": 0.02047
       },
       "7": {
-        "CALL": 0.99057,
-        "High Card 6": 0.00104,
-        "High Card 7": 0.00103,
-        "High Card 8": 0.00128,
-        "High Card 9": 0.00551
+        "CALL": 0.99772,
+        "High Card 9": 0.00133
       },
       "8": {
-        "CALL": 0.85061,
-        "High Card 8": 0.00111,
-        "High Card 9": 0.00116,
-        "High Card 10": 0.14482
+        "CALL": 0.85625,
+        "High Card 10": 0.14264
       },
       "9": {
-        "CALL": 0.66688,
-        "High Card 7": 0.0011,
-        "High Card 8": 0.0012,
-        "High Card 9": 0.00123,
-        "High Card 10": 0.24263,
-        "High Card J": 0.08463
+        "CALL": 0.67084,
+        "High Card 10": 0.2456,
+        "High Card J": 0.08215
       },
       "10": {
-        "CALL": 0.45953,
-        "High Card 4": 0.00134,
-        "High Card 7": 0.00114,
-        "High Card 8": 0.00114,
-        "High Card 9": 0.00114,
-        "High Card 10": 0.11933,
-        "High Card J": 0.13015,
-        "High Card Q": 0.12677,
-        "High Card K": 0.07894,
-        "High Card A": 0.07826,
-        "Pair 5": 0.00111
+        "CALL": 0.46253,
+        "High Card 10": 0.12038,
+        "High Card J": 0.13137,
+        "High Card Q": 0.12605,
+        "High Card K": 0.07933,
+        "High Card A": 0.07864
       },
       "11": {
-        "CALL": 0.45443,
-        "High Card 4": 0.00122,
-        "High Card 7": 0.00126,
-        "High Card 8": 0.00133,
-        "High Card 9": 0.00133,
-        "High Card 10": 0.16432,
-        "High Card J": 0.22292,
-        "High Card Q": 0.00805,
-        "High Card K": 0.06939,
-        "High Card A": 0.07496
+        "CALL": 0.45645,
+        "High Card 10": 0.16591,
+        "High Card J": 0.22546,
+        "High Card Q": 0.00713,
+        "High Card K": 0.06843,
+        "High Card A": 0.0752
       },
       "12": {
-        "CALL": 0.63391,
-        "High Card 4": 0.00112,
-        "High Card 7": 0.00116,
-        "High Card 8": 0.00125,
-        "High Card 9": 0.00133,
-        "High Card 10": 0.11889,
-        "High Card J": 0.21854,
-        "High Card Q": 0.00136,
-        "High Card K": 0.01923,
-        "High Card A": 0.00259
+        "CALL": 0.6387,
+        "High Card 10": 0.11966,
+        "High Card J": 0.22092,
+        "High Card K": 0.01844
       }
     },
     "after_HC_1": {
       "0": {
-        "CALL": 0.33554,
-        "High Card 4": 0.00299,
-        "High Card 8": 0.12318,
-        "High Card 9": 0.16043,
-        "High Card 10": 0.18178,
-        "High Card J": 0.18438,
-        "High Card Q": 0.00304,
-        "High Card K": 0.00304,
-        "High Card A": 0.00305,
-        "Pair 2": 0.00123
+        "CALL": 0.46958,
+        "High Card 8": 0.23225,
+        "High Card 9": 0.08134,
+        "High Card 10": 0.10519,
+        "High Card J": 0.1081
       },
       "1": {
-        "CALL": 0.67461,
-        "High Card 4": 0.00262,
-        "High Card 8": 0.04445,
-        "High Card 9": 0.06681,
-        "High Card 10": 0.10557,
-        "High Card J": 0.09558,
-        "High Card Q": 0.00239,
-        "High Card K": 0.00236,
-        "High Card A": 0.00424
+        "CALL": 0.61162,
+        "High Card 8": 0.16017,
+        "High Card 9": 0.05211,
+        "High Card 10": 0.08784,
+        "High Card J": 0.07863,
+        "High Card A": 0.00752
       },
       "2": {
-        "CALL": 0.99982
+        "CALL": 0.99996
       },
       "3": {
-        "CALL": 0.99156,
-        "High Card 4": 0.00564,
-        "High Card 5": 0.00269
+        "CALL": 0.99796,
+        "High Card 4": 0.00136
       },
       "4": {
-        "CALL": 0.70835,
-        "High Card 6": 0.11736,
-        "High Card Q": 0.04965,
-        "High Card K": 0.04883,
-        "High Card A": 0.07457
+        "CALL": 0.84201,
+        "High Card 6": 0.02833,
+        "High Card Q": 0.01199,
+        "High Card K": 0.01179,
+        "High Card A": 0.10559
       },
       "5": {
-        "CALL": 0.60597,
-        "High Card 7": 0.11463,
-        "High Card 8": 0.0121,
-        "High Card Q": 0.07593,
-        "High Card K": 0.07533,
-        "High Card A": 0.11485
+        "CALL": 0.73048,
+        "High Card 7": 0.02767,
+        "High Card 8": 0.04332,
+        "High Card Q": 0.01833,
+        "High Card K": 0.01818,
+        "High Card A": 0.16174
       },
       "6": {
-        "CALL": 0.51457,
-        "High Card 8": 0.11571,
-        "High Card 9": 0.04499,
-        "High Card 10": 0.04499,
-        "High Card J": 0.04499,
-        "High Card Q": 0.04857,
-        "High Card K": 0.04813,
-        "High Card A": 0.09179,
-        "Pair 8": 0.04499
+        "CALL": 0.7353,
+        "High Card 8": 0.02793,
+        "High Card 9": 0.01086,
+        "High Card 10": 0.01086,
+        "High Card J": 0.01086,
+        "High Card Q": 0.01172,
+        "High Card K": 0.01162,
+        "High Card A": 0.16969,
+        "Pair 8": 0.01086
       },
       "7": {
-        "CALL": 0.98697,
-        "High Card 9": 0.01253
+        "CALL": 0.99686,
+        "High Card 9": 0.00302
       },
       "8": {
-        "CALL": 0.67763,
-        "High Card 4": 0.00368,
-        "High Card 9": 0.1354,
-        "High Card 10": 0.04843,
-        "High Card J": 0.13459
+        "CALL": 0.84238,
+        "High Card 9": 0.03268,
+        "High Card 10": 0.0915,
+        "High Card J": 0.03249
       },
       "9": {
-        "CALL": 0.60289,
-        "High Card 4": 0.00325,
-        "High Card 9": 0.09393,
-        "High Card 10": 0.1948,
-        "High Card J": 0.10486
+        "CALL": 0.71611,
+        "High Card 9": 0.02267,
+        "High Card 10": 0.11258,
+        "High Card J": 0.14778
       },
       "10": {
-        "CALL": 0.99907
+        "CALL": 0.99978
       },
       "11": {
-        "CALL": 0.88841,
-        "High Card K": 0.11149
+        "CALL": 0.88897,
+        "High Card K": 0.11101
       },
       "12": {
-        "CALL": 0.76105,
-        "High Card A": 0.23885
+        "CALL": 0.94232,
+        "High Card A": 0.05765
       }
     },
     "after_HC_2": {
       "0": {
-        "CALL": 0.36487,
-        "High Card 5": 0.11516,
-        "High Card Q": 0.16707,
-        "High Card K": 0.2432,
-        "High Card A": 0.10852
+        "CALL": 0.3618,
+        "High Card 5": 0.1087,
+        "High Card Q": 0.17499,
+        "High Card K": 0.25213,
+        "High Card A": 0.1021
       },
       "1": {
-        "CALL": 0.17038,
-        "HH": 0.03721,
-        "High Card 5": 0.0955,
-        "High Card 7": 0.04294,
-        "High Card 8": 0.0683,
-        "High Card 9": 0.0683,
-        "High Card 10": 0.0683,
-        "High Card J": 0.0683,
-        "High Card Q": 0.13945,
-        "High Card K": 0.1644,
-        "High Card A": 0.07549
+        "CALL": 0.1665,
+        "HH": 0.03811,
+        "High Card 5": 0.09042,
+        "High Card 7": 0.04407,
+        "High Card 8": 0.07058,
+        "High Card 9": 0.07058,
+        "High Card 10": 0.07058,
+        "High Card J": 0.07058,
+        "High Card Q": 0.14147,
+        "High Card K": 0.16616,
+        "High Card A": 0.07062
       },
       "2": {
-        "CALL": 0.99615,
-        "High Card 5": 0.00183
+        "CALL": 0.99907
       },
       "3": {
-        "CALL": 0.99977
+        "CALL": 0.99994
       },
       "4": {
-        "CALL": 0.65712,
-        "High Card 6": 0.1984,
-        "High Card Q": 0.0185,
-        "High Card K": 0.04935,
-        "High Card A": 0.07567
+        "CALL": 0.6677,
+        "High Card 6": 0.19224,
+        "High Card Q": 0.01934,
+        "High Card K": 0.0517,
+        "High Card A": 0.06878
       },
       "5": {
-        "CALL": 0.98101,
-        "High Card 7": 0.01411,
-        "High Card A": 0.00381
+        "CALL": 0.99542,
+        "High Card 7": 0.00341
       },
       "6": {
-        "CALL": 0.86255,
-        "High Card 6": 0.05679,
-        "High Card 7": 0.05679,
-        "High Card 8": 0.01417,
-        "High Card A": 0.00924
+        "CALL": 0.87586,
+        "High Card 6": 0.05919,
+        "High Card 7": 0.05919,
+        "High Card 8": 0.00342,
+        "High Card A": 0.00223
       },
       "7": {
-        "CALL": 0.97831,
-        "High Card 9": 0.01575,
-        "High Card A": 0.00486
+        "CALL": 0.99477,
+        "High Card 9": 0.0038,
+        "High Card A": 0.00117
       },
       "8": {
-        "CALL": 0.99326,
-        "High Card 10": 0.00652
+        "CALL": 0.99837,
+        "High Card 10": 0.00157
       },
       "9": {
-        "CALL": 0.9829,
-        "High Card J": 0.01691
+        "CALL": 0.99587,
+        "High Card J": 0.00408
       },
       "10": {
-        "CALL": 0.97939,
-        "High Card Q": 0.02042
+        "CALL": 0.99502,
+        "High Card Q": 0.00493
       },
       "11": {
-        "CALL": 0.98109,
-        "High Card K": 0.01873
+        "CALL": 0.99544,
+        "High Card K": 0.00452
       },
       "12": {
-        "CALL": 0.99902
+        "CALL": 0.99976
       }
     },
     "after_HC_3": {
       "0": {
-        "CALL": 0.24705,
-        "High Card 6": 0.25802,
-        "High Card K": 0.24214,
-        "High Card A": 0.25156
+        "CALL": 0.24657,
+        "High Card 6": 0.2578,
+        "High Card K": 0.24398,
+        "High Card A": 0.25135
       },
       "1": {
-        "CALL": 0.13551,
-        "HH": 0.11117,
-        "High Card 6": 0.15198,
-        "High Card 7": 0.03936,
-        "High Card 8": 0.05513,
-        "High Card 9": 0.05541,
-        "High Card 10": 0.05541,
-        "High Card J": 0.05541,
-        "High Card Q": 0.05541,
-        "High Card K": 0.15396,
-        "High Card A": 0.1297
+        "CALL": 0.13492,
+        "HH": 0.11152,
+        "High Card 6": 0.15145,
+        "High Card 7": 0.0396,
+        "High Card 8": 0.05548,
+        "High Card 9": 0.05575,
+        "High Card 10": 0.05575,
+        "High Card J": 0.05575,
+        "High Card Q": 0.05575,
+        "High Card K": 0.15447,
+        "High Card A": 0.12918
       },
       "2": {
-        "CALL": 0.27718,
-        "HH": 0.08539,
-        "High Card 6": 0.16418,
-        "High Card 7": 0.0176,
-        "High Card 8": 0.03784,
-        "High Card 9": 0.03824,
-        "High Card 10": 0.03829,
-        "High Card J": 0.03836,
-        "High Card Q": 0.03836,
-        "High Card K": 0.13587,
-        "High Card A": 0.12758
+        "CALL": 0.27631,
+        "HH": 0.08584,
+        "High Card 6": 0.16375,
+        "High Card 7": 0.01769,
+        "High Card 8": 0.03809,
+        "High Card 9": 0.0385,
+        "High Card 10": 0.03854,
+        "High Card J": 0.03862,
+        "High Card Q": 0.03862,
+        "High Card K": 0.13661,
+        "High Card A": 0.12717
       },
       "3": {
-        "CALL": 0.97616,
-        "High Card 6": 0.02139
+        "CALL": 0.97929,
+        "High Card 6": 0.02012
       },
       "4": {
-        "CALL": 0.99971
+        "CALL": 0.99993
       },
       "5": {
-        "CALL": 0.99719,
-        "High Card 7": 0.00189
+        "CALL": 0.99932
       },
       "6": {
-        "CALL": 0.99611,
-        "High Card 8": 0.00222
+        "CALL": 0.99906
       },
       "7": {
-        "CALL": 0.90056,
-        "High Card 9": 0.09715,
-        "High Card A": 0.00111
+        "CALL": 0.90344,
+        "High Card 9": 0.09601
       },
       "8": {
-        "CALL": 0.8146,
-        "High Card 8": 0.01676,
-        "High Card 9": 0.01705,
-        "High Card 10": 0.14968,
-        "High Card A": 0.00126
+        "CALL": 0.81704,
+        "High Card 8": 0.0167,
+        "High Card 9": 0.01699,
+        "High Card 10": 0.14882
       },
       "9": {
-        "CALL": 0.96444,
-        "High Card J": 0.03429
+        "CALL": 0.96744,
+        "High Card J": 0.03225
       },
       "10": {
-        "CALL": 0.99693,
-        "High Card Q": 0.00288
+        "CALL": 0.99926
       },
       "11": {
-        "CALL": 0.99623,
-        "High Card K": 0.00359
+        "CALL": 0.99909
       },
       "12": {
-        "CALL": 0.99896
+        "CALL": 0.99975
       }
     },
     "after_HC_4": {
       "0": {
-        "CALL": 0.60255,
-        "HH": 0.03883,
-        "High Card 7": 0.19138,
-        "High Card 9": 0.01059,
-        "High Card 10": 0.01996,
-        "High Card J": 0.01997,
-        "High Card Q": 0.01999,
-        "High Card K": 0.02001,
-        "High Card A": 0.07565
+        "CALL": 0.70292,
+        "HH": 0.03272,
+        "High Card 7": 0.18459,
+        "High Card 9": 0.00256,
+        "High Card 10": 0.00482,
+        "High Card J": 0.00482,
+        "High Card Q": 0.00483,
+        "High Card K": 0.00483,
+        "High Card A": 0.05766
       },
       "1": {
-        "CALL": 0.33868,
-        "HH": 0.24869,
-        "High Card 7": 0.12568,
-        "High Card 8": 0.00131,
-        "High Card 9": 0.02092,
-        "High Card 10": 0.04743,
-        "High Card J": 0.04762,
-        "High Card Q": 0.04765,
-        "High Card K": 0.04765,
-        "High Card A": 0.07285
+        "CALL": 0.38444,
+        "HH": 0.26816,
+        "High Card 7": 0.11972,
+        "High Card 9": 0.00953,
+        "High Card 10": 0.03792,
+        "High Card J": 0.03812,
+        "High Card Q": 0.03816,
+        "High Card K": 0.03816,
+        "High Card A": 0.06511
       },
       "2": {
-        "CALL": 0.61892,
-        "HH": 0.23871,
-        "High Card 7": 0.05909,
-        "High Card 9": 0.00579,
-        "High Card 10": 0.01384,
-        "High Card J": 0.01452,
-        "High Card Q": 0.0146,
-        "High Card K": 0.0146,
-        "High Card A": 0.01854
+        "CALL": 0.69441,
+        "HH": 0.25356,
+        "High Card 7": 0.03193,
+        "High Card 9": 0.0014,
+        "High Card 10": 0.00334,
+        "High Card J": 0.00351,
+        "High Card Q": 0.00352,
+        "High Card K": 0.00352,
+        "High Card A": 0.00447
       },
       "3": {
-        "CALL": 0.37866,
-        "HH": 0.285,
-        "High Card 7": 0.06984,
-        "High Card 9": 0.01265,
-        "High Card 10": 0.04279,
-        "High Card J": 0.04744,
-        "High Card Q": 0.05387,
-        "High Card K": 0.054,
-        "High Card A": 0.05407
+        "CALL": 0.4178,
+        "HH": 0.31296,
+        "High Card 7": 0.06032,
+        "High Card 9": 0.00305,
+        "High Card 10": 0.0329,
+        "High Card J": 0.03788,
+        "High Card Q": 0.04477,
+        "High Card K": 0.04491,
+        "High Card A": 0.04498
       },
       "4": {
-        "CALL": 0.99692,
-        "High Card 7": 0.0014
+        "CALL": 0.99926
       },
       "5": {
-        "CALL": 0.99965
+        "CALL": 0.99992
       },
       "6": {
-        "CALL": 0.99771,
-        "High Card 8": 0.00153
+        "CALL": 0.99945
       },
       "7": {
-        "CALL": 0.99722,
-        "High Card 9": 0.00176
+        "CALL": 0.99933
       },
       "8": {
-        "CALL": 0.99686,
-        "High Card 10": 0.00197
+        "CALL": 0.99924
       },
       "9": {
-        "CALL": 0.99689,
-        "High Card J": 0.00209
+        "CALL": 0.99925
       },
       "10": {
-        "CALL": 0.99703,
-        "High Card Q": 0.00223
-      },
-      "11": {
-        "CALL": 0.99729,
-        "High Card K": 0.0023
-      },
-      "12": {
-        "CALL": 0.99739,
-        "High Card A": 0.00242
-      }
-    },
-    "after_HC_5": {
-      "0": {
-        "CALL": 0.61334,
-        "HH": 0.35212,
-        "High Card 8": 0.00444,
-        "High Card 10": 0.00188,
-        "High Card J": 0.00559,
-        "High Card Q": 0.00672,
-        "High Card K": 0.00726,
-        "High Card A": 0.0074
-      },
-      "1": {
-        "CALL": 0.5091,
-        "HH": 0.46361,
-        "High Card 8": 0.00243,
-        "High Card 10": 0.00181,
-        "High Card J": 0.00433,
-        "High Card Q": 0.00495,
-        "High Card K": 0.00581,
-        "High Card A": 0.00598
-      },
-      "2": {
-        "CALL": 0.68939,
-        "HH": 0.29389,
-        "High Card 8": 0.00216,
-        "High Card J": 0.0025,
-        "High Card Q": 0.00295,
-        "High Card K": 0.00313,
-        "High Card A": 0.00363
-      },
-      "3": {
-        "CALL": 0.65225,
-        "HH": 0.33228,
-        "High Card 8": 0.00219,
-        "High Card J": 0.00224,
-        "High Card Q": 0.00279,
-        "High Card K": 0.00287,
-        "High Card A": 0.00304
-      },
-      "4": {
-        "CALL": 0.57418,
-        "HH": 0.41346,
-        "High Card 8": 0.00211,
-        "High Card J": 0.00134,
-        "High Card Q": 0.00224,
-        "High Card K": 0.00228,
-        "High Card A": 0.00239
-      },
-      "5": {
-        "CALL": 0.99695,
-        "High Card 8": 0.00123
-      },
-      "6": {
-        "CALL": 0.99961
-      },
-      "7": {
-        "CALL": 0.99814,
-        "High Card 9": 0.00115
-      },
-      "8": {
-        "CALL": 0.99756,
-        "High Card 10": 0.00144
-      },
-      "9": {
-        "CALL": 0.99734,
-        "High Card J": 0.00151
-      },
-      "10": {
-        "CALL": 0.99755,
-        "High Card Q": 0.00153
-      },
-      "11": {
-        "CALL": 0.99782,
-        "High Card K": 0.00156
-      },
-      "12": {
-        "CALL": 0.99803,
-        "High Card A": 0.00168
-      }
-    },
-    "after_HC_6": {
-      "0": {
-        "CALL": 0.78701,
-        "HH": 0.2048,
-        "High Card 9": 0.00273,
-        "High Card Q": 0.00104,
-        "High Card K": 0.00119,
-        "High Card A": 0.0011
-      },
-      "1": {
-        "CALL": 0.59201,
-        "HH": 0.4009,
-        "High Card 9": 0.00172,
-        "High Card A": 0.00106
-      },
-      "2": {
-        "CALL": 0.41388,
-        "HH": 0.5799,
-        "High Card 9": 0.00186
-      },
-      "3": {
-        "CALL": 0.29389,
-        "HH": 0.70021,
-        "High Card 9": 0.00179
-      },
-      "4": {
-        "CALL": 0.24144,
-        "HH": 0.75303,
-        "High Card 9": 0.00174
-      },
-      "5": {
-        "CALL": 0.31047,
-        "HH": 0.68419,
-        "High Card 9": 0.00155
-      },
-      "6": {
-        "CALL": 0.17883,
-        "HH": 0.81891
-      },
-      "7": {
-        "CALL": 0.99957
-      },
-      "8": {
-        "CALL": 0.99804,
-        "High Card 10": 0.00129
-      },
-      "9": {
-        "CALL": 0.99769,
-        "High Card J": 0.00131
-      },
-      "10": {
-        "CALL": 0.99732,
-        "High Card Q": 0.00154
-      },
-      "11": {
-        "CALL": 0.99737,
-        "High Card K": 0.00146
-      },
-      "12": {
-        "CALL": 0.99797,
-        "High Card A": 0.0014
-      }
-    },
-    "after_HC_7": {
-      "0": {
-        "CALL": 0.5157,
-        "HH": 0.47768,
-        "High Card 10": 0.00145,
-        "High Card A": 0.00119
-      },
-      "1": {
-        "CALL": 0.60011,
-        "HH": 0.39443,
-        "High Card 10": 0.00127
-      },
-      "2": {
-        "CALL": 0.25368,
-        "HH": 0.74173,
-        "High Card 10": 0.0019
-      },
-      "3": {
-        "CALL": 0.34654,
-        "HH": 0.64915,
-        "High Card 10": 0.00182
-      },
-      "4": {
-        "CALL": 0.53856,
-        "HH": 0.45758,
-        "High Card 10": 0.00161
-      },
-      "5": {
-        "CALL": 0.56894,
-        "HH": 0.4277,
-        "High Card 10": 0.00105
-      },
-      "6": {
-        "CALL": 0.70478,
-        "HH": 0.29218
-      },
-      "7": {
-        "CALL": 0.02568,
-        "HH": 0.97165
-      },
-      "8": {
-        "CALL": 0.99951
-      },
-      "9": {
-        "CALL": 0.99899
-      },
-      "10": {
-        "CALL": 0.99749,
-        "High Card Q": 0.00154
-      },
-      "11": {
-        "CALL": 0.99727,
-        "High Card K": 0.0016
-      },
-      "12": {
-        "CALL": 0.99713,
-        "High Card A": 0.0017
-      }
-    },
-    "after_HC_8": {
-      "0": {
-        "CALL": 0.63052,
-        "HH": 0.36363
-      },
-      "1": {
-        "CALL": 0.40395,
-        "HH": 0.59149
-      },
-      "2": {
-        "CALL": 0.27386,
-        "HH": 0.72246
-      },
-      "3": {
-        "CALL": 0.47018,
-        "HH": 0.5265
-      },
-      "4": {
-        "CALL": 0.60943,
-        "HH": 0.38764
-      },
-      "5": {
-        "CALL": 0.60014,
-        "HH": 0.39714
-      },
-      "6": {
-        "CALL": 0.65592,
-        "HH": 0.34161
-      },
-      "7": {
-        "CALL": 0.83535,
-        "HH": 0.16233
-      },
-      "8": {
-        "CALL": 0.01643,
-        "HH": 0.98102,
-        "Pair 10": 0.00103
-      },
-      "9": {
-        "CALL": 0.99946
-      },
-      "10": {
-        "CALL": 0.99902
-      },
-      "11": {
-        "CALL": 0.99859
-      },
-      "12": {
-        "CALL": 0.99686,
-        "High Card A": 0.00188
-      }
-    },
-    "after_HC_9": {
-      "0": {
-        "CALL": 0.73501,
-        "HH": 0.2598
-      },
-      "1": {
-        "CALL": 0.32851,
-        "HH": 0.66765
-      },
-      "2": {
-        "CALL": 0.3848,
-        "HH": 0.61175
-      },
-      "3": {
-        "CALL": 0.57854,
-        "HH": 0.41829
-      },
-      "4": {
-        "CALL": 0.63568,
-        "HH": 0.36158
-      },
-      "5": {
-        "CALL": 0.56417,
-        "HH": 0.43331
-      },
-      "6": {
-        "CALL": 0.61603,
-        "HH": 0.38174
-      },
-      "7": {
-        "CALL": 0.80855,
-        "HH": 0.18945
-      },
-      "8": {
-        "CALL": 0.8525,
-        "HH": 0.14559
-      },
-      "9": {
-        "CALL": 0.01729,
-        "HH": 0.98109
-      },
-      "10": {
-        "CALL": 0.9994
-      },
-      "11": {
-        "CALL": 0.99917
-      },
-      "12": {
-        "CALL": 0.99869
-      }
-    },
-    "after_HC_10": {
-      "0": {
-        "CALL": 0.56667,
-        "HH": 0.43012
-      },
-      "1": {
-        "CALL": 0.31296,
-        "HH": 0.68374
-      },
-      "2": {
-        "CALL": 0.54354,
-        "HH": 0.45374
-      },
-      "3": {
-        "CALL": 0.55528,
-        "HH": 0.44206
-      },
-      "4": {
-        "CALL": 0.56345,
-        "HH": 0.43409
-      },
-      "5": {
-        "CALL": 0.57,
-        "HH": 0.42765
-      },
-      "6": {
-        "CALL": 0.6688,
-        "HH": 0.32908
-      },
-      "7": {
-        "CALL": 0.89715,
-        "HH": 0.10093
-      },
-      "8": {
-        "CALL": 0.90766,
-        "HH": 0.09053
-      },
-      "9": {
-        "CALL": 0.93491,
-        "HH": 0.06344
-      },
-      "10": {
-        "CALL": 0.01975,
-        "HH": 0.97898
+        "CALL": 0.99928
       },
       "11": {
         "CALL": 0.99935
       },
       "12": {
-        "CALL": 0.99921
+        "CALL": 0.99937
+      }
+    },
+    "after_HC_5": {
+      "0": {
+        "CALL": 0.63113,
+        "HH": 0.36054,
+        "High Card 8": 0.00107,
+        "High Card J": 0.00135,
+        "High Card Q": 0.00162,
+        "High Card K": 0.00175,
+        "High Card A": 0.00179
+      },
+      "1": {
+        "CALL": 0.52196,
+        "HH": 0.47145,
+        "High Card J": 0.00105,
+        "High Card Q": 0.00119,
+        "High Card K": 0.0014,
+        "High Card A": 0.00144
+      },
+      "2": {
+        "CALL": 0.70069,
+        "HH": 0.29527
+      },
+      "3": {
+        "CALL": 0.66132,
+        "HH": 0.33495
+      },
+      "4": {
+        "CALL": 0.57745,
+        "HH": 0.41957
+      },
+      "5": {
+        "CALL": 0.99926
+      },
+      "6": {
+        "CALL": 0.99991
+      },
+      "7": {
+        "CALL": 0.99955
+      },
+      "8": {
+        "CALL": 0.99941
+      },
+      "9": {
+        "CALL": 0.99936
+      },
+      "10": {
+        "CALL": 0.99941
+      },
+      "11": {
+        "CALL": 0.99947
+      },
+      "12": {
+        "CALL": 0.99953
+      }
+    },
+    "after_HC_6": {
+      "0": {
+        "CALL": 0.60077,
+        "HH": 0.39726
+      },
+      "1": {
+        "CALL": 0.53632,
+        "HH": 0.46197
+      },
+      "2": {
+        "CALL": 0.35166,
+        "HH": 0.64684
+      },
+      "3": {
+        "CALL": 0.43787,
+        "HH": 0.5607
+      },
+      "4": {
+        "CALL": 0.39731,
+        "HH": 0.60136
+      },
+      "5": {
+        "CALL": 0.35127,
+        "HH": 0.64744
+      },
+      "6": {
+        "CALL": 0.16847,
+        "HH": 0.83098
+      },
+      "7": {
+        "CALL": 0.9999
+      },
+      "8": {
+        "CALL": 0.99953
+      },
+      "9": {
+        "CALL": 0.99944
+      },
+      "10": {
+        "CALL": 0.99935
+      },
+      "11": {
+        "CALL": 0.99937
+      },
+      "12": {
+        "CALL": 0.99951
+      }
+    },
+    "after_HC_7": {
+      "0": {
+        "CALL": 0.54506,
+        "HH": 0.45335
+      },
+      "1": {
+        "CALL": 0.44844,
+        "HH": 0.55024
+      },
+      "2": {
+        "CALL": 0.51006,
+        "HH": 0.48883
+      },
+      "3": {
+        "CALL": 0.44768,
+        "HH": 0.55128
+      },
+      "4": {
+        "CALL": 0.41733,
+        "HH": 0.58174
+      },
+      "5": {
+        "CALL": 0.46889,
+        "HH": 0.5303
+      },
+      "6": {
+        "CALL": 0.7073,
+        "HH": 0.29197
+      },
+      "7": {
+        "CALL": 0.0062,
+        "HH": 0.99316
+      },
+      "8": {
+        "CALL": 0.99988
+      },
+      "9": {
+        "CALL": 0.99976
+      },
+      "10": {
+        "CALL": 0.99939
+      },
+      "11": {
+        "CALL": 0.99934
+      },
+      "12": {
+        "CALL": 0.99931
+      }
+    },
+    "after_HC_8": {
+      "0": {
+        "CALL": 0.52833,
+        "HH": 0.47026
+      },
+      "1": {
+        "CALL": 0.51226,
+        "HH": 0.48664
+      },
+      "2": {
+        "CALL": 0.48544,
+        "HH": 0.51367
+      },
+      "3": {
+        "CALL": 0.42331,
+        "HH": 0.57589
+      },
+      "4": {
+        "CALL": 0.44976,
+        "HH": 0.54953
+      },
+      "5": {
+        "CALL": 0.47707,
+        "HH": 0.52227
+      },
+      "6": {
+        "CALL": 0.68919,
+        "HH": 0.31022
+      },
+      "7": {
+        "CALL": 0.95744,
+        "HH": 0.042
+      },
+      "8": {
+        "CALL": 0.00397,
+        "HH": 0.99542
+      },
+      "9": {
+        "CALL": 0.99987
+      },
+      "10": {
+        "CALL": 0.99976
+      },
+      "11": {
+        "CALL": 0.99966
+      },
+      "12": {
+        "CALL": 0.99924
+      }
+    },
+    "after_HC_9": {
+      "0": {
+        "CALL": 0.48561,
+        "HH": 0.51314
+      },
+      "1": {
+        "CALL": 0.50899,
+        "HH": 0.49008
+      },
+      "2": {
+        "CALL": 0.48038,
+        "HH": 0.51879
+      },
+      "3": {
+        "CALL": 0.46405,
+        "HH": 0.53518
+      },
+      "4": {
+        "CALL": 0.49387,
+        "HH": 0.50547
+      },
+      "5": {
+        "CALL": 0.53025,
+        "HH": 0.46914
+      },
+      "6": {
+        "CALL": 0.70715,
+        "HH": 0.29231
+      },
+      "7": {
+        "CALL": 0.93545,
+        "HH": 0.06407
+      },
+      "8": {
+        "CALL": 0.95843,
+        "HH": 0.0411
+      },
+      "9": {
+        "CALL": 0.00417,
+        "HH": 0.99544
+      },
+      "10": {
+        "CALL": 0.99986
+      },
+      "11": {
+        "CALL": 0.9998
+      },
+      "12": {
+        "CALL": 0.99968
+      }
+    },
+    "after_HC_10": {
+      "0": {
+        "CALL": 0.55329,
+        "HH": 0.44594
+      },
+      "1": {
+        "CALL": 0.44136,
+        "HH": 0.55784
+      },
+      "2": {
+        "CALL": 0.44315,
+        "HH": 0.5562
+      },
+      "3": {
+        "CALL": 0.47539,
+        "HH": 0.52397
+      },
+      "4": {
+        "CALL": 0.50656,
+        "HH": 0.49284
+      },
+      "5": {
+        "CALL": 0.49696,
+        "HH": 0.50248
+      },
+      "6": {
+        "CALL": 0.6973,
+        "HH": 0.30219
+      },
+      "7": {
+        "CALL": 0.97351,
+        "HH": 0.02603
+      },
+      "8": {
+        "CALL": 0.97453,
+        "HH": 0.02503
+      },
+      "9": {
+        "CALL": 0.9825,
+        "HH": 0.0171
+      },
+      "10": {
+        "CALL": 0.00477,
+        "HH": 0.99493
+      },
+      "11": {
+        "CALL": 0.99984
+      },
+      "12": {
+        "CALL": 0.99981
       }
     },
     "after_HC_11": {
       "0": {
-        "CALL": 0.49635,
-        "HH": 0.49894,
-        "High Card A": 0.00276,
-        "Pair 2": 0.00133
+        "CALL": 0.40103,
+        "HH": 0.59783
       },
       "1": {
-        "CALL": 0.60727,
-        "HH": 0.38781,
-        "High Card A": 0.00144
+        "CALL": 0.51338,
+        "HH": 0.48543
       },
       "2": {
-        "CALL": 0.63148,
-        "HH": 0.36329,
-        "High Card A": 0.00101
+        "CALL": 0.44942,
+        "HH": 0.54931
       },
       "3": {
-        "CALL": 0.49447,
-        "HH": 0.50281,
-        "High Card A": 0.00108
+        "CALL": 0.52582,
+        "HH": 0.47352
       },
       "4": {
-        "CALL": 0.47575,
-        "HH": 0.52406
+        "CALL": 0.53613,
+        "HH": 0.46383
       },
       "5": {
-        "CALL": 0.6272,
-        "HH": 0.3726
+        "CALL": 0.5224,
+        "HH": 0.47755
       },
       "6": {
-        "CALL": 0.66618,
-        "HH": 0.33362
+        "CALL": 0.75238,
+        "HH": 0.24758
       },
       "7": {
-        "CALL": 0.79372,
-        "HH": 0.20607
+        "CALL": 0.92008,
+        "HH": 0.07987
       },
       "8": {
-        "CALL": 0.86653,
-        "HH": 0.13313
+        "CALL": 0.9597,
+        "HH": 0.04022
       },
       "9": {
-        "CALL": 0.9139,
-        "HH": 0.08588
+        "CALL": 0.97832,
+        "HH": 0.02163
       },
       "10": {
-        "CALL": 0.95036,
-        "HH": 0.04946
+        "CALL": 0.98802,
+        "HH": 0.01194
       },
       "11": {
-        "CALL": 0.00241,
-        "HH": 0.99621,
-        "Pair K": 0.00124
+        "HH": 0.99908
       },
       "12": {
-        "CALL": 0.99576,
-        "High Card A": 0.00414
+        "CALL": 0.99898
       }
     },
     "after_HC_12": {
       "0": {
-        "CALL": 0.32298,
-        "HH": 0.67683
+        "CALL": 0.46233,
+        "HH": 0.53762
       },
       "1": {
-        "CALL": 0.65826,
-        "HH": 0.33735,
-        "Pair 3": 0.0021
+        "CALL": 0.29797,
+        "HH": 0.70097
       },
       "2": {
-        "CALL": 0.96894,
-        "HH": 0.02873
+        "CALL": 0.52574,
+        "HH": 0.4737
       },
       "3": {
-        "CALL": 0.83019,
-        "HH": 0.16796
+        "CALL": 0.59083,
+        "HH": 0.40873
       },
       "4": {
-        "CALL": 0.66974,
-        "HH": 0.33007
+        "CALL": 0.64629,
+        "HH": 0.35366
       },
       "5": {
-        "CALL": 0.51775,
-        "HH": 0.48206
+        "CALL": 0.62969,
+        "HH": 0.37027
       },
       "6": {
-        "CALL": 0.52045,
-        "HH": 0.47936
+        "CALL": 0.71969,
+        "HH": 0.28026
       },
       "7": {
-        "CALL": 0.71262,
-        "HH": 0.28719
+        "CALL": 0.89084,
+        "HH": 0.10911
       },
       "8": {
-        "CALL": 0.7468,
-        "HH": 0.25301
+        "CALL": 0.92385,
+        "HH": 0.07611
       },
       "9": {
-        "CALL": 0.79976,
-        "HH": 0.20005
+        "CALL": 0.94794,
+        "HH": 0.05201
       },
       "10": {
-        "CALL": 0.85329,
-        "HH": 0.14652
+        "CALL": 0.96422,
+        "HH": 0.03573
       },
       "11": {
-        "CALL": 0.91025,
-        "HH": 0.08956
+        "CALL": 0.97834,
+        "HH": 0.02162
       },
       "12": {
-        "HH": 0.99809
+        "HH": 0.99954
       }
     }
   }
