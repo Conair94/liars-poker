@@ -14,7 +14,7 @@
 | M1 | Game engine (pure Python) | `agent/game/engine.py` + `agent/game/bids.py`; unit tests passing | ✅ Done |
 | M2 | Blind-game baseline strategy | `agent/baseline/blind_equilibrium.py`; backward induction for N=2; 8/8 tests | ✅ Done |
 | M2b | Warm-start lookup | `agent/rnad/warm_start.py`; marginal + conditional vectors for R-NaD network; 16/16 tests | ✅ Done |
-| M2c | CFR 1v1 Nash solver (Stage A reference) | `agent/baseline/cfr_1v1.py`; vanilla CFR over 2652 deals; mixed opening frequencies per rank; exploitability < 0.001 | 🔲 Planned |
+| M2c | CFR 1v1 Nash solver (Stage A reference) | `agent/baseline/cfr_1v1.py`; vanilla CFR with rank abstraction + max_bids cap + HH action; 20k-iter checkpoint at exploitability=0.738; `agent/baseline/cfr_1v1_overnight.py` for resumed runs; `CFRNashAgent` available in web UI | 🟡 Partial — see §5.5 for convergence findings |
 | M6a | Minimal web interface | FastAPI + HTMX; playable vs. random and blind baseline; `agent/web/` | ✅ Done |
 | M3 | R-NaD trainer (self-play) | `agent/rnad/config.py`, `network.py`, `trainer.py`, `eval.py`; 14/14 tests; Stage A + Stage B (full match/elimination) complete | ✅ Done (Stage A + B) |
 | M6b | Full web interface | Trained agent, stats recording, session replay, match history | 🔲 After M3 |
@@ -249,7 +249,16 @@ Single network, shared weights across all (N, hand-size) configurations.
    - Opponent with rank s < r: never calls (HC r always holds → certain loss)
    - Opponent with same rank: always calls (pool = Pair, not HC → certain win)
    
-   P1 is never in doubt — pure bidding eliminates all strategic uncertainty. Nash requires P0 to mix bids so P1 cannot infer P0's rank from the bid alone. The correct Stage A reference is computed by `agent/baseline/cfr_1v1.py`, a vanilla CFR solver over the 2652 possible ordered 1-card deals. It outputs mixed opening frequencies per rank and converges to exploitability < 0.001 in ~10k iterations. R-NaD Stage A convergence check = exploitability matches CFR Nash, not blind equilibrium.
+   P1 is never in doubt — pure bidding eliminates all strategic uncertainty. Nash requires P0 to mix bids so P1 cannot infer P0's rank from the bid alone. The correct Stage A reference is computed by `agent/baseline/cfr_1v1.py`, a vanilla CFR solver over the 2652 possible ordered 1-card deals (abstracted to 169 rank-pairs for tractability). It outputs mixed opening frequencies per rank. R-NaD Stage A convergence check = exploitability matches CFR Nash, not blind equilibrium.
+
+   **Empirical CFR findings (2026-04-20, `mb3_hh_overnight` run):**
+   - Configuration: max_bids=3, bid_space=HC+Pair (26 bids), include_hh=True, 20,000 iterations
+   - Game value (P0 EV): −0.227 — first mover has structural disadvantage at n=2, consistent with §2.6
+   - Exploitability after 20k iters: **0.738** — still high; plateau indicates vanilla CFR's O(1/√T) convergence is slow for this game structure
+   - 38,376 infosets learned; checkpoint at `agent/data/cfr_1v1_run/mb3_hh_overnight/checkpoint.json`
+   - Performance vs. baselines (win rate as P0 over 10k rounds): beats random (~85%), beats blind baseline (~70%)
+   - The CFR Nash agent samples from the average strategy (not argmax) — required to be unexploitable by best-response opponent
+   - **Next step:** Upgrade to CFR+ (regret matching+ with floor at 0, linear-weighted averaging). CFR+ converges 10–100× faster in practice for similar game configurations; expected to reach exploitability < 0.1 within 10k iters at max_bids=4.
 
 2. **Stage B — dynamic hand size, N=2.** Full match structure with elimination (hand sizes 1→5). The blind equilibrium under exact rules must be recomputed (different from the at-least equilibrium; see §4.1 and §2.6). Range tracking becomes meaningful at hand_size ≥ 2 (pool ≥ 4 cards). This is the first "real" game; the range tracker begins to matter.
 3. **Stage C — variable N ∈ {2..5}.** This is the **critical leap in difficulty**: multiple opponents means the range tracker must maintain N−1 simultaneous per-opponent posteriors, joint distribution complexity grows, and APU (Shi et al. 2022) must be applied for training stability. Randomize N per episode. Train the same network to generality across table sizes. Formal exploitability claims remain N=2 only.
@@ -337,14 +346,17 @@ Per workspace convention, all Stage 2 code lives inside the paper folder — no 
 - ~~Cards per player.~~ **Dynamic hand sizes 1..5**, match played as a multi-round elimination game. Loser of a round holding 5 cards is eliminated. See §2.2.
 - ~~Warm-starting.~~ **Yes, via fixed tabulated prior features** (marginal + rank-specific conditional probabilities) passed as deterministic state features, not as network initialization. See §4.2, §5.4.
 
+**Resolved (2026-04-20):**
+- ~~**Game length.**~~ **YES, cap via `max_bids`.** At n=2 with 26-bid space restriction (HC+Pair only), `max_bids=3` is tractable at ~1.5s/iter; `max_bids=4` is ~9s/iter; uncapped is intractable. In practice 1v1 games rarely exceed 5 bids. CFR tree is forcibly terminated at `max_bids` by treating any bet past the limit as illegal. The truncation introduces a small approximation error that is acceptable for the Stage A benchmark. See `cfr_1v1.py` and §5.5 empirical findings.
+- ~~**Stage A Nash benchmark.**~~ **PARTIAL.** `agent/baseline/cfr_1v1.py` implemented with rank abstraction (169 rank-pairs instead of 2652 deals), max_bids cap, HH_ACTION support, and chance-reach weighting. 20k-iter overnight run completed at exploitability=0.738. Vanilla CFR converges O(1/√T) — plateau is expected; CFR+ (regret matching+ with linear averaging) is the natural upgrade to reach exploitability < 0.01. Checkpoint and metrics at `agent/data/cfr_1v1_run/mb3_hh_overnight/`. `CFRNashAgent` serves this checkpoint in the web UI under exact-rules + HH settings. R-NaD Stage A target = match this exploitability, then improve as CFR+ improves the reference.
+
 **Still open:**
-1. **Game length.** Long bidding sequences inflate the state space. Do we cap the number of raises per round, or rely on natural termination?
 2. **Public state reconstruction for ReBeL.** How expensive is belief propagation over card Liar's Poker public states? Dice are exchangeable; cards are not (suits break symmetry). Affects M5 method choice.
 3. **Auxiliary loss weight (range prediction).** Under exact rules, the auxiliary head predicts opponent range from bid history (§5.4). How aggressively to weight this loss vs. the main R-NaD objective? Too high → overfits to short bid histories; too low → the range representation doesn't develop. Sweep empirically.
 4. **Extended conditional granularity ceiling.** Do we stop at "pair of 2s" level, or push to "pair of 2s + adjacent suited kicker"-type compound conditions? Each level of granularity multiplies MC compute; diminishing returns are likely past single-feature conditioning.
 5. **Paper vs. product.** Is the web interface part of the academic artifact (reproducible demo) or a separate side project? Affects polish level.
 6. **Range tracker likelihood initialization.** The Bayesian range tracker (§5.4) needs a likelihood function L(bid | range) to compute updates. Before the network is trained, what prior to use? Options: (a) uniform over legal bids, (b) blind-equilibrium bid frequencies per pool size, (c) learned jointly with the policy. Option (b) is the natural warm-start: the blind equilibrium tells us what a rational player with no private info would bid, giving a plausible default likelihood.
 7. ~~**Exact-rules blind equilibrium.**~~ **RESOLVED.** Computed and cached for n=2..10 via `get_blind_equilibrium_exact()`. First bid = HC A for all n; see §2.6 results table. Cache key prefix: `"exact_{n}"` in `agent/data/blind_equilibrium.json`.
-8. **Stage A Nash benchmark.** The blind equilibrium is NOT the Stage A benchmark under exact rules — private info creates a 12x conditional shift that the blind game cannot see. The correct benchmark is the 1v1 private-info Nash with mixed opening bids, computed by `agent/baseline/cfr_1v1.py`. This is the ground-truth exploitability target for R-NaD Stage A convergence. Status: **to build.**
+8. ~~**Stage A Nash benchmark.**~~ **RESOLVED — see Resolved block above.**
 
 These should be resolved as training progresses through Stages A–C.

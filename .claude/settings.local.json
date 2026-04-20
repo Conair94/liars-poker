@@ -46,7 +46,8 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(nohup python *)",
-      "Bash(echo \"PID: $!\")"
+      "Bash(echo \"PID: $!\")",
+      "Bash(git check-ignore *)"
     ]
   }
 }
