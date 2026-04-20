@@ -14,6 +14,7 @@
 | M1 | Game engine (pure Python) | `agent/game/engine.py` + `agent/game/bids.py`; unit tests passing | ✅ Done |
 | M2 | Blind-game baseline strategy | `agent/baseline/blind_equilibrium.py`; backward induction for N=2; 8/8 tests | ✅ Done |
 | M2b | Warm-start lookup | `agent/rnad/warm_start.py`; marginal + conditional vectors for R-NaD network; 16/16 tests | ✅ Done |
+| M2c | CFR 1v1 Nash solver (Stage A reference) | `agent/baseline/cfr_1v1.py`; vanilla CFR over 2652 deals; mixed opening frequencies per rank; exploitability < 0.001 | 🔲 Planned |
 | M6a | Minimal web interface | FastAPI + HTMX; playable vs. random and blind baseline; `agent/web/` | ✅ Done |
 | M3 | R-NaD trainer (self-play) | `agent/rnad/config.py`, `network.py`, `trainer.py`, `eval.py`; 14/14 tests; Stage A + Stage B (full match/elimination) complete | ✅ Done (Stage A + B) |
 | M6b | Full web interface | Trained agent, stats recording, session replay, match history | 🔲 After M3 |
@@ -241,7 +242,15 @@ Single network, shared weights across all (N, hand-size) configurations.
   - **[Exact-rules addition] Auxiliary range-prediction head:** Predicts the final revealed opponent hand from the bid history at episode end; supervised against true holdings. Replaces (or augments) the pool-distribution auxiliary head from the at-least design. This trains the representation to extract range information from bids — the core skill for exact-rules play.
 
 ### 5.5 Curriculum
-1. **Stage A — fixed hand size=1, N=2.** With one card per player the pool is 2 cards total; only High Card and the rare Pair can appear. The exact-rules Nash equilibrium is **tractable to compute exactly** (tiny extensive-form game, LP-solvable) and serves as a hard ground-truth sanity check for R-NaD convergence. The range tracker has almost no work to do here — bids carry little range information with 2-card pools. Stage A validates that the trainer converges and produces correct call frequencies before any complexity is added.
+1. **Stage A — fixed hand size=1, N=2.** With one card per player the pool is 2 cards total; only High Card and the rare Pair can appear. The exact-rules Nash equilibrium is **tractable to compute via CFR** and serves as a hard ground-truth sanity check for R-NaD convergence.
+
+   **Critical: the blind equilibrium is NOT the Stage A benchmark.** The blind game (no private info) has the trivial Nash "bid HC A", which is simply the highest-probability exact hand. The full private-info game requires **mixed strategies**: a player holding rank r who always bids "HC r" leaks their exact rank to the opponent:
+   - Opponent with rank s > r: always calls (HC r never holds → certain win)
+   - Opponent with rank s < r: never calls (HC r always holds → certain loss)
+   - Opponent with same rank: always calls (pool = Pair, not HC → certain win)
+   
+   P1 is never in doubt — pure bidding eliminates all strategic uncertainty. Nash requires P0 to mix bids so P1 cannot infer P0's rank from the bid alone. The correct Stage A reference is computed by `agent/baseline/cfr_1v1.py`, a vanilla CFR solver over the 2652 possible ordered 1-card deals. It outputs mixed opening frequencies per rank and converges to exploitability < 0.001 in ~10k iterations. R-NaD Stage A convergence check = exploitability matches CFR Nash, not blind equilibrium.
+
 2. **Stage B — dynamic hand size, N=2.** Full match structure with elimination (hand sizes 1→5). The blind equilibrium under exact rules must be recomputed (different from the at-least equilibrium; see §4.1 and §2.6). Range tracking becomes meaningful at hand_size ≥ 2 (pool ≥ 4 cards). This is the first "real" game; the range tracker begins to matter.
 3. **Stage C — variable N ∈ {2..5}.** This is the **critical leap in difficulty**: multiple opponents means the range tracker must maintain N−1 simultaneous per-opponent posteriors, joint distribution complexity grows, and APU (Shi et al. 2022) must be applied for training stability. Randomize N per episode. Train the same network to generality across table sizes. Formal exploitability claims remain N=2 only.
 4. **Stage D — test-time compute (M5).** Wrap the trained network in a search procedure. The range tracker provides the belief state needed for ReBeL-style subgame solving; Stage C's trained range representations are the prerequisite.
@@ -336,5 +345,6 @@ Per workspace convention, all Stage 2 code lives inside the paper folder — no 
 5. **Paper vs. product.** Is the web interface part of the academic artifact (reproducible demo) or a separate side project? Affects polish level.
 6. **Range tracker likelihood initialization.** The Bayesian range tracker (§5.4) needs a likelihood function L(bid | range) to compute updates. Before the network is trained, what prior to use? Options: (a) uniform over legal bids, (b) blind-equilibrium bid frequencies per pool size, (c) learned jointly with the policy. Option (b) is the natural warm-start: the blind equilibrium tells us what a rational player with no private info would bid, giving a plausible default likelihood.
 7. ~~**Exact-rules blind equilibrium.**~~ **RESOLVED.** Computed and cached for n=2..10 via `get_blind_equilibrium_exact()`. First bid = HC A for all n; see §2.6 results table. Cache key prefix: `"exact_{n}"` in `agent/data/blind_equilibrium.json`.
+8. **Stage A Nash benchmark.** The blind equilibrium is NOT the Stage A benchmark under exact rules — private info creates a 12x conditional shift that the blind game cannot see. The correct benchmark is the 1v1 private-info Nash with mixed opening bids, computed by `agent/baseline/cfr_1v1.py`. This is the ground-truth exploitability target for R-NaD Stage A convergence. Status: **to build.**
 
 These should be resolved as training progresses through Stages A–C.
