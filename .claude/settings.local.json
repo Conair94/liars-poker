@@ -44,7 +44,9 @@
       "Bash(python -m agent.baseline.cfr_1v1_overnight --name smoke_mb3 --max-bids 3 --batch 10 --total-iters 30)",
       "Bash(python -m pytest agent/baseline/tests/test_cfr_1v1.py -v --tb=short)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(nohup python *)",
+      "Bash(echo \"PID: $!\")"
     ]
   }
 }

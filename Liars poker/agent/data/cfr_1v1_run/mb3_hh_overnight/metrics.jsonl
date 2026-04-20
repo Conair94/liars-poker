@@ -1,0 +1,7 @@
+{"iter": 100, "batch": 0, "batch_n": 100, "t_batch_s": 144.03, "t_per_iter_s": 1.44, "exploitability": 0.7595309065972295, "game_value": -0.2166801515202458}
+{"iter": 200, "batch": 1, "batch_n": 100, "t_batch_s": 147.102, "t_per_iter_s": 1.471, "exploitability": 0.7634871940039435, "game_value": -0.221535272042298}
+{"iter": 300, "batch": 2, "batch_n": 100, "t_batch_s": 141.644, "t_per_iter_s": 1.416, "exploitability": 0.7649561600431475, "game_value": -0.22316373499465295}
+{"iter": 400, "batch": 3, "batch_n": 100, "t_batch_s": 137.09, "t_per_iter_s": 1.371, "exploitability": 0.7637597845376303, "game_value": -0.22376543814853825}
+{"iter": 500, "batch": 4, "batch_n": 100, "t_batch_s": 136.957, "t_per_iter_s": 1.37, "exploitability": 0.7624816754510089, "game_value": -0.2241980541434965}
+{"iter": 600, "batch": 5, "batch_n": 100, "t_batch_s": 136.982, "t_per_iter_s": 1.37, "exploitability": 0.7601926205006512, "game_value": -0.22437107893142708}
+{"iter": 700, "batch": 6, "batch_n": 100, "t_batch_s": 137.425, "t_per_iter_s": 1.374, "exploitability": 0.7574769204572956, "game_value": -0.22473389216936615}
