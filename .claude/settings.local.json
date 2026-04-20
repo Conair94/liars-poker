@@ -34,7 +34,12 @@
       "Skill(claude-coding:commit)",
       "Skill(claude-coding:commit:*)",
       "Bash(python -m agent.baseline.blind_equilibrium --compare --n-min 2 --n-max 10 --samples-exact 500000)",
-      "Bash(python -m agent.baseline.tests.test_blind_equilibrium_exact)"
+      "Bash(python -m agent.baseline.tests.test_blind_equilibrium_exact)",
+      "Bash(python -c \"from agent.baseline.cfr_1v1 import CFRSolver, _build_holds_table; print\\('import OK'\\)\")",
+      "Bash(python -m pytest agent/baseline/tests/test_cfr_1v1.py -x -q --tb=short)",
+      "Bash(python -m pytest agent/baseline/tests/test_cfr_1v1.py::TestGameStructure agent/baseline/tests/test_cfr_1v1.py::TestCFRMechanics -v --tb=short)",
+      "Bash(timeout 10 python -c ' *)",
+      "Bash(python -c ' *)"
     ]
   }
 }
