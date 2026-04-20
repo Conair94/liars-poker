@@ -126,6 +126,45 @@ _HOLDS: List[List[List[bool]]] = _build_holds_table()
 
 
 # ---------------------------------------------------------------------------
+# Rank-level abstraction
+# ---------------------------------------------------------------------------
+# At n=2 the pool has only 2 cards — no 5-card hand exists — so the bid-holds
+# relation depends only on card RANKS, not suits. We therefore iterate deals
+# at rank granularity (13x13 = 169 ordered pairs) weighted by card counts.
+
+def _rank_pair_weight(r0: int, r1: int) -> int:
+    """Number of (c0, c1) ordered card pairs with rank(c0)=r0, rank(c1)=r1."""
+    if r0 == r1:
+        return 4 * 3   # pick c0 from 4 suits, c1 from remaining 3 of same rank
+    return 4 * 4       # 4 suits × 4 suits
+
+
+_TOTAL_DEAL_COUNT = 52 * 51  # 2652
+
+_RANK_DEALS: List[Tuple[int, int, int]] = [
+    (r0, r1, _rank_pair_weight(r0, r1))
+    for r0 in range(13) for r1 in range(13)
+]
+
+# Build a rank-level holds table: _HOLDS_RANK[r0][r1][bid_idx].
+# Uses card (r*4) as a canonical representative per rank (suit 0).
+
+def _build_holds_rank_table() -> List[List[List[bool]]]:
+    table: List[List[List[bool]]] = []
+    for r0 in range(13):
+        row: List[List[bool]] = []
+        for r1 in range(13):
+            c0 = r0 * 4
+            c1 = r1 * 4 + (1 if r1 == r0 else 0)  # avoid same card at r0==r1
+            row.append(_HOLDS[c0][c1])
+        table.append(row)
+    return table
+
+
+_HOLDS_RANK: List[List[List[bool]]] = _build_holds_rank_table()
+
+
+# ---------------------------------------------------------------------------
 # History / legal actions
 # ---------------------------------------------------------------------------
 # A history is a tuple of action ints:
@@ -181,19 +220,21 @@ def _legal_actions(
 
 
 def _terminal_utility_p0(history: Tuple[int, ...], card0: int, card1: int) -> float:
-    """P0 utility at a terminal node. `history` ends in CALL or HH."""
+    """P0 utility at a terminal node (by card indices). `history` ends in CALL or HH."""
+    return _terminal_utility_p0_rank(history, _card_rank(card0), _card_rank(card1))
+
+
+def _terminal_utility_p0_rank(history: Tuple[int, ...], r0: int, r1: int) -> float:
+    """P0 utility at a terminal node, keyed by card ranks."""
     last = history[-1]
-    resolver = (len(history) - 1) % 2  # player who invoked CALL/HH
+    resolver = (len(history) - 1) % 2
     standing = _standing_bid_index(history)
     assert standing is not None, "resolver action requires a standing bid"
-    holds = _HOLDS[card0][card1][standing]
-
-    # CALL: resolver wins if bid does NOT hold. HH: resolver wins if it HOLDS.
+    holds = _HOLDS_RANK[r0][r1][standing]
     if last == CALL_ACTION:
         resolver_util = +1.0 if not holds else -1.0
     else:  # HH_ACTION
         resolver_util = +1.0 if holds else -1.0
-
     return resolver_util if resolver == 0 else -resolver_util
 
 
@@ -239,17 +280,17 @@ class CFRSolver:
     def _cfr(
         self,
         history: Tuple[int, ...],
-        card0: int,
-        card1: int,
+        r0: int,
+        r1: int,
         reach0: float,
         reach1: float,
+        chance_reach: float,
     ) -> float:
         if _is_terminal(history):
-            return _terminal_utility_p0(history, card0, card1)
+            return _terminal_utility_p0_rank(history, r0, r1)
 
         player = _current_player(history)
-        card   = card0 if player == 0 else card1
-        rank   = _card_rank(card)
+        rank   = r0 if player == 0 else r1
         legal  = _legal_actions(history, self.bid_space, self.max_bids, self.include_hh)
         key    = (player, rank, history)
 
@@ -262,22 +303,25 @@ class CFRSolver:
         for i, a in enumerate(legal):
             new_history = history + (a,)
             if player == 0:
-                action_utils[i] = self._cfr(new_history, card0, card1,
-                                            reach0 * strategy[i], reach1)
+                action_utils[i] = self._cfr(new_history, r0, r1,
+                                            reach0 * strategy[i], reach1,
+                                            chance_reach)
             else:
-                action_utils[i] = self._cfr(new_history, card0, card1,
-                                            reach0, reach1 * strategy[i])
+                action_utils[i] = self._cfr(new_history, r0, r1,
+                                            reach0, reach1 * strategy[i],
+                                            chance_reach)
             node_util += strategy[i] * action_utils[i]
 
         opponent_reach = reach1 if player == 0 else reach0
         my_reach       = reach0 if player == 0 else reach1
         sign           = 1.0 if player == 0 else -1.0
+        cf_opp         = chance_reach * opponent_reach
 
         regret_sum   = self._regret_sum[key]
         strategy_sum = self._strategy_sum[key]
         for i in range(n):
             regret = sign * (action_utils[i] - node_util)
-            regret_sum[i]   += opponent_reach * regret
+            regret_sum[i]   += cf_opp * regret
             strategy_sum[i] += my_reach * strategy[i]
 
         return node_util
@@ -285,17 +329,16 @@ class CFRSolver:
     # ------------------------------------------------------------------
 
     def iterate(self) -> float:
-        """One CFR iteration over all 2652 ordered deals."""
+        """One CFR iteration over all 169 rank-pair deals (weighted)."""
         total_util = 0.0
-        count = 0
-        for c0 in range(52):
-            for c1 in range(52):
-                if c0 == c1:
-                    continue
-                total_util += self._cfr((), c0, c1, 1.0, 1.0)
-                count += 1
+        total_w    = 0
+        for r0, r1, w in _RANK_DEALS:
+            chance = w / _TOTAL_DEAL_COUNT
+            util   = self._cfr((), r0, r1, 1.0, 1.0, chance)
+            total_util += util * w
+            total_w    += w
         self._iterations += 1
-        return total_util / count
+        return total_util / total_w
 
     def run(self, n_iterations: int = 1000, verbose: bool = False) -> None:
         for i in range(n_iterations):
@@ -322,24 +365,23 @@ class CFRSolver:
     def _best_response_value(
         self,
         history: Tuple[int, ...],
-        card0: int,
-        card1: int,
+        r0: int,
+        r1: int,
         br_player: int,
     ) -> float:
         if _is_terminal(history):
-            u = _terminal_utility_p0(history, card0, card1)
+            u = _terminal_utility_p0_rank(history, r0, r1)
             return u if br_player == 0 else -u
 
         player = _current_player(history)
-        card   = card0 if player == 0 else card1
-        rank   = _card_rank(card)
+        rank   = r0 if player == 0 else r1
         legal  = _legal_actions(history, self.bid_space, self.max_bids, self.include_hh)
         key    = (player, rank, history)
 
         if player == br_player:
             best = float("-inf")
             for a in legal:
-                v = self._best_response_value(history + (a,), card0, card1, br_player)
+                v = self._best_response_value(history + (a,), r0, r1, br_player)
                 if v > best:
                     best = v
             return best
@@ -347,22 +389,19 @@ class CFRSolver:
         val = 0.0
         for i, a in enumerate(legal):
             val += strat[i] * self._best_response_value(
-                history + (a,), card0, card1, br_player)
+                history + (a,), r0, r1, br_player)
         return val
 
     def exploitability(self) -> float:
         """Per-player exploitability = (E[BR0] + E[BR1]) / 2. Nash → 0."""
         br0_total = 0.0
         br1_total = 0.0
-        count = 0
-        for c0 in range(52):
-            for c1 in range(52):
-                if c0 == c1:
-                    continue
-                br0_total += self._best_response_value((), c0, c1, 0)
-                br1_total += self._best_response_value((), c0, c1, 1)
-                count += 1
-        nashconv = (br0_total + br1_total) / count
+        total_w   = 0
+        for r0, r1, w in _RANK_DEALS:
+            br0_total += w * self._best_response_value((), r0, r1, 0)
+            br1_total += w * self._best_response_value((), r0, r1, 1)
+            total_w   += w
+        nashconv = (br0_total + br1_total) / total_w
         return nashconv / 2.0
 
     # ------------------------------------------------------------------
@@ -411,33 +450,29 @@ class CFRSolver:
     def _avg_value_traverse(
         self,
         history: Tuple[int, ...],
-        card0: int,
-        card1: int,
+        r0: int,
+        r1: int,
     ) -> float:
         if _is_terminal(history):
-            return _terminal_utility_p0(history, card0, card1)
+            return _terminal_utility_p0_rank(history, r0, r1)
         player = _current_player(history)
-        card   = card0 if player == 0 else card1
-        rank   = _card_rank(card)
+        rank   = r0 if player == 0 else r1
         legal  = _legal_actions(history, self.bid_space, self.max_bids, self.include_hh)
         key    = (player, rank, history)
         strat  = self.average_strategy(key, legal)
         val = 0.0
         for i, a in enumerate(legal):
-            val += strat[i] * self._avg_value_traverse(history + (a,), card0, card1)
+            val += strat[i] * self._avg_value_traverse(history + (a,), r0, r1)
         return val
 
     def game_value(self) -> float:
         """P0 expected utility under the average-strategy profile."""
-        total = 0.0
-        count = 0
-        for c0 in range(52):
-            for c1 in range(52):
-                if c0 == c1:
-                    continue
-                total += self._avg_value_traverse((), c0, c1)
-                count += 1
-        return total / count
+        total   = 0.0
+        total_w = 0
+        for r0, r1, w in _RANK_DEALS:
+            total   += w * self._avg_value_traverse((), r0, r1)
+            total_w += w
+        return total / total_w
 
     # ------------------------------------------------------------------
     # Serialization
