@@ -1,43 +1,50 @@
 """
 CFR (Counterfactual Regret Minimization) solver for the 1v1 n=2 private-info
-exact-rules Liar's Poker game.
+exact-rules Liar's Poker game, bounded tree variant.
 
 Game summary
 ------------
-- Each player is dealt exactly 1 card from a 52-card deck (pool size n=2).
-- Exact-rules resolution: bid holds iff some 5-card subset of the 2-card pool
-  evaluates to exactly (hand_type, primary_rank). For n=2, no 5-card subsets
-  exist, so the evaluator falls back to evaluating all 2 cards directly.
-- Player 0 bids first; players alternate; first legal action on any turn is to
-  call (except before any bid exists — P0 must bid on turn 0).
-- On a call: caller wins (+1) if the standing bid does NOT hold; loses (-1) if
-  the bid holds exactly.
+- Each player is dealt 1 card from a 52-card deck (pool size n=2).
+- Exact-rules resolution: the pool's best hand (evaluated via
+  `_evaluate_ranked`) is compared to the standing bid. At n=2 no 5-card hand
+  exists; the pool is either Pair r (same rank) or High Card r (distinct).
+- Player 0 bids first; players alternate.
+- Three terminal actions may be available to the non-bidding player:
+    CALL — claims the bid does NOT hold; caller wins (+1) iff pool != bid.
+    HH   — claims the bid holds EXACTLY; declarer wins (+1) iff pool == bid.
+    BID  — raise to a strictly stronger bid (continues the round).
+- The tree is bounded in two ways to keep CFR tractable:
+    max_bids    forces CALL after N bids have been made.
+    bid_space   restricts the bid action set to a fixed subset of indices
+                (default: the 26 HC+Pair bids — the only bids whose "holds"
+                event has nonzero probability at n=2).
 
 Why mixed strategies are required
 ----------------------------------
-If P0 always bids "HC rank(c0)", P1 can infer P0's rank from the bid:
-  - P1 rank > P0 rank → HC (P0 rank) never holds → P1 always calls (wins).
-  - P1 rank < P0 rank → HC (P0 rank) holds     → P1 never calls (loses).
-  - P1 rank == P0 rank → pool = Pair, not HC   → P1 always calls (wins).
-P1 has perfect certainty; pure bidding eliminates all strategic value of P0's
-private card. Nash equilibrium requires P0 to mix over bids so that P1 cannot
-infer P0's rank from the opening bid.
+If P0 always bids "HC rank(c0)", P1 can infer P0's rank exactly:
+  - P1 rank > P0 rank → HC (P0 rank) never holds → P1 calls, wins.
+  - P1 rank < P0 rank → HC (P0 rank) holds       → P1 declares HH, wins.
+  - P1 rank == P0 rank → pool = Pair, not HC     → P1 calls, wins.
+Pure bidding leaks everything; Nash requires P0 to mix.
 
-Algorithm: Vanilla CFR
------------------------
-- Information sets (infostates): (player, card_rank, history_tuple)
-  card_rank = rank of player's single private card (0..12, Aces=12).
-- Full game tree enumeration: iterate over all 52×51=2652 ordered deals per
-  outer CFR iteration. Each deal is a deterministic path through the tree;
-  regrets are accumulated in proportion to the opponent's reach probability.
-- Average strategy: maintained across all iterations via cumulative sum.
-- Exploitability: computed by best-response traversal (exact, not sampling).
+Algorithm: Vanilla CFR with full deal enumeration
+-------------------------------------------------
+- Information sets: (player, card_rank, history_tuple). Suit is irrelevant at
+  n=2 since HC/Pair are rank-only; we collapse suits by enumerating all
+  52*51=2652 ordered deals but keying infosets by rank only.
+- Each outer iteration enumerates every ordered deal and performs a full tree
+  traversal, accumulating regrets weighted by opponent reach.
+- Average strategy: cumulative sum across iterations; extracted via
+  `average_strategy()`.
+- Exploitability: exact best-response traversal (no sampling).
 
 Usage
 -----
-    python -m agent.baseline.cfr_1v1 [--iters 50000] [--compare]
+    python -m agent.baseline.cfr_1v1 --iters 2000 --max-bids 6 [--include-hh]
 
-Results are cached to agent/data/cfr_1v1.json.
+For long runs, use the overnight driver:
+
+    python -m agent.baseline.cfr_1v1_overnight ...
 """
 
 from __future__ import annotations
@@ -46,7 +53,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 _BASELINE_DIR = os.path.dirname(os.path.abspath(__file__))
 _AGENT_DIR    = os.path.abspath(os.path.join(_BASELINE_DIR, ".."))
@@ -58,135 +65,172 @@ for _p in (_PAPER_DIR, _AGENT_DIR):
 
 from poker_math_exact import _evaluate_ranked          # noqa: E402
 from agent.game.bids import (                          # noqa: E402
-    Bid, all_bids, NUM_BIDS, CALL_ACTION,
+    Bid, all_bids, NUM_BIDS, CALL_ACTION, HH_ACTION,
     bid_to_index, index_to_bid, normalize_hand_type,
-    HIGH_CARD,
+    HIGH_CARD, PAIR,
 )
 
 _DATA_DIR   = os.path.join(_AGENT_DIR, "data")
 _CACHE_FILE = os.path.join(_DATA_DIR, "cfr_1v1.json")
 
 # ---------------------------------------------------------------------------
-# Card / pool helpers
+# Bid-space presets
+# ---------------------------------------------------------------------------
+
+def _hc_pair_bid_indices() -> Tuple[int, ...]:
+    """The 26 bid indices corresponding to HC 2..A and Pair 2..A."""
+    idxs: List[int] = []
+    for r in range(13):
+        idxs.append(bid_to_index(Bid(HIGH_CARD, r)))
+    for r in range(13):
+        idxs.append(bid_to_index(Bid(PAIR, r)))
+    return tuple(sorted(idxs))
+
+
+HC_PAIR_BIDS: Tuple[int, ...] = _hc_pair_bid_indices()
+
+
+def _all_bid_indices() -> Tuple[int, ...]:
+    return tuple(range(NUM_BIDS))
+
+
+# ---------------------------------------------------------------------------
+# Card helpers
 # ---------------------------------------------------------------------------
 
 def _card_rank(card: int) -> int:
-    """Return rank 0..12 from card index 0..51."""
+    """Rank 0..12 from card index 0..51."""
     return card // 4
 
 
 def _bid_holds_n2(card0: int, card1: int, bid: Bid) -> bool:
-    """True if the 2-card pool [card0, card1] evaluates to exactly bid."""
+    """True iff the 2-card pool evaluates to exactly `bid`."""
     raw_t, raw_p = _evaluate_ranked([card0, card1])
     t, p = normalize_hand_type(raw_t, raw_p)
     return t == bid.hand_type and p == bid.primary_rank
 
 
-# Precompute bid-holds table for all ordered 2-card deals × all bids.
-# Shape: _HOLDS[card0][card1][bid_idx] → bool (stored as int 0/1)
 def _build_holds_table() -> List[List[List[bool]]]:
+    """Precompute holds[card0][card1][bid_idx] for all 52*52*NUM_BIDS combos."""
     bids = all_bids()
-    table: List[List[List[bool]]] = [
+    return [
         [
             [_bid_holds_n2(c0, c1, b) for b in bids]
             for c1 in range(52)
         ]
         for c0 in range(52)
     ]
-    return table
 
-_HOLDS = _build_holds_table()
+
+_HOLDS: List[List[List[bool]]] = _build_holds_table()
 
 
 # ---------------------------------------------------------------------------
-# History encoding
+# History / legal actions
 # ---------------------------------------------------------------------------
+# A history is a tuple of action ints:
+#   bid_idx ∈ [0, NUM_BIDS)   → a raise
+#   CALL_ACTION (110)          → the round ends: caller wins if bid doesn't hold
+#   HH_ACTION   (111)          → the round ends: declarer wins if bid holds
 
-# A history is a tuple of action indices (bid indices or CALL_ACTION).
-# Turn 0: P0 must bid (CALL_ACTION illegal). Turn t≥1: either player may call.
-# The game terminates when CALL_ACTION is played.
+_TERMINAL_ACTIONS: Tuple[int, ...] = (CALL_ACTION, HH_ACTION)
+
 
 def _current_player(history: Tuple[int, ...]) -> int:
     return len(history) % 2
 
 
-def _legal_actions(history: Tuple[int, ...]) -> List[int]:
-    """Legal actions at the given history."""
-    if len(history) == 0:
-        # P0 must bid; no call allowed before any bid exists.
-        return list(range(NUM_BIDS))
-    standing_bid_idx = max(a for a in history if a != CALL_ACTION)
-    # Can call or raise above the standing bid.
-    actions = [CALL_ACTION] + list(range(standing_bid_idx + 1, NUM_BIDS))
-    return actions
+def _standing_bid_index(history: Tuple[int, ...]) -> Optional[int]:
+    for a in reversed(history):
+        if a not in _TERMINAL_ACTIONS:
+            return a
+    return None
+
+
+def _num_bids_placed(history: Tuple[int, ...]) -> int:
+    return sum(1 for a in history if a not in _TERMINAL_ACTIONS)
 
 
 def _is_terminal(history: Tuple[int, ...]) -> bool:
-    return len(history) > 0 and history[-1] == CALL_ACTION
+    return len(history) > 0 and history[-1] in _TERMINAL_ACTIONS
+
+
+def _legal_actions(
+    history: Tuple[int, ...],
+    bid_space: Tuple[int, ...],
+    max_bids: int,
+    include_hh: bool,
+) -> List[int]:
+    """Legal actions at `history` given tree constraints."""
+    standing = _standing_bid_index(history)
+    bids_placed = _num_bids_placed(history)
+
+    if standing is None:
+        # Root turn: P0 must bid; no call/HH legal.
+        return [b for b in bid_space]
+
+    # If we've hit the bid cap, only terminal resolutions remain.
+    raise_legal = bids_placed < max_bids
+    raises = [b for b in bid_space if b > standing] if raise_legal else []
+
+    actions: List[int] = [CALL_ACTION]
+    if include_hh:
+        actions.append(HH_ACTION)
+    actions.extend(raises)
+    return actions
 
 
 def _terminal_utility_p0(history: Tuple[int, ...], card0: int, card1: int) -> float:
-    """
-    Return P0's utility at a terminal node.
-    The last action is CALL_ACTION by the current player.
-    The standing bid is the last non-CALL action.
-    """
-    # Who called?
-    caller = _current_player(history)  # player who just took the CALL action
-    # Actually: caller took the last action (CALL), but current_player AFTER
-    # the action would be the other player. We want the player who CALLED.
-    # len(history) after appending CALL: we check before appending.
-    # history already contains the CALL as the last element.
-    caller = (len(history) - 1) % 2  # player at turn len(history)-1
+    """P0 utility at a terminal node. `history` ends in CALL or HH."""
+    last = history[-1]
+    resolver = (len(history) - 1) % 2  # player who invoked CALL/HH
+    standing = _standing_bid_index(history)
+    assert standing is not None, "resolver action requires a standing bid"
+    holds = _HOLDS[card0][card1][standing]
 
-    standing_bid_idx = max(a for a in history if a != CALL_ACTION)
-    bid = index_to_bid(standing_bid_idx)
-    holds = _HOLDS[card0][card1][standing_bid_idx]
+    # CALL: resolver wins if bid does NOT hold. HH: resolver wins if it HOLDS.
+    if last == CALL_ACTION:
+        resolver_util = +1.0 if not holds else -1.0
+    else:  # HH_ACTION
+        resolver_util = +1.0 if holds else -1.0
 
-    # Caller wins (+1 for caller) if bid does NOT hold.
-    # Caller loses (-1 for caller) if bid holds.
-    if holds:
-        caller_utility = -1.0
-    else:
-        caller_utility = +1.0
-
-    # Return from P0's perspective.
-    if caller == 0:
-        return caller_utility
-    else:
-        return -caller_utility
+    return resolver_util if resolver == 0 else -resolver_util
 
 
 # ---------------------------------------------------------------------------
 # CFR state
 # ---------------------------------------------------------------------------
 
-# infostate key: (player, card_rank, history)
+# key = (player, card_rank, history_tuple)
 InfoKey = Tuple[int, int, Tuple[int, ...]]
 
 
 class CFRSolver:
-    """Vanilla CFR for the 1v1 n=2 Liar's Poker game."""
+    """Vanilla CFR for the 1v1 n=2 Liar's Poker game with a bounded tree."""
 
-    def __init__(self) -> None:
-        # Cumulative regrets and cumulative strategy sum, keyed by infostate.
+    def __init__(
+        self,
+        max_bids: int = 6,
+        bid_space: Tuple[int, ...] = HC_PAIR_BIDS,
+        include_hh: bool = True,
+    ) -> None:
+        self.max_bids   = int(max_bids)
+        self.bid_space  = tuple(sorted(bid_space))
+        self.include_hh = bool(include_hh)
+
         self._regret_sum:   Dict[InfoKey, List[float]] = {}
         self._strategy_sum: Dict[InfoKey, List[float]] = {}
-        self._iterations = 0
+        self._iterations   = 0
 
-    # ------------------------------------------------------------------
-    # Core CFR traversal
     # ------------------------------------------------------------------
 
     def _get_strategy(self, key: InfoKey, legal: List[int]) -> List[float]:
-        """Current strategy via regret matching."""
         n = len(legal)
         if key not in self._regret_sum:
             self._regret_sum[key]   = [0.0] * n
             self._strategy_sum[key] = [0.0] * n
-
         regrets = self._regret_sum[key]
-        pos = [max(r, 0.0) for r in regrets]
+        pos = [r if r > 0.0 else 0.0 for r in regrets]
         total = sum(pos)
         if total > 0:
             return [p / total for p in pos]
@@ -200,17 +244,13 @@ class CFRSolver:
         reach0: float,
         reach1: float,
     ) -> float:
-        """
-        Returns expected utility for P0 from this node.
-        reach0, reach1 = reach probabilities for P0 and P1 respectively.
-        """
         if _is_terminal(history):
             return _terminal_utility_p0(history, card0, card1)
 
         player = _current_player(history)
         card   = card0 if player == 0 else card1
         rank   = _card_rank(card)
-        legal  = _legal_actions(history)
+        legal  = _legal_actions(history, self.bid_space, self.max_bids, self.include_hh)
         key    = (player, rank, history)
 
         strategy = self._get_strategy(key, legal)
@@ -229,45 +269,41 @@ class CFRSolver:
                                             reach0, reach1 * strategy[i])
             node_util += strategy[i] * action_utils[i]
 
-        # Accumulate regrets and strategy sum.
         opponent_reach = reach1 if player == 0 else reach0
         my_reach       = reach0 if player == 0 else reach1
         sign           = 1.0 if player == 0 else -1.0
 
+        regret_sum   = self._regret_sum[key]
+        strategy_sum = self._strategy_sum[key]
         for i in range(n):
             regret = sign * (action_utils[i] - node_util)
-            self._regret_sum[key][i]   += opponent_reach * regret
-            self._strategy_sum[key][i] += my_reach * strategy[i]
+            regret_sum[i]   += opponent_reach * regret
+            strategy_sum[i] += my_reach * strategy[i]
 
         return node_util
 
     # ------------------------------------------------------------------
-    # One full iteration over all 2652 ordered deals
-    # ------------------------------------------------------------------
 
     def iterate(self) -> float:
-        """Run one CFR iteration. Returns the average P0 utility over all deals."""
+        """One CFR iteration over all 2652 ordered deals."""
         total_util = 0.0
         count = 0
         for c0 in range(52):
             for c1 in range(52):
                 if c0 == c1:
                     continue
-                # Uniform prior over deals: each deal has equal weight.
                 total_util += self._cfr((), c0, c1, 1.0, 1.0)
                 count += 1
         self._iterations += 1
         return total_util / count
 
-    def run(self, n_iterations: int = 10_000, verbose: bool = False) -> None:
+    def run(self, n_iterations: int = 1000, verbose: bool = False) -> None:
         for i in range(n_iterations):
             util = self.iterate()
-            if verbose and (i + 1) % 1000 == 0:
+            if verbose and (i + 1) % 100 == 0:
                 exp = self.exploitability()
                 print(f"  iter {i+1:6d}: game_value={util:+.4f}  exploitability={exp:.6f}")
 
-    # ------------------------------------------------------------------
-    # Average strategy extraction
     # ------------------------------------------------------------------
 
     def average_strategy(self, key: InfoKey, legal: List[int]) -> List[float]:
@@ -282,8 +318,6 @@ class CFRSolver:
         return [1.0 / n] * n
 
     # ------------------------------------------------------------------
-    # Exploitability (exact best-response traversal)
-    # ------------------------------------------------------------------
 
     def _best_response_value(
         self,
@@ -292,10 +326,6 @@ class CFRSolver:
         card1: int,
         br_player: int,
     ) -> float:
-        """
-        Compute the best-response value for br_player against the average
-        strategy of the other player.
-        """
         if _is_terminal(history):
             u = _terminal_utility_p0(history, card0, card1)
             return u if br_player == 0 else -u
@@ -303,34 +333,27 @@ class CFRSolver:
         player = _current_player(history)
         card   = card0 if player == 0 else card1
         rank   = _card_rank(card)
-        legal  = _legal_actions(history)
+        legal  = _legal_actions(history, self.bid_space, self.max_bids, self.include_hh)
         key    = (player, rank, history)
 
         if player == br_player:
-            # Best response: take the max.
             best = float("-inf")
             for a in legal:
                 v = self._best_response_value(history + (a,), card0, card1, br_player)
                 if v > best:
                     best = v
             return best
-        else:
-            # Opponent plays average strategy.
-            strat = self.average_strategy(key, legal)
-            val = 0.0
-            for i, a in enumerate(legal):
-                val += strat[i] * self._best_response_value(
-                    history + (a,), card0, card1, br_player)
-            return val
+        strat = self.average_strategy(key, legal)
+        val = 0.0
+        for i, a in enumerate(legal):
+            val += strat[i] * self._best_response_value(
+                history + (a,), card0, card1, br_player)
+        return val
 
     def exploitability(self) -> float:
-        """
-        Nash convergence measure (NashConv / 2 = per-player exploitability).
-        Sum over all deals of the best-response values for each player, then
-        normalize by deal count. Returns a value ≥ 0; 0 = Nash equilibrium.
-        """
-        br0_total = 0.0  # P0's BR value against P1's avg strategy
-        br1_total = 0.0  # P1's BR value against P0's avg strategy
+        """Per-player exploitability = (E[BR0] + E[BR1]) / 2. Nash → 0."""
+        br0_total = 0.0
+        br1_total = 0.0
         count = 0
         for c0 in range(52):
             for c1 in range(52):
@@ -339,39 +362,50 @@ class CFRSolver:
                 br0_total += self._best_response_value((), c0, c1, 0)
                 br1_total += self._best_response_value((), c0, c1, 1)
                 count += 1
-        # NashConv = E[BR0] + E[BR1].  Per-player exploitability = NashConv/2.
         nashconv = (br0_total + br1_total) / count
         return nashconv / 2.0
 
     # ------------------------------------------------------------------
-    # Mixed opening frequencies by rank
-    # ------------------------------------------------------------------
 
     def opening_mix_by_rank(self) -> Dict[int, Dict[str, float]]:
-        """
-        For each rank r (0..12), return P0's average-strategy opening bid
-        distribution at the root (empty history).
-
-        Returns: {rank: {bid_str: probability, ...}, ...}
-        Bids with probability < 0.001 are omitted for readability.
-        """
-        legal = _legal_actions(())  # all bids; no call at root
-        result = {}
+        """P0's root opening-bid distribution, keyed by card rank."""
+        legal = _legal_actions((), self.bid_space, self.max_bids, self.include_hh)
+        result: Dict[int, Dict[str, float]] = {}
         for rank in range(13):
-            # Use any card of this rank (e.g. rank*4 = clubs suit).
-            card = rank * 4
             key: InfoKey = (0, rank, ())
             strat = self.average_strategy(key, legal)
-            dist = {}
+            dist: Dict[str, float] = {}
             for i, a in enumerate(legal):
                 if strat[i] >= 0.001:
-                    bid_str = str(index_to_bid(a))
-                    dist[bid_str] = round(strat[i], 5)
+                    dist[str(index_to_bid(a))] = round(strat[i], 5)
             result[rank] = dist
         return result
 
-    # ------------------------------------------------------------------
-    # Game value under average strategies
+    def response_mix_by_rank(
+        self,
+        opening_bid_idx: int,
+    ) -> Dict[int, Dict[str, float]]:
+        """P1's response distribution after a given opening bid, keyed by P1 rank."""
+        history = (opening_bid_idx,)
+        legal = _legal_actions(history, self.bid_space, self.max_bids, self.include_hh)
+        result: Dict[int, Dict[str, float]] = {}
+        for rank in range(13):
+            key: InfoKey = (1, rank, history)
+            strat = self.average_strategy(key, legal)
+            dist: Dict[str, float] = {}
+            for i, a in enumerate(legal):
+                if strat[i] < 0.001:
+                    continue
+                if a == CALL_ACTION:
+                    name = "CALL"
+                elif a == HH_ACTION:
+                    name = "HH"
+                else:
+                    name = str(index_to_bid(a))
+                dist[name] = round(strat[i], 5)
+            result[rank] = dist
+        return result
+
     # ------------------------------------------------------------------
 
     def _avg_value_traverse(
@@ -380,13 +414,12 @@ class CFRSolver:
         card0: int,
         card1: int,
     ) -> float:
-        """P0 utility when both players use their average strategies."""
         if _is_terminal(history):
             return _terminal_utility_p0(history, card0, card1)
         player = _current_player(history)
         card   = card0 if player == 0 else card1
         rank   = _card_rank(card)
-        legal  = _legal_actions(history)
+        legal  = _legal_actions(history, self.bid_space, self.max_bids, self.include_hh)
         key    = (player, rank, history)
         strat  = self.average_strategy(key, legal)
         val = 0.0
@@ -395,7 +428,7 @@ class CFRSolver:
         return val
 
     def game_value(self) -> float:
-        """P0's expected utility under the average strategy profile."""
+        """P0 expected utility under the average-strategy profile."""
         total = 0.0
         count = 0
         for c0 in range(52):
@@ -411,85 +444,86 @@ class CFRSolver:
     # ------------------------------------------------------------------
 
     def to_dict(self) -> dict:
-        """Serialize solver state for JSON caching."""
         return {
-            "iterations": self._iterations,
-            "regret_sum": {
-                str(k): v for k, v in self._regret_sum.items()
-            },
-            "strategy_sum": {
-                str(k): v for k, v in self._strategy_sum.items()
-            },
+            "iterations":   self._iterations,
+            "max_bids":     self.max_bids,
+            "bid_space":    list(self.bid_space),
+            "include_hh":   self.include_hh,
+            "regret_sum":   {repr(k): v for k, v in self._regret_sum.items()},
+            "strategy_sum": {repr(k): v for k, v in self._strategy_sum.items()},
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "CFRSolver":
         import ast
-        solver = cls()
-        solver._iterations = d["iterations"]
+        solver = cls(
+            max_bids=int(d.get("max_bids", 6)),
+            bid_space=tuple(d.get("bid_space", HC_PAIR_BIDS)),
+            include_hh=bool(d.get("include_hh", True)),
+        )
+        solver._iterations = int(d["iterations"])
         solver._regret_sum = {
-            ast.literal_eval(k): v for k, v in d["regret_sum"].items()
+            ast.literal_eval(k): list(v) for k, v in d["regret_sum"].items()
         }
         solver._strategy_sum = {
-            ast.literal_eval(k): v for k, v in d["strategy_sum"].items()
+            ast.literal_eval(k): list(v) for k, v in d["strategy_sum"].items()
         }
         return solver
 
 
 # ---------------------------------------------------------------------------
-# Public entry point
+# Public entry point / cache
 # ---------------------------------------------------------------------------
 
 def get_cfr_nash(
-    n_iterations: int = 10_000,
+    n_iterations: int = 1000,
+    max_bids: int = 6,
+    bid_space: Tuple[int, ...] = HC_PAIR_BIDS,
+    include_hh: bool = True,
     verbose: bool = False,
     force_recompute: bool = False,
 ) -> dict:
-    """
-    Return the CFR Nash solution for the 1v1 n=2 exact-rules game.
-
-    Loads from JSON cache if available and n_iterations matches; otherwise
-    runs CFR and saves.
-
-    Returned dict keys:
-        iterations      — int
-        exploitability  — float
-        game_value      — float (P0's equilibrium EV, should be near 0 for
-                          the symmetric 1-card game — actually negative due to
-                          first-mover disadvantage under exact rules)
-        opening_mix     — dict[rank_str → dict[bid_str → prob]]
-    """
+    """Return the CFR Nash solution (or load from cache)."""
     cache = _load_cache()
-    key   = str(n_iterations)
+    key = _cache_key(n_iterations, max_bids, bid_space, include_hh)
 
     if not force_recompute and key in cache:
         return cache[key]
 
-    print(f"  [cfr_1v1] running {n_iterations:,} CFR iterations "
-          f"(enumerating all 2652 ordered deals per iteration)...")
-    solver = CFRSolver()
+    print(f"  [cfr_1v1] running {n_iterations:,} CFR iterations  "
+          f"max_bids={max_bids}  |bids|={len(bid_space)}  include_hh={include_hh}")
+    solver = CFRSolver(max_bids=max_bids, bid_space=bid_space, include_hh=include_hh)
     solver.run(n_iterations, verbose=verbose)
 
-    exp        = solver.exploitability()
+    entry = _solver_summary(solver)
+    cache[key] = entry
+    _save_cache(cache)
+    print(f"  [cfr_1v1] done. exploitability={entry['exploitability']:.6f}  "
+          f"game_value={entry['game_value']:+.4f}")
+    return entry
+
+
+def _solver_summary(solver: CFRSolver) -> dict:
     mix        = solver.opening_mix_by_rank()
     game_value = solver.game_value()
-
-    entry = {
-        "iterations":     n_iterations,
+    exp        = solver.exploitability()
+    return {
+        "iterations":     solver._iterations,
+        "max_bids":       solver.max_bids,
+        "bid_space_size": len(solver.bid_space),
+        "include_hh":     solver.include_hh,
         "exploitability": exp,
         "game_value":     game_value,
         "opening_mix":    {str(r): mix[r] for r in range(13)},
     }
 
-    cache[key] = entry
-    _save_cache(cache)
-    print(f"  [cfr_1v1] done. exploitability={exp:.6f}  game_value={game_value:+.4f}")
-    return entry
 
+def _cache_key(n_iterations: int, max_bids: int,
+               bid_space: Tuple[int, ...], include_hh: bool) -> str:
+    bid_tag = "hcpair" if tuple(bid_space) == HC_PAIR_BIDS else f"bs{len(bid_space)}"
+    hh_tag  = "hh" if include_hh else "nohh"
+    return f"iters{n_iterations}_mb{max_bids}_{bid_tag}_{hh_tag}"
 
-# ---------------------------------------------------------------------------
-# Cache helpers
-# ---------------------------------------------------------------------------
 
 def _load_cache() -> dict:
     if os.path.exists(_CACHE_FILE):
@@ -511,11 +545,11 @@ def _save_cache(cache: dict) -> None:
 def _print_opening_mix(mix: dict) -> None:
     from agent.game.bids import RANK_NAMES
     print("\nOpening bid mix by P0's card rank:")
-    print(f"  {'Rank':<6}  {'Top bids (avg strategy)':}")
+    print(f"  {'Rank':<6}  Top bids (avg strategy)")
     print("  " + "-" * 70)
     for r in range(12, -1, -1):
         rank_name = RANK_NAMES[r]
-        d = mix.get(str(r), {})
+        d = mix.get(str(r), {}) if str(r) in mix else mix.get(r, {})
         top = sorted(d.items(), key=lambda kv: -kv[1])[:4]
         top_str = "  ".join(f"{bid}:{prob:.3f}" for bid, prob in top)
         print(f"  {rank_name:<6}  {top_str}")
@@ -523,23 +557,34 @@ def _print_opening_mix(mix: dict) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="CFR solver for 1v1 n=2 exact-rules Liar's Poker.")
-    parser.add_argument("--iters",   type=int, default=10_000,
-                        help="CFR iterations (default 10,000).")
-    parser.add_argument("--verbose", action="store_true",
-                        help="Print exploitability every 1000 iterations.")
-    parser.add_argument("--force",   action="store_true",
-                        help="Force recompute even if cached.")
+        description="CFR solver for 1v1 n=2 exact-rules Liar's Poker (bounded).")
+    parser.add_argument("--iters",      type=int, default=1000)
+    parser.add_argument("--max-bids",   type=int, default=6,
+                        help="Force CALL after this many bids (default 6).")
+    parser.add_argument("--no-hh",      action="store_true",
+                        help="Disable the High Hand declaration action.")
+    parser.add_argument("--full-bids",  action="store_true",
+                        help="Use all 110 bids (NOT recommended — tree explodes).")
+    parser.add_argument("--verbose",    action="store_true")
+    parser.add_argument("--force",      action="store_true")
     args = parser.parse_args()
 
+    bid_space = _all_bid_indices() if args.full_bids else HC_PAIR_BIDS
+
     result = get_cfr_nash(
-        n_iterations=args.iters,
-        verbose=args.verbose,
-        force_recompute=args.force,
+        n_iterations   = args.iters,
+        max_bids       = args.max_bids,
+        bid_space      = bid_space,
+        include_hh     = not args.no_hh,
+        verbose        = args.verbose,
+        force_recompute= args.force,
     )
 
-    print(f"\n=== CFR 1v1 Nash (n=2, exact rules) ===")
+    print(f"\n=== CFR 1v1 Nash (n=2, exact rules, bounded) ===")
     print(f"  Iterations:     {result['iterations']:,}")
+    print(f"  max_bids:       {result['max_bids']}")
+    print(f"  |bid_space|:    {result['bid_space_size']}")
+    print(f"  include_hh:     {result['include_hh']}")
     print(f"  Exploitability: {result['exploitability']:.6f}")
-    print(f"  Game value (P0): {result['game_value']:+.4f}")
+    print(f"  Game value(P0): {result['game_value']:+.4f}")
     _print_opening_mix(result["opening_mix"])

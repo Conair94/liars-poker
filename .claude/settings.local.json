@@ -39,7 +39,8 @@
       "Bash(python -m pytest agent/baseline/tests/test_cfr_1v1.py -x -q --tb=short)",
       "Bash(python -m pytest agent/baseline/tests/test_cfr_1v1.py::TestGameStructure agent/baseline/tests/test_cfr_1v1.py::TestCFRMechanics -v --tb=short)",
       "Bash(timeout 10 python -c ' *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import json; d=json.load\\(open\\('agent/data/blind_equilibrium.json'\\)\\); print\\(list\\(d.keys\\(\\)\\)[:20]\\)\")"
     ]
   }
 }
