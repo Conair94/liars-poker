@@ -421,7 +421,7 @@ class BiasedRandomAgent:
 # To add a new agent: append an entry here and implement its class below.
 AGENT_REGISTRY: dict = {
     "biased30": {
-        "display":      "Timid (30%)",
+        "display":      "Random Biased (30% bid)",
         "description":  "Accepts a bid (bids higher) only 30% of the time; calls bluff 70% of the time. When bidding, picks randomly from the next 5 valid hands.",
         "rules": {
             "exact_rules": False,
@@ -432,7 +432,7 @@ AGENT_REGISTRY: dict = {
         "class":        "BiasedRandom30Agent",
     },
     "biased40": {
-        "display":      "Passive (40%)",
+        "display":      "Random Biased (40% bid)",
         "description":  "Accepts a bid 40% of the time; calls bluff 60% of the time. When bidding, picks randomly from the next 5 valid hands.",
         "rules": {
             "exact_rules": False,
@@ -443,8 +443,8 @@ AGENT_REGISTRY: dict = {
         "class":        "BiasedRandom40Agent",
     },
     "random": {
-        "display":      "Coin Flip (50%)",
-        "description":  "Picks any legal action uniformly at random — approximately 50/50 bid vs call. Useful as a baseline.",
+        "display":      "Random Uniform",
+        "description":  "Picks any legal action uniformly at random. Useful as a baseline.",
         "rules": {
             "exact_rules": False,
             "high_hand":   False,
@@ -454,7 +454,7 @@ AGENT_REGISTRY: dict = {
         "class":        "RandomAgent",
     },
     "biased60": {
-        "display":      "Active (60%)",
+        "display":      "Random Biased (60% bid)",
         "description":  "Accepts a bid 60% of the time; calls bluff 40% of the time. When bidding, picks randomly from the next 5 valid hands.",
         "rules": {
             "exact_rules": False,
@@ -465,7 +465,7 @@ AGENT_REGISTRY: dict = {
         "class":        "BiasedRandom60Agent",
     },
     "biased70": {
-        "display":      "Aggressive (70%)",
+        "display":      "Random Biased (70% bid)",
         "description":  "Accepts a bid 70% of the time; calls bluff only 30% of the time. When bidding, picks randomly from the next 5 valid hands.",
         "rules": {
             "exact_rules": False,
@@ -476,7 +476,7 @@ AGENT_REGISTRY: dict = {
         "class":        "BiasedRandom70Agent",
     },
     "blind": {
-        "display":      "Blind Oracle",
+        "display":      "Blind Threshold (50%)",
         "description":  "Bids at the ~50% probability threshold, ignoring private cards (N=2 backward-induction equilibrium).",
         "rules": {
             "exact_rules": False,
@@ -487,7 +487,7 @@ AGENT_REGISTRY: dict = {
         "class":        "BlindBaselineAgent",
     },
     "conditional": {
-        "display":      "Card Hawk",
+        "display":      "Conditional Threshold",
         "description":  "Adjusts the 50% threshold bid using private-hand conditional probability tables.",
         "rules": {
             "exact_rules": False,
@@ -498,7 +498,7 @@ AGENT_REGISTRY: dict = {
         "class":        "ConditionalAgent",
     },
     "exactconditional": {
-        "display":      "Sharp Eye",
+        "display":      "Exact Rules Conditional",
         "description":  "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment.",
         "rules": {
             "exact_rules": True,
@@ -520,7 +520,7 @@ AGENT_REGISTRY: dict = {
         "class":        "FiveKingsBlindAgent",
     },
     "cfr_nash_mb3": {
-        "display":      "Nash Bot",
+        "display":      "CFR Nash (n=2, 20k iters)",
         "description":  "Approximate Nash equilibrium strategy computed by 20,000 iterations of Counterfactual Regret Minimization. Bids High Card / Pair only; uses mixed strategies to prevent rank inference. Single-round win rate: +7–20% vs baselines on exact-rules n=2.",
         "rules": {
             "exact_rules": True,

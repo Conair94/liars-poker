@@ -154,8 +154,8 @@ optgroup { background: #0d2a50; color: #8090a8; font-size: 0.8rem; }
     <h1>Liar's Poker</h1>
     <h2>Card-Based Variant — Nash Equilibrium Research</h2>
     <nav class="main-nav" id="main-nav">
-      <button id="nav-play" class="nav-active" onclick="navPlay()">&#9654; Play</button>
-      <button id="nav-zoo" class="nav-inactive" onclick="navZoo()">&#127481; Agent Zoo</button>
+      <button id="nav-play" class="nav-active" onclick="navPlay()">Play</button>
+      <button id="nav-zoo" class="nav-inactive" onclick="navZoo()">Agent Zoo</button>
     </nav>
     <div id="app"></div>
   </div>
@@ -1100,15 +1100,15 @@ const BLIND_EQ = {"5":{"n":5,"p_at_least":[1.0,1.0,1.0,1.0,1.0,1.0,0.99852,0.992
 // 7. AGENT ZOO METADATA & BENCHMARK RESULTS
 // ============================================================
 const AGENT_META = {
-  biased30:        { display: "Timid (30%)",       group: "standard", desc: "Accepts 30% of the time; calls bluff 70%. Bids randomly from next 5 hands." },
-  biased40:        { display: "Passive (40%)",      group: "standard", desc: "Accepts 40% of the time; calls bluff 60%. Bids randomly from next 5 hands." },
-  random:          { display: "Coin Flip (50%)",    group: "standard", desc: "Picks any legal action uniformly at random — pure 50/50 baseline." },
-  biased60:        { display: "Active (60%)",        group: "standard", desc: "Accepts 60% of the time; calls bluff 40%. Bids randomly from next 5 hands." },
-  biased70:        { display: "Aggressive (70%)",   group: "standard", desc: "Accepts 70% of the time; calls bluff only 30%. Bids randomly from next 5 hands." },
-  blind:           { display: "Blind Oracle",        group: "standard", desc: "Bids the 50% probability threshold — ignores private cards entirely." },
-  conditional:     { display: "Card Hawk",           group: "standard", desc: "Adjusts threshold using private-hand conditional probability tables." },
-  exactconditional:{ display: "Sharp Eye",           group: "exact",    desc: "Peak-probability strategy for exact-rules mode, with Bayesian hand adjustment." },
-  cfr_nash_mb3:    { display: "Nash Bot",            group: "exact",    desc: "CFR-trained approximate Nash equilibrium (20k iterations, exact-rules n=2)." },
+  biased30:        { display: "Random Biased (30% bid)",  group: "standard", desc: "Bids 30% of the time; calls bluff 70%. When bidding, picks randomly from the next 5 hands in the partial order." },
+  biased40:        { display: "Random Biased (40% bid)",  group: "standard", desc: "Bids 40% of the time; calls bluff 60%. When bidding, picks randomly from the next 5 hands in the partial order." },
+  random:          { display: "Random Uniform",           group: "standard", desc: "Picks any legal action uniformly at random." },
+  biased60:        { display: "Random Biased (60% bid)",  group: "standard", desc: "Bids 60% of the time; calls bluff 40%. When bidding, picks randomly from the next 5 hands in the partial order." },
+  biased70:        { display: "Random Biased (70% bid)",  group: "standard", desc: "Bids 70% of the time; calls bluff 30%. When bidding, picks randomly from the next 5 hands in the partial order." },
+  blind:           { display: "Blind Threshold (50%)",    group: "standard", desc: "Bids the 50% probability threshold, ignoring private cards entirely." },
+  conditional:     { display: "Conditional Threshold",    group: "standard", desc: "Adjusts the 50% threshold using private-hand conditional probability tables." },
+  exactconditional:{ display: "Exact Rules Conditional",  group: "exact",    desc: "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment." },
+  cfr_nash_mb3:    { display: "CFR Nash (n=2, 20k iters)",group: "exact",    desc: "CFR-trained approximate Nash equilibrium, 20,000 iterations, exact-rules n=2." },
 };
 
 const BENCHMARK_RESULTS = {"generated":"2026-04-21T00:11:11.529411+00:00","games_per_pair":100,"seed":42,"results":{"biased30_vs_biased40":{"agent_a":"biased30","agent_b":"biased40","games":100,"wins_a":39,"wins_b":61,"win_rate_a":0.39,"win_rate_b":0.61,"group":"standard"},"biased30_vs_random":{"agent_a":"biased30","agent_b":"random","games":100,"wins_a":96,"wins_b":4,"win_rate_a":0.96,"win_rate_b":0.04,"group":"standard"},"biased30_vs_biased60":{"agent_a":"biased30","agent_b":"biased60","games":100,"wins_a":14,"wins_b":86,"win_rate_a":0.14,"win_rate_b":0.86,"group":"standard"},"biased30_vs_biased70":{"agent_a":"biased30","agent_b":"biased70","games":100,"wins_a":9,"wins_b":91,"win_rate_a":0.09,"win_rate_b":0.91,"group":"standard"},"biased30_vs_blind":{"agent_a":"biased30","agent_b":"blind","games":100,"wins_a":32,"wins_b":68,"win_rate_a":0.32,"win_rate_b":0.68,"group":"standard"},"biased30_vs_conditional":{"agent_a":"biased30","agent_b":"conditional","games":100,"wins_a":38,"wins_b":62,"win_rate_a":0.38,"win_rate_b":0.62,"group":"standard"},"biased40_vs_random":{"agent_a":"biased40","agent_b":"random","games":100,"wins_a":97,"wins_b":3,"win_rate_a":0.97,"win_rate_b":0.03,"group":"standard"},"biased40_vs_biased60":{"agent_a":"biased40","agent_b":"biased60","games":100,"wins_a":24,"wins_b":76,"win_rate_a":0.24,"win_rate_b":0.76,"group":"standard"},"biased40_vs_biased70":{"agent_a":"biased40","agent_b":"biased70","games":100,"wins_a":9,"wins_b":91,"win_rate_a":0.09,"win_rate_b":0.91,"group":"standard"},"biased40_vs_blind":{"agent_a":"biased40","agent_b":"blind","games":100,"wins_a":30,"wins_b":70,"win_rate_a":0.3,"win_rate_b":0.7,"group":"standard"},"biased40_vs_conditional":{"agent_a":"biased40","agent_b":"conditional","games":100,"wins_a":24,"wins_b":76,"win_rate_a":0.24,"win_rate_b":0.76,"group":"standard"},"random_vs_biased60":{"agent_a":"random","agent_b":"biased60","games":100,"wins_a":9,"wins_b":91,"win_rate_a":0.09,"win_rate_b":0.91,"group":"standard"},"random_vs_biased70":{"agent_a":"random","agent_b":"biased70","games":100,"wins_a":8,"wins_b":92,"win_rate_a":0.08,"win_rate_b":0.92,"group":"standard"},"random_vs_blind":{"agent_a":"random","agent_b":"blind","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"random_vs_conditional":{"agent_a":"random","agent_b":"conditional","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"biased60_vs_biased70":{"agent_a":"biased60","agent_b":"biased70","games":100,"wins_a":30,"wins_b":70,"win_rate_a":0.3,"win_rate_b":0.7,"group":"standard"},"biased60_vs_blind":{"agent_a":"biased60","agent_b":"blind","games":100,"wins_a":28,"wins_b":72,"win_rate_a":0.28,"win_rate_b":0.72,"group":"standard"},"biased60_vs_conditional":{"agent_a":"biased60","agent_b":"conditional","games":100,"wins_a":25,"wins_b":75,"win_rate_a":0.25,"win_rate_b":0.75,"group":"standard"},"biased70_vs_blind":{"agent_a":"biased70","agent_b":"blind","games":100,"wins_a":25,"wins_b":75,"win_rate_a":0.25,"win_rate_b":0.75,"group":"standard"},"biased70_vs_conditional":{"agent_a":"biased70","agent_b":"conditional","games":100,"wins_a":21,"wins_b":79,"win_rate_a":0.21,"win_rate_b":0.79,"group":"standard"},"blind_vs_conditional":{"agent_a":"blind","agent_b":"conditional","games":100,"wins_a":48,"wins_b":52,"win_rate_a":0.48,"win_rate_b":0.52,"group":"standard"},"exactconditional_vs_cfr_nash_mb3":{"agent_a":"exactconditional","agent_b":"cfr_nash_mb3","games":100,"wins_a":81,"wins_b":19,"win_rate_a":0.81,"win_rate_b":0.19,"group":"exact"}}};
@@ -1483,19 +1483,19 @@ function renderSetup() {
     <div>
       <label>Opponent</label>
       <select id="cfg-agent">
-        <optgroup label="Biased Random">
-          <option value="biased30">Timid (30% bid)</option>
-          <option value="biased40">Passive (40% bid)</option>
-          <option value="random">Coin Flip (50% random)</option>
-          <option value="biased60">Active (60% bid)</option>
-          <option value="biased70">Aggressive (70% bid)</option>
+        <optgroup label="Random Agents">
+          <option value="biased30">Random Biased (30% bid)</option>
+          <option value="biased40">Random Biased (40% bid)</option>
+          <option value="random">Random Uniform</option>
+          <option value="biased60">Random Biased (60% bid)</option>
+          <option value="biased70">Random Biased (70% bid)</option>
         </optgroup>
         <optgroup label="Standard Rules">
-          <option value="blind" selected>Blind Oracle (50% threshold)</option>
-          <option value="conditional">Card Hawk (hand-aware threshold)</option>
+          <option value="blind" selected>Blind Threshold (50%)</option>
+          <option value="conditional">Conditional Threshold</option>
         </optgroup>
         <optgroup label="Mode-Specific">
-          <option value="exactconditional">Sharp Eye (exact-mode)</option>
+          <option value="exactconditional">Exact Rules Conditional</option>
         </optgroup>
       </select>
     </div>
