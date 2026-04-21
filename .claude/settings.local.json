@@ -71,7 +71,9 @@
       "Bash(tmux list-panes *)",
       "Bash(tmux capture-pane *)",
       "Bash(grep -v \"^$\")",
-      "Bash(python3 -c \"import torch; print\\(torch.__version__\\)\")"
+      "Bash(python3 -c \"import torch; print\\(torch.__version__\\)\")",
+      "Bash(tmux list-sessions *)",
+      "Bash(tmux kill-session *)"
     ]
   }
 }
