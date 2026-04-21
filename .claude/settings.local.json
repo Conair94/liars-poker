@@ -47,7 +47,9 @@
       "Bash(git commit -m ' *)",
       "Bash(nohup python *)",
       "Bash(echo \"PID: $!\")",
-      "Bash(git check-ignore *)"
+      "Bash(git check-ignore *)",
+      "Bash(python -m agent.benchmark --games 100 --seed 42)",
+      "Bash(node -e ' *)"
     ]
   }
 }

@@ -12,7 +12,17 @@ accurate and old behaviour is preserved.
 
 ## Standard Rules (52-card deck, count-up or count-down)
 
-### `RandomAgent`
+### `BiasedRandomAgent(accept_prob)` — 4 named variants
+- **Strategy**: Accepts (bids higher) with probability `accept_prob`; calls bluff with `1 - accept_prob`.
+  When bidding, picks uniformly from the next up-to-5 legal bids in the partial order.
+  On first bid (no current bid), always bids from the first 5 legal bids.
+- **Variants**: `biased30` (30%), `biased40` (40%), `biased60` (60%), `biased70` (70%).
+  The 50% counterpart is the existing `RandomAgent`.
+- **Data**: None.
+- **Modes**: All modes.
+- **Use for**: Parameterised aggression benchmarks; exploitability measurement.
+
+### `RandomAgent` — *"Coin Flip"*
 - **Strategy**: Uniform random over all legal actions.
 - **Data**: None.
 - **Modes**: All modes (standard, exact, five-kings, high-hand).
@@ -103,6 +113,22 @@ accurate and old behaviour is preserved.
 | `blind_equilibrium.json` | ~1 MB | n=2..10 exact equilibrium | `agent/baseline/blind_equilibrium.py` |
 | `exact_rules_probs.json` | ~1 MB | ExactRulesBlindAgent PAL | `compute_exact_rules_probs.py` |
 | `five_kings_probs.json` | ~2 MB | FiveKingsBlindAgent PAL | `compute_five_kings_probs.py` |
+| `benchmark_results.json` | ~10 KB | Head-to-head win rates (all agent pairs) | `agent/benchmark.py` |
+
+---
+
+## Benchmark — Running / Updating
+
+The Agent Zoo dashboard in `docs/index.html` shows head-to-head win rates from a pre-run benchmark.
+To regenerate after adding new agents:
+
+```bash
+cd "Liars poker/"
+python -m agent.benchmark --games 100 --seed 42
+```
+
+Output: `agent/data/benchmark_results.json`.
+Then re-embed the JSON into the `BENCHMARK_RESULTS` constant in `docs/index.html` and update `AGENT_META`.
 
 ---
 

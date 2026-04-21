@@ -370,6 +370,42 @@ class ExactRulesConditionalAgent:
 
 
 # ---------------------------------------------------------------------------
+class BiasedRandomAgent:
+    """
+    Biased random agent: accepts (bids) with probability `accept_prob` and calls
+    with probability `1 - accept_prob`.  When bidding, picks uniformly from the
+    next 5 legal bids in the partial order of hand strengths.
+
+    The 50% variant is the standard RandomAgent.  This class parameterises the
+    call/bid ratio to create agents that over-fold or over-bluff.
+
+    Data: None.
+    Modes: All modes (standard, exact, five-kings).
+    """
+
+    def __init__(self, accept_prob: float) -> None:
+        self._accept_prob = accept_prob
+        self._rng = random.Random()
+
+    def choose_action(self, state: MatchState) -> int:
+        rs = state.round_state
+        legal = state.legal_actions()
+        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
+
+        # No current bid → must bid (nothing to call)
+        if rs.current_bid is None or CALL_ACTION not in legal:
+            pool = bid_candidates[:5] or legal
+            return self._rng.choice(pool)
+
+        if self._rng.random() < self._accept_prob:
+            # Accept: make a bid from the next up-to-5 legal bids
+            pool = bid_candidates[:5] or legal
+            return self._rng.choice(pool)
+        else:
+            return CALL_ACTION
+
+
+# ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 # Agent registry
 # ---------------------------------------------------------------------------
@@ -384,9 +420,31 @@ class ExactRulesConditionalAgent:
 #
 # To add a new agent: append an entry here and implement its class below.
 AGENT_REGISTRY: dict = {
+    "biased30": {
+        "display":      "Timid (30%)",
+        "description":  "Accepts a bid (bids higher) only 30% of the time; calls bluff 70% of the time. When bidding, picks randomly from the next 5 valid hands.",
+        "rules": {
+            "exact_rules": False,
+            "high_hand":   False,
+            "five_kings":  False,
+        },
+        "rules_label":  "Standard — at-least rules, 52-card deck",
+        "class":        "BiasedRandom30Agent",
+    },
+    "biased40": {
+        "display":      "Passive (40%)",
+        "description":  "Accepts a bid 40% of the time; calls bluff 60% of the time. When bidding, picks randomly from the next 5 valid hands.",
+        "rules": {
+            "exact_rules": False,
+            "high_hand":   False,
+            "five_kings":  False,
+        },
+        "rules_label":  "Standard — at-least rules, 52-card deck",
+        "class":        "BiasedRandom40Agent",
+    },
     "random": {
-        "display":      "Random",
-        "description":  "Picks any legal action uniformly at random. Useful as a baseline.",
+        "display":      "Coin Flip (50%)",
+        "description":  "Picks any legal action uniformly at random — approximately 50/50 bid vs call. Useful as a baseline.",
         "rules": {
             "exact_rules": False,
             "high_hand":   False,
@@ -395,8 +453,30 @@ AGENT_REGISTRY: dict = {
         "rules_label":  "Standard — at-least rules, 52-card deck",
         "class":        "RandomAgent",
     },
+    "biased60": {
+        "display":      "Active (60%)",
+        "description":  "Accepts a bid 60% of the time; calls bluff 40% of the time. When bidding, picks randomly from the next 5 valid hands.",
+        "rules": {
+            "exact_rules": False,
+            "high_hand":   False,
+            "five_kings":  False,
+        },
+        "rules_label":  "Standard — at-least rules, 52-card deck",
+        "class":        "BiasedRandom60Agent",
+    },
+    "biased70": {
+        "display":      "Aggressive (70%)",
+        "description":  "Accepts a bid 70% of the time; calls bluff only 30% of the time. When bidding, picks randomly from the next 5 valid hands.",
+        "rules": {
+            "exact_rules": False,
+            "high_hand":   False,
+            "five_kings":  False,
+        },
+        "rules_label":  "Standard — at-least rules, 52-card deck",
+        "class":        "BiasedRandom70Agent",
+    },
     "blind": {
-        "display":      "Blind Baseline",
+        "display":      "Blind Oracle",
         "description":  "Bids at the ~50% probability threshold, ignoring private cards (N=2 backward-induction equilibrium).",
         "rules": {
             "exact_rules": False,
@@ -407,7 +487,7 @@ AGENT_REGISTRY: dict = {
         "class":        "BlindBaselineAgent",
     },
     "conditional": {
-        "display":      "Conditional (private-card priors)",
+        "display":      "Card Hawk",
         "description":  "Adjusts the 50% threshold bid using private-hand conditional probability tables.",
         "rules": {
             "exact_rules": False,
@@ -418,7 +498,7 @@ AGENT_REGISTRY: dict = {
         "class":        "ConditionalAgent",
     },
     "exactconditional": {
-        "display":      "Exact Rules Conditional",
+        "display":      "Sharp Eye",
         "description":  "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment.",
         "rules": {
             "exact_rules": True,
@@ -440,7 +520,7 @@ AGENT_REGISTRY: dict = {
         "class":        "FiveKingsBlindAgent",
     },
     "cfr_nash_mb3": {
-        "display":      "CFR Nash (n=2, 20k iters)",
+        "display":      "Nash Bot",
         "description":  "Approximate Nash equilibrium strategy computed by 20,000 iterations of Counterfactual Regret Minimization. Bids High Card / Pair only; uses mixed strategies to prevent rank inference. Single-round win rate: +7–20% vs baselines on exact-rules n=2.",
         "rules": {
             "exact_rules": True,
@@ -459,6 +539,10 @@ def _make_cfr_nash():
 
 _AGENT_CLASS_MAP = {
     "RandomAgent":              lambda: RandomAgent(),
+    "BiasedRandom30Agent":      lambda: BiasedRandomAgent(0.30),
+    "BiasedRandom40Agent":      lambda: BiasedRandomAgent(0.40),
+    "BiasedRandom60Agent":      lambda: BiasedRandomAgent(0.60),
+    "BiasedRandom70Agent":      lambda: BiasedRandomAgent(0.70),
     "BlindBaselineAgent":       lambda: BlindBaselineAgent(),
     "ConditionalAgent":         lambda: ConditionalAgent(),
     "ExactRulesConditionalAgent": lambda: ExactRulesConditionalAgent(),
