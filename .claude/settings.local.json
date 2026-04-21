@@ -49,7 +49,29 @@
       "Bash(echo \"PID: $!\")",
       "Bash(git check-ignore *)",
       "Bash(python -m agent.benchmark --games 100 --seed 42)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Skill(claude-memory:extract-learnings)",
+      "Skill(claude-memory:extract-learnings:*)",
+      "Bash(python -m agent.baseline.cfr_1v1 --iters 200 --max-bids 4 --verbose)",
+      "Bash(timeout 90 python -c ' *)",
+      "Bash(tmux -V)",
+      "Bash(brew list *)",
+      "Bash(brew install *)",
+      "Bash(chmod +x /Users/connorlockhart/Documents/GitHub/liars-poker/overnight.sh)",
+      "Bash(python -m agent.rnad.trainer --stage B --iterations 50000)",
+      "Bash(python3 -c \"import sys; print\\(sys.executable, sys.version\\)\")",
+      "Bash(pip3 list *)",
+      "Bash(python -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(python3 -m agent.rnad.trainer --stage B --iterations 50000)",
+      "Bash(python3 -m agent.rnad.trainer --stage B --iterations 10)",
+      "Bash(bash overnight.sh)",
+      "Bash(python3 -m agent.rnad.trainer --help)",
+      "Bash(python3 -m agent.rnad.trainer --stage B --iterations 5)",
+      "Bash(bash -x overnight.sh)",
+      "Bash(tmux list-panes *)",
+      "Bash(tmux capture-pane *)",
+      "Bash(grep -v \"^$\")",
+      "Bash(python3 -c \"import torch; print\\(torch.__version__\\)\")"
     ]
   }
 }
