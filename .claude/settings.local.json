@@ -74,7 +74,10 @@
       "Bash(python3 -c \"import torch; print\\(torch.__version__\\)\")",
       "Bash(tmux list-sessions *)",
       "Bash(tmux kill-session *)",
-      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, separators=\\(',',':'\\)\\)\\)\")"
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, separators=\\(',',':'\\)\\)\\)\")",
+      "Bash(awk 'NR>=1119 && /^};/{print NR; exit}' /Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html)",
+      "Bash(sed -n '1059,1062p' /Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html)",
+      "Bash(sed -n '1080,1095p' /Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html)"
     ]
   }
 }

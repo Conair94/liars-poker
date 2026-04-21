@@ -508,17 +508,6 @@ AGENT_REGISTRY: dict = {
         "rules_label":  "Exact rules + High Hand declaration, 52-card deck",
         "class":        "ExactRulesConditionalAgent",
     },
-    "fivekingsblind": {
-        "display":      "Five Kings Blind",
-        "description":  "50% threshold strategy calibrated for the 53-card Five Kings deck.",
-        "rules": {
-            "exact_rules": False,
-            "high_hand":   False,
-            "five_kings":  True,
-        },
-        "rules_label":  "Five Kings — 53-card deck (5K Kings ranks above Straight Flush)",
-        "class":        "FiveKingsBlindAgent",
-    },
     "cfr_nash_mb3": {
         "display":      "CFR Nash (n=2, 20k iters)",
         "description":  "Approximate Nash equilibrium strategy computed by 20,000 iterations of Counterfactual Regret Minimization. Bids High Card / Pair only; uses mixed strategies to prevent rank inference. Single-round win rate: +7–20% vs baselines on exact-rules n=2.",
@@ -601,7 +590,6 @@ _AGENT_CLASS_MAP = {
     "BlindBaselineAgent":       lambda: BlindBaselineAgent(),
     "ConditionalAgent":         lambda: ConditionalAgent(),
     "ExactRulesConditionalAgent": lambda: ExactRulesConditionalAgent(),
-    "FiveKingsBlindAgent":      lambda: FiveKingsBlindAgent(),
     "CFRNashAgent":             _make_cfr_nash,
 }
 
