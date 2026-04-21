@@ -530,6 +530,61 @@ AGENT_REGISTRY: dict = {
         "rules_label":  "Exact rules + High Hand, 52-card deck (trained domain: n=2, max 3 bids)",
         "class":        "CFRNashAgent",
     },
+    "exact_random": {
+        "display":      "Random Uniform (exact)",
+        "description":  "Picks any legal action uniformly at random under exact-rules. Weakest baseline.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand, 52-card deck",
+        "class":        "RandomAgent",
+    },
+    "exact_biased30": {
+        "display":      "Random Biased 30% (exact)",
+        "description":  "Bids 30% of the time in exact-rules mode; calls bluff 70%. Benchmark agent.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand, 52-card deck",
+        "class":        "BiasedRandom30Agent",
+    },
+    "exact_biased40": {
+        "display":      "Random Biased 40% (exact)",
+        "description":  "Bids 40% of the time in exact-rules mode; calls bluff 60%. Benchmark agent.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand, 52-card deck",
+        "class":        "BiasedRandom40Agent",
+    },
+    "exact_biased60": {
+        "display":      "Random Biased 60% (exact)",
+        "description":  "Bids 60% of the time in exact-rules mode; calls bluff 40%. Benchmark agent.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand, 52-card deck",
+        "class":        "BiasedRandom60Agent",
+    },
+    "exact_biased70": {
+        "display":      "Random Biased 70% (exact)",
+        "description":  "Bids 70% of the time in exact-rules mode; calls bluff 30%. Benchmark agent.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand, 52-card deck",
+        "class":        "BiasedRandom70Agent",
+    },
 }
 
 def _make_cfr_nash():

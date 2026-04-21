@@ -35,7 +35,7 @@ from agent.web.backend.agents import AGENT_REGISTRY, build_agent
 # ---------------------------------------------------------------------------
 # Ruleset groups — only agents within the same group are benchmarked together.
 STANDARD_AGENTS = ["biased30", "biased40", "random", "biased60", "biased70", "blind", "conditional"]
-EXACT_AGENTS    = ["exactconditional", "cfr_nash_mb3"]
+EXACT_AGENTS    = ["exactconditional", "cfr_nash_mb3", "exact_biased70", "exact_biased60", "exact_biased40", "exact_biased30", "exact_random"]
 
 GROUPS = {
     "standard": {

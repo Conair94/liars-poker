@@ -147,12 +147,58 @@ optgroup { background: #0d2a50; color: #8090a8; font-size: 0.8rem; }
 .matrix-table td.zoo-even { color: #8090a8; }
 .zoo-section-title { color: #c9a84c; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.75rem; margin-top: 0.25rem; }
 .zoo-note { font-size: 0.8rem; color: #5a7a9a; font-style: italic; margin-bottom: 0.75rem; }
+/* Intro panel */
+.intro-panel { margin-bottom: 1rem; }
+.intro-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.25rem; }
+.intro-col h4 { color: #c9a84c; font-size: 0.9rem; margin-bottom: 0.4rem; }
+.intro-col p { font-size: 0.85rem; color: #8090a8; line-height: 1.6; margin-bottom: 0.4rem; }
+.intro-col ul { padding-left: 1.1rem; font-size: 0.85rem; color: #8090a8; line-height: 1.7; }
+.intro-col li strong { color: #c0d0e8; }
+.ruleset-badge { display: inline-block; font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 10px; margin-right: 0.3rem; font-weight: 600; }
+.ruleset-badge.exact { background: #0d2245; color: #5ba3d0; border: 1px solid #1a4a7a; }
+.ruleset-badge.atleast { background: #0d2a14; color: #27ae60; border: 1px solid #1a5a2a; }
+/* Agent info panel in setup */
+.agent-info-panel { background: #0f2848; border: 1px solid #1e4070; border-radius: 6px; padding: 0.85rem 1rem; margin-bottom: 0.75rem; }
+.rules-tag-play { font-size: 0.75rem; padding: 0.15rem 0.6rem; border-radius: 10px; font-weight: 600; }
+.step-label { display: block; font-size: 0.8rem; color: #7a8aaa; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
+/* Rankings section */
+.rankings-section { margin-bottom: 1.5rem; }
+.ranking-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.ranking-item { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.5rem 0.75rem; background: #0f2848; border-radius: 6px; }
+.ranking-pos { min-width: 2.5rem; font-size: 0.8rem; font-weight: 700; color: #5a6a8a; padding-top: 0.15rem; }
+.ranking-body { flex: 1; }
+.ranking-name { font-size: 0.88rem; color: #c0d0e8; font-weight: 600; margin-right: 0.6rem; }
+.ranking-wr { font-size: 0.82rem; font-weight: 600; }
+.ranking-note { font-size: 0.8rem; color: #5a7a9a; margin-top: 0.25rem; line-height: 1.5; }
+.rankings-group { margin-bottom: 1rem; }
 </style>
 </head>
 <body>
   <div class="container">
     <h1>Liar's Poker</h1>
     <h2>Card-Based Variant — Nash Equilibrium Research</h2>
+    <div class="intro-panel panel">
+      <div class="intro-grid">
+        <div class="intro-col">
+          <h4>About This Site</h4>
+          <p>This is an interactive research platform for <strong style="color:#c0d0e8">Liar's Poker</strong> — a card-based bluffing game where players bid on poker hands hidden across all players' private cards. Each player holds a small private hand; bids describe what the combined pool of all cards contains.</p>
+          <p>The research goal is to find <strong style="color:#c0d0e8">Nash equilibrium strategies</strong> using computational methods such as Counterfactual Regret Minimization (CFR) and R-NaD.</p>
+        </div>
+        <div class="intro-col">
+          <h4>Two Rule Variants</h4>
+          <p><span class="ruleset-badge exact">Exact Hand Rules</span> <strong style="color:#c0d0e8">(primary)</strong> — A bid wins only if some 5-card subset of the pool matches it exactly. E.g. "Pair of Aces" requires exactly two aces among the pool. This is the main form of the game and the focus of equilibrium research.</p>
+          <p><span class="ruleset-badge atleast">At-Least Rules</span> — A bid wins if the pool's best possible hand is at least as strong as the bid. Simpler to reason about but a different strategic landscape.</p>
+        </div>
+        <div class="intro-col">
+          <h4>How to Use</h4>
+          <ul>
+            <li><strong>Play</strong> — Select an agent opponent. Agents are grouped by ruleset; picking one auto-configures the correct rules for that match.</li>
+            <li><strong>Agent Zoo</strong> — Browse all agents with benchmark win rates and head-to-head matrices. Exact rules agents are shown first and are the primary leaderboard.</li>
+            <li>The <strong>Current Standings</strong> panel at the top of the Zoo shows the strongest agents per ruleset, dynamically ranked from benchmark data.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
     <nav class="main-nav" id="main-nav">
       <button id="nav-play" class="nav-active" onclick="navPlay()">Play</button>
       <button id="nav-zoo" class="nav-inactive" onclick="navZoo()">Agent Zoo</button>
@@ -1100,18 +1146,43 @@ const BLIND_EQ = {"5":{"n":5,"p_at_least":[1.0,1.0,1.0,1.0,1.0,1.0,0.99852,0.992
 // 7. AGENT ZOO METADATA & BENCHMARK RESULTS
 // ============================================================
 const AGENT_META = {
-  biased30:        { display: "Random Biased (30% bid)",  group: "standard", desc: "Bids 30% of the time; calls bluff 70%. When bidding, picks randomly from the next 5 hands in the partial order." },
-  biased40:        { display: "Random Biased (40% bid)",  group: "standard", desc: "Bids 40% of the time; calls bluff 60%. When bidding, picks randomly from the next 5 hands in the partial order." },
-  random:          { display: "Random Uniform",           group: "standard", desc: "Picks any legal action uniformly at random." },
-  biased60:        { display: "Random Biased (60% bid)",  group: "standard", desc: "Bids 60% of the time; calls bluff 40%. When bidding, picks randomly from the next 5 hands in the partial order." },
-  biased70:        { display: "Random Biased (70% bid)",  group: "standard", desc: "Bids 70% of the time; calls bluff 30%. When bidding, picks randomly from the next 5 hands in the partial order." },
-  blind:           { display: "Blind Threshold (50%)",    group: "standard", desc: "Bids the 50% probability threshold, ignoring private cards entirely." },
-  conditional:     { display: "Conditional Threshold",    group: "standard", desc: "Adjusts the 50% threshold using private-hand conditional probability tables." },
-  exactconditional:{ display: "Exact Rules Conditional",  group: "exact",    desc: "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment." },
-  cfr_nash_mb3:    { display: "CFR Nash (n=2, 20k iters)",group: "exact",    desc: "CFR-trained approximate Nash equilibrium, 20,000 iterations, exact-rules n=2." },
+  // ---- Exact Hand Rules agents (primary ruleset) ----
+  exactconditional: { display: "Exact Rules Conditional",   group: "exact",    desc: "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment. Finds the bid with the highest probability of existing in the pool given private cards." },
+  cfr_nash_mb3:     { display: "CFR Nash (n=2, 20k iters)", group: "exact",    desc: "CFR-trained approximate Nash equilibrium, 20,000 iterations, exact-rules n=2. Exploitability still converging — a research checkpoint, not a solved agent." },
+  exact_biased70:   { display: "Random Biased 70% (exact)", group: "exact",    desc: "Bids 70% of the time in exact-rules mode; calls bluff 30%. Random bid selection from the next 5 legal hands. Benchmark agent." },
+  exact_biased60:   { display: "Random Biased 60% (exact)", group: "exact",    desc: "Bids 60% of the time in exact-rules mode; calls bluff 40%. Benchmark agent." },
+  exact_biased40:   { display: "Random Biased 40% (exact)", group: "exact",    desc: "Bids 40% of the time in exact-rules mode; calls bluff 60%. Benchmark agent." },
+  exact_biased30:   { display: "Random Biased 30% (exact)", group: "exact",    desc: "Bids 30% of the time in exact-rules mode; calls bluff 70%. Benchmark agent." },
+  exact_random:     { display: "Random Uniform (exact)",    group: "exact",    desc: "Picks any legal action uniformly at random under exact-rules. Weakest baseline." },
+  // ---- At-Least Rules agents ----
+  conditional:      { display: "Conditional Threshold",     group: "standard", desc: "Adjusts the 50% bid threshold using private-hand conditional probability tables. Detects hand conditions (pair, suited, adjacent ranks) and bids more aggressively when holding a strong partial hand." },
+  blind:            { display: "Blind Threshold (50%)",     group: "standard", desc: "Bids the highest hand where P(pool ≥ bid) ≥ 50%, ignoring private cards entirely. A strong blind baseline." },
+  biased70:         { display: "Random Biased (70% bid)",   group: "standard", desc: "Bids 70% of the time; calls bluff 30%. When bidding, picks randomly from the next 5 hands in the partial order." },
+  biased60:         { display: "Random Biased (60% bid)",   group: "standard", desc: "Bids 60% of the time; calls bluff 40%. When bidding, picks randomly from the next 5 hands in the partial order." },
+  biased40:         { display: "Random Biased (40% bid)",   group: "standard", desc: "Bids 40% of the time; calls bluff 60%. When bidding, picks randomly from the next 5 hands in the partial order." },
+  biased30:         { display: "Random Biased (30% bid)",   group: "standard", desc: "Bids 30% of the time; calls bluff 70%. When bidding, picks randomly from the next 5 hands in the partial order." },
+  random:           { display: "Random Uniform",            group: "standard", desc: "Picks any legal action uniformly at random. Weakest baseline — useful as a floor for benchmarking." },
 };
 
-const BENCHMARK_RESULTS = {"generated":"2026-04-21T00:11:11.529411+00:00","games_per_pair":100,"seed":42,"results":{"biased30_vs_biased40":{"agent_a":"biased30","agent_b":"biased40","games":100,"wins_a":39,"wins_b":61,"win_rate_a":0.39,"win_rate_b":0.61,"group":"standard"},"biased30_vs_random":{"agent_a":"biased30","agent_b":"random","games":100,"wins_a":96,"wins_b":4,"win_rate_a":0.96,"win_rate_b":0.04,"group":"standard"},"biased30_vs_biased60":{"agent_a":"biased30","agent_b":"biased60","games":100,"wins_a":14,"wins_b":86,"win_rate_a":0.14,"win_rate_b":0.86,"group":"standard"},"biased30_vs_biased70":{"agent_a":"biased30","agent_b":"biased70","games":100,"wins_a":9,"wins_b":91,"win_rate_a":0.09,"win_rate_b":0.91,"group":"standard"},"biased30_vs_blind":{"agent_a":"biased30","agent_b":"blind","games":100,"wins_a":32,"wins_b":68,"win_rate_a":0.32,"win_rate_b":0.68,"group":"standard"},"biased30_vs_conditional":{"agent_a":"biased30","agent_b":"conditional","games":100,"wins_a":38,"wins_b":62,"win_rate_a":0.38,"win_rate_b":0.62,"group":"standard"},"biased40_vs_random":{"agent_a":"biased40","agent_b":"random","games":100,"wins_a":97,"wins_b":3,"win_rate_a":0.97,"win_rate_b":0.03,"group":"standard"},"biased40_vs_biased60":{"agent_a":"biased40","agent_b":"biased60","games":100,"wins_a":24,"wins_b":76,"win_rate_a":0.24,"win_rate_b":0.76,"group":"standard"},"biased40_vs_biased70":{"agent_a":"biased40","agent_b":"biased70","games":100,"wins_a":9,"wins_b":91,"win_rate_a":0.09,"win_rate_b":0.91,"group":"standard"},"biased40_vs_blind":{"agent_a":"biased40","agent_b":"blind","games":100,"wins_a":30,"wins_b":70,"win_rate_a":0.3,"win_rate_b":0.7,"group":"standard"},"biased40_vs_conditional":{"agent_a":"biased40","agent_b":"conditional","games":100,"wins_a":24,"wins_b":76,"win_rate_a":0.24,"win_rate_b":0.76,"group":"standard"},"random_vs_biased60":{"agent_a":"random","agent_b":"biased60","games":100,"wins_a":9,"wins_b":91,"win_rate_a":0.09,"win_rate_b":0.91,"group":"standard"},"random_vs_biased70":{"agent_a":"random","agent_b":"biased70","games":100,"wins_a":8,"wins_b":92,"win_rate_a":0.08,"win_rate_b":0.92,"group":"standard"},"random_vs_blind":{"agent_a":"random","agent_b":"blind","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"random_vs_conditional":{"agent_a":"random","agent_b":"conditional","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"biased60_vs_biased70":{"agent_a":"biased60","agent_b":"biased70","games":100,"wins_a":30,"wins_b":70,"win_rate_a":0.3,"win_rate_b":0.7,"group":"standard"},"biased60_vs_blind":{"agent_a":"biased60","agent_b":"blind","games":100,"wins_a":28,"wins_b":72,"win_rate_a":0.28,"win_rate_b":0.72,"group":"standard"},"biased60_vs_conditional":{"agent_a":"biased60","agent_b":"conditional","games":100,"wins_a":25,"wins_b":75,"win_rate_a":0.25,"win_rate_b":0.75,"group":"standard"},"biased70_vs_blind":{"agent_a":"biased70","agent_b":"blind","games":100,"wins_a":25,"wins_b":75,"win_rate_a":0.25,"win_rate_b":0.75,"group":"standard"},"biased70_vs_conditional":{"agent_a":"biased70","agent_b":"conditional","games":100,"wins_a":21,"wins_b":79,"win_rate_a":0.21,"win_rate_b":0.79,"group":"standard"},"blind_vs_conditional":{"agent_a":"blind","agent_b":"conditional","games":100,"wins_a":48,"wins_b":52,"win_rate_a":0.48,"win_rate_b":0.52,"group":"standard"},"exactconditional_vs_cfr_nash_mb3":{"agent_a":"exactconditional","agent_b":"cfr_nash_mb3","games":100,"wins_a":81,"wins_b":19,"win_rate_a":0.81,"win_rate_b":0.19,"group":"exact"}}};
+const BENCHMARK_RESULTS = {"generated":"2026-04-21T16:36:29.293457+00:00","games_per_pair":100,"seed":42,"results":{"biased30_vs_biased40":{"agent_a":"biased30","agent_b":"biased40","games":100,"wins_a":48,"wins_b":52,"win_rate_a":0.48,"win_rate_b":0.52,"group":"standard"},"biased30_vs_random":{"agent_a":"biased30","agent_b":"random","games":100,"wins_a":98,"wins_b":2,"win_rate_a":0.98,"win_rate_b":0.02,"group":"standard"},"biased30_vs_biased60":{"agent_a":"biased30","agent_b":"biased60","games":100,"wins_a":11,"wins_b":89,"win_rate_a":0.11,"win_rate_b":0.89,"group":"standard"},"biased30_vs_biased70":{"agent_a":"biased30","agent_b":"biased70","games":100,"wins_a":8,"wins_b":92,"win_rate_a":0.08,"win_rate_b":0.92,"group":"standard"},"biased30_vs_blind":{"agent_a":"biased30","agent_b":"blind","games":100,"wins_a":22,"wins_b":78,"win_rate_a":0.22,"win_rate_b":0.78,"group":"standard"},"biased30_vs_conditional":{"agent_a":"biased30","agent_b":"conditional","games":100,"wins_a":30,"wins_b":70,"win_rate_a":0.3,"win_rate_b":0.7,"group":"standard"},"biased40_vs_random":{"agent_a":"biased40","agent_b":"random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"standard"},"biased40_vs_biased60":{"agent_a":"biased40","agent_b":"biased60","games":100,"wins_a":26,"wins_b":74,"win_rate_a":0.26,"win_rate_b":0.74,"group":"standard"},"biased40_vs_biased70":{"agent_a":"biased40","agent_b":"biased70","games":100,"wins_a":19,"wins_b":81,"win_rate_a":0.19,"win_rate_b":0.81,"group":"standard"},"biased40_vs_blind":{"agent_a":"biased40","agent_b":"blind","games":100,"wins_a":37,"wins_b":63,"win_rate_a":0.37,"win_rate_b":0.63,"group":"standard"},"biased40_vs_conditional":{"agent_a":"biased40","agent_b":"conditional","games":100,"wins_a":33,"wins_b":67,"win_rate_a":0.33,"win_rate_b":0.67,"group":"standard"},"random_vs_biased60":{"agent_a":"random","agent_b":"biased60","games":100,"wins_a":6,"wins_b":94,"win_rate_a":0.06,"win_rate_b":0.94,"group":"standard"},"random_vs_biased70":{"agent_a":"random","agent_b":"biased70","games":100,"wins_a":7,"wins_b":93,"win_rate_a":0.07,"win_rate_b":0.93,"group":"standard"},"random_vs_blind":{"agent_a":"random","agent_b":"blind","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"random_vs_conditional":{"agent_a":"random","agent_b":"conditional","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"biased60_vs_biased70":{"agent_a":"biased60","agent_b":"biased70","games":100,"wins_a":35,"wins_b":65,"win_rate_a":0.35,"win_rate_b":0.65,"group":"standard"},"biased60_vs_blind":{"agent_a":"biased60","agent_b":"blind","games":100,"wins_a":28,"wins_b":72,"win_rate_a":0.28,"win_rate_b":0.72,"group":"standard"},"biased60_vs_conditional":{"agent_a":"biased60","agent_b":"conditional","games":100,"wins_a":23,"wins_b":77,"win_rate_a":0.23,"win_rate_b":0.77,"group":"standard"},"biased70_vs_blind":{"agent_a":"biased70","agent_b":"blind","games":100,"wins_a":25,"wins_b":75,"win_rate_a":0.25,"win_rate_b":0.75,"group":"standard"},"biased70_vs_conditional":{"agent_a":"biased70","agent_b":"conditional","games":100,"wins_a":19,"wins_b":81,"win_rate_a":0.19,"win_rate_b":0.81,"group":"standard"},"blind_vs_conditional":{"agent_a":"blind","agent_b":"conditional","games":100,"wins_a":48,"wins_b":52,"win_rate_a":0.48,"win_rate_b":0.52,"group":"standard"},"exactconditional_vs_cfr_nash_mb3":{"agent_a":"exactconditional","agent_b":"cfr_nash_mb3","games":100,"wins_a":86,"wins_b":14,"win_rate_a":0.86,"win_rate_b":0.14,"group":"exact"},"exactconditional_vs_exact_biased70":{"agent_a":"exactconditional","agent_b":"exact_biased70","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased60":{"agent_a":"exactconditional","agent_b":"exact_biased60","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased40":{"agent_a":"exactconditional","agent_b":"exact_biased40","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased30":{"agent_a":"exactconditional","agent_b":"exact_biased30","games":100,"wins_a":97,"wins_b":3,"win_rate_a":0.97,"win_rate_b":0.03,"group":"exact"},"exactconditional_vs_exact_random":{"agent_a":"exactconditional","agent_b":"exact_random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"exact"},"cfr_nash_mb3_vs_exact_biased70":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased70","games":100,"wins_a":74,"wins_b":26,"win_rate_a":0.74,"win_rate_b":0.26,"group":"exact"},"cfr_nash_mb3_vs_exact_biased60":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased60","games":100,"wins_a":66,"wins_b":34,"win_rate_a":0.66,"win_rate_b":0.34,"group":"exact"},"cfr_nash_mb3_vs_exact_biased40":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased40","games":100,"wins_a":61,"wins_b":39,"win_rate_a":0.61,"win_rate_b":0.39,"group":"exact"},"cfr_nash_mb3_vs_exact_biased30":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased30","games":100,"wins_a":59,"wins_b":41,"win_rate_a":0.59,"win_rate_b":0.41,"group":"exact"},"cfr_nash_mb3_vs_exact_random":{"agent_a":"cfr_nash_mb3","agent_b":"exact_random","games":100,"wins_a":29,"wins_b":71,"win_rate_a":0.29,"win_rate_b":0.71,"group":"exact"},"exact_biased70_vs_exact_biased60":{"agent_a":"exact_biased70","agent_b":"exact_biased60","games":100,"wins_a":37,"wins_b":63,"win_rate_a":0.37,"win_rate_b":0.63,"group":"exact"},"exact_biased70_vs_exact_biased40":{"agent_a":"exact_biased70","agent_b":"exact_biased40","games":100,"wins_a":14,"wins_b":86,"win_rate_a":0.14,"win_rate_b":0.86,"group":"exact"},"exact_biased70_vs_exact_biased30":{"agent_a":"exact_biased70","agent_b":"exact_biased30","games":100,"wins_a":5,"wins_b":95,"win_rate_a":0.05,"win_rate_b":0.95,"group":"exact"},"exact_biased70_vs_exact_random":{"agent_a":"exact_biased70","agent_b":"exact_random","games":100,"wins_a":96,"wins_b":4,"win_rate_a":0.96,"win_rate_b":0.04,"group":"exact"},"exact_biased60_vs_exact_biased40":{"agent_a":"exact_biased60","agent_b":"exact_biased40","games":100,"wins_a":29,"wins_b":71,"win_rate_a":0.29,"win_rate_b":0.71,"group":"exact"},"exact_biased60_vs_exact_biased30":{"agent_a":"exact_biased60","agent_b":"exact_biased30","games":100,"wins_a":10,"wins_b":90,"win_rate_a":0.1,"win_rate_b":0.9,"group":"exact"},"exact_biased60_vs_exact_random":{"agent_a":"exact_biased60","agent_b":"exact_random","games":100,"wins_a":100,"wins_b":0,"win_rate_a":1.0,"win_rate_b":0.0,"group":"exact"},"exact_biased40_vs_exact_biased30":{"agent_a":"exact_biased40","agent_b":"exact_biased30","games":100,"wins_a":49,"wins_b":51,"win_rate_a":0.49,"win_rate_b":0.51,"group":"exact"},"exact_biased40_vs_exact_random":{"agent_a":"exact_biased40","agent_b":"exact_random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"exact"},"exact_biased30_vs_exact_random":{"agent_a":"exact_biased30","agent_b":"exact_random","games":100,"wins_a":100,"wins_b":0,"win_rate_a":1.0,"win_rate_b":0.0,"group":"exact"}}};
+
+// ============================================================
+// AGENT_RANKINGS_COMMENTARY
+// Hand-written notes about each agent's standing. Update this
+// object as new agents are added or results change. Keys match
+// AGENT_META keys. Leave a key absent to show no note.
+// ============================================================
+const AGENT_RANKINGS_COMMENTARY = {
+  exactconditional: "Dominant exact-rules agent: 86% vs CFR Nash, 95–99% vs all random benchmarks. Uses Bayesian adjustment with exact-hand conditional probabilities to pick the peak-probability bid given private cards.",
+  cfr_nash_mb3:     "CFR-trained Nash approximation for n=2 exact-rules. Beats biased random agents (59–74%) but loses to exact_random 71% — CFR was trained on HC/Pair bids only and is exploited by off-distribution play. Training ongoing.",
+  exact_biased30:   "Strongest random benchmark in exact-rules. Calling more (30% bid rate) is correct because exact-rules bids are hard to make true — beats biased70 95% of the time by refusing to over-commit.",
+  exact_biased40:   "Second-best random benchmark in exact-rules. Near-coin-flip vs exact_biased30 (49/51).",
+  exact_biased70:   "Weakest biased agent in exact-rules despite being aggressive. Bidding 70% of the time is heavily punished — exact bids rarely hold, so over-bidding is easily called.",
+  exact_random:     "Unusual result: beats CFR Nash 71% of the time. CFR agent is trained only on HC/Pair domains and is confused by random legal bids spanning the full 110-bid space.",
+  conditional:      "Strongest at-least-rules agent. Detects private hand conditions (pair, suited, adjacent ranks) and scales bids accordingly — outperforms blind threshold consistently.",
+  blind:            "Solid at-least-rules baseline. Bids the 50% marginal threshold without private card knowledge. Beats all random agents convincingly.",
+  biased70:         "Most aggressive at-least-rules random baseline. Bids 70% of the time — easily exploited by threshold agents.",
+};
 
 // Build a win-rate lookup: winRate[a][b] = fraction of games a won vs b (or null)
 function buildWinRates() {
@@ -1456,68 +1527,71 @@ const RULES_HTML = `
 </details>`;
 
 function renderSetup() {
-  return RULES_HTML + `
+  return `
 <div class="panel">
   <h3>New Game</h3>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:1rem;margin-bottom:0.75rem">
-    <div>
-      <label>Number of Players</label>
-      <select id="cfg-np">
-        <option value="2" selected>2</option>
-        <option value="3">3</option>
-        <option value="4">4</option>
-        <option value="5">5</option>
-      </select>
-    </div>
-    <div>
-      <label>Your Seat</label>
-      <select id="cfg-seat">
-        <option value="-1">Spectator (watch agents)</option>
-        <option value="0" selected>Seat 0 (first bidder)</option>
-        <option value="1">Seat 1</option>
-        <option value="2">Seat 2</option>
-        <option value="3">Seat 3</option>
-        <option value="4">Seat 4</option>
-      </select>
-    </div>
-    <div>
-      <label>Opponent</label>
-      <select id="cfg-agent">
-        <optgroup label="Random Agents">
-          <option value="biased30">Random Biased (30% bid)</option>
-          <option value="biased40">Random Biased (40% bid)</option>
-          <option value="random">Random Uniform</option>
-          <option value="biased60">Random Biased (60% bid)</option>
-          <option value="biased70">Random Biased (70% bid)</option>
-        </optgroup>
-        <optgroup label="Standard Rules">
-          <option value="blind" selected>Blind Threshold (50%)</option>
-          <option value="conditional">Conditional Threshold</option>
-        </optgroup>
-        <optgroup label="Mode-Specific">
-          <option value="exactconditional">Exact Rules Conditional</option>
-        </optgroup>
-      </select>
-    </div>
-    <div>
-      <label>Game Mode</label>
-      <select id="cfg-mode">
-        <option value="countup" selected>Count Up (start 1 card)</option>
-        <option value="countdown">Count Down (start 5 cards)</option>
-      </select>
+  <div style="margin-bottom:0.75rem">
+    <label class="step-label">1 — Choose Your Opponent</label>
+    <select id="cfg-agent" onchange="updateAgentInfo()" style="max-width:380px">
+      <optgroup label="Exact Hand Rules">
+        <option value="exactconditional" selected>Exact Rules Conditional</option>
+        <option value="cfr_nash_mb3">CFR Nash (n=2, 20k iters)</option>
+        <option value="exact_biased70">Random Biased 70% (exact)</option>
+        <option value="exact_biased60">Random Biased 60% (exact)</option>
+        <option value="exact_biased40">Random Biased 40% (exact)</option>
+        <option value="exact_biased30">Random Biased 30% (exact)</option>
+        <option value="exact_random">Random Uniform (exact)</option>
+      </optgroup>
+      <optgroup label="At-Least Rules">
+        <option value="conditional">Conditional Threshold</option>
+        <option value="blind">Blind Threshold (50%)</option>
+        <option value="biased70">Random Biased (70% bid)</option>
+        <option value="biased60">Random Biased (60% bid)</option>
+        <option value="biased40">Random Biased (40% bid)</option>
+        <option value="biased30">Random Biased (30% bid)</option>
+        <option value="random">Random Uniform</option>
+      </optgroup>
+    </select>
+  </div>
+  <div id="agent-info"></div>
+  <div style="margin-top:0.75rem;margin-bottom:0.75rem">
+    <label class="step-label">2 — Game Options</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem">
+      <div>
+        <label>Number of Players</label>
+        <select id="cfg-np">
+          <option value="2" selected>2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+      <div>
+        <label>Your Seat</label>
+        <select id="cfg-seat">
+          <option value="-1">Spectator (watch agents)</option>
+          <option value="0" selected>Seat 0 (first bidder)</option>
+          <option value="1">Seat 1</option>
+          <option value="2">Seat 2</option>
+          <option value="3">Seat 3</option>
+          <option value="4">Seat 4</option>
+        </select>
+      </div>
+      <div>
+        <label>Game Mode</label>
+        <select id="cfg-mode">
+          <option value="countup" selected>Count Up (start 1 card)</option>
+          <option value="countdown">Count Down (start 5 cards)</option>
+        </select>
+      </div>
     </div>
   </div>
-  <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap">
-    <!-- High Hand Declaration: hidden until feature is re-enabled
-    <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem;color:#a0a8c0">
-      <input type="checkbox" id="cfg-hh" style="width:auto;margin-bottom:0">
-      High Hand Declaration
-    </label>
-    -->
+  <div style="display:flex;gap:1.5rem;margin-bottom:0.75rem;flex-wrap:wrap;align-items:center">
     <input type="checkbox" id="cfg-hh" style="display:none">
+    <input type="checkbox" id="cfg-exact" style="display:none">
     <label style="display:inline-flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem;color:#a0a8c0">
-      <input type="checkbox" id="cfg-exact" style="width:auto;margin-bottom:0">
-      Exact Hand Rules <span style="font-size:0.78rem;color:#5a6a8a">(agents uncalibrated)</span>
+      <input type="checkbox" id="cfg-fiveKings" style="width:auto;margin-bottom:0">
+      Five Kings mode <span style="font-size:0.78rem;color:#5a6a8a">(53-card deck easter egg)</span>
     </label>
   </div>
   <button onclick="startGame()">Start Game</button>
@@ -1565,36 +1639,95 @@ function renderGameArea() {
   return renderPlayers() + renderHand() + renderBidHistory() + actionBlock;
 }
 
-function renderZoo() {
-  const groups = ['standard', 'exact'];
-  const groupLabels = { standard: 'Standard Rules (52-card deck, at-least)', exact: 'Exact Hand Rules + High Hand' };
+// Dynamically ranked standings per ruleset, driven by benchmark data.
+// To add commentary: update AGENT_RANKINGS_COMMENTARY above.
+function renderRankings() {
+  const groups = [
+    { key: 'exact',    label: 'Exact Hand Rules',  color: '#5ba3d0', border: '#1a4a7a', bg: '#0d2245' },
+    { key: 'standard', label: 'At-Least Rules',    color: '#27ae60', border: '#1a5a2a', bg: '#0d2a14' },
+  ];
+  let html = '<div class="rankings-section"><h3 style="color:#c9a84c;margin-bottom:1rem;font-size:1rem">Current Standings</h3>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1.25rem">';
 
-  let html = '';
+  for (const grp of groups) {
+    const entries = Object.entries(AGENT_META).filter(([,m]) => m.group === grp.key);
+    const ranked = entries
+      .map(([k]) => ({ key: k, avg: avgWinRate(k) }))
+      .filter(a => a.avg !== null)
+      .sort((a, b) => b.avg - a.avg);
+
+    if (!ranked.length) continue;
+
+    html += `<div class="rankings-group">`;
+    html += `<div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.07em;color:${grp.color};background:${grp.bg};border:1px solid ${grp.border};display:inline-block;padding:0.15rem 0.6rem;border-radius:10px;margin-bottom:0.6rem">${grp.label}</div>`;
+    html += '<div class="ranking-list">';
+    ranked.forEach((item, i) => {
+      const meta = AGENT_META[item.key];
+      const medals = ['1st', '2nd', '3rd'];
+      const pos = medals[i] || `${i+1}th`;
+      const posColor = i === 0 ? '#c9a84c' : i === 1 ? '#a0a8b8' : '#5a6a8a';
+      const wrColor  = item.avg > 0.6 ? '#27ae60' : item.avg > 0.5 ? '#a0b0d0' : '#c0392b';
+      const note = AGENT_RANKINGS_COMMENTARY[item.key] || '';
+      html += `<div class="ranking-item">
+        <div class="ranking-pos" style="color:${posColor}">${pos}</div>
+        <div class="ranking-body">
+          <span class="ranking-name">${meta.display}</span>
+          <span class="ranking-wr" style="color:${wrColor}">${(item.avg*100).toFixed(0)}% avg</span>
+          ${note ? `<div class="ranking-note">${note}</div>` : ''}
+        </div>
+      </div>`;
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div></div>';
+  return html;
+}
+
+function renderZoo() {
+  // Exact rules first (primary ruleset), then at-least rules
+  const groups = ['exact', 'standard'];
+  const groupLabels = {
+    exact:    'Exact Hand Rules (52-card deck) — Primary Ruleset',
+    standard: 'At-Least Rules (52-card deck)',
+  };
+
+  let html = renderRankings();
+  html += `<hr style="border:none;border-top:1px solid #2a3a5e;margin:0.5rem 0 1.25rem">`;
+
   for (const grp of groups) {
     const agents = Object.entries(AGENT_META).filter(([,m]) => m.group === grp);
     if (!agents.length) continue;
+
+    const isExact = grp === 'exact';
+    const badgeColor = isExact ? '#5ba3d0' : '#27ae60';
+    const badgeBg    = isExact ? '#0d2245' : '#0d2a14';
+    const badgeBorder= isExact ? '#1a4a7a' : '#1a5a2a';
 
     html += `<p class="zoo-section-title">${groupLabels[grp]}</p>`;
     html += '<div class="zoo-grid">';
     for (const [key, meta] of agents) {
       const avg = avgWinRate(key);
-      const avgStr = avg !== null ? `Avg win rate: <b>${(avg * 100).toFixed(0)}%</b>` : 'No data';
+      const avgStr = avg !== null
+        ? `Avg win rate: <b style="color:${avg>0.6?'#27ae60':avg<0.4?'#c0392b':'#a0b0d0'}">${(avg * 100).toFixed(0)}%</b>`
+        : '<span style="color:#4a5a7a">No benchmark data yet</span>';
       html += `
         <div class="agent-card">
           <h4>${meta.display}</h4>
           <div class="agent-key">${key}</div>
+          <span class="rules-tag" style="background:${badgeBg};color:${badgeColor};border:1px solid ${badgeBorder}">${isExact ? 'Exact Hand Rules' : 'At-Least Rules'}</span>
           <p>${meta.desc}</p>
           <div class="win-rate">${avgStr} vs benchmarked peers</div>
-          <button onclick="playVsAgent('${key}')" style="font-size:0.8rem;padding:0.3rem 0.9rem">▶ Play vs this agent</button>
+          <button onclick="playVsAgent('${key}')" style="font-size:0.8rem;padding:0.3rem 0.9rem">Play vs this agent</button>
         </div>`;
     }
     html += '</div>';
 
-    // Head-to-head matrix for this group
-    const keys = agents.map(([k]) => k);
+    // Head-to-head matrix — only show agents with at least one benchmark result
+    const keys = agents.map(([k]) => k).filter(k => Object.keys(WIN_RATES[k] || {}).length > 0);
     if (keys.length > 1) {
       html += `<p class="zoo-note">Win rates (row vs column), 100 games each. Green = majority wins, red = minority.</p>`;
-      html += '<div class="matrix-wrap"><table class="matrix-table"><thead><tr><th>↓ vs →</th>';
+      html += '<div class="matrix-wrap"><table class="matrix-table"><thead><tr><th>vs</th>';
       for (const k of keys) html += `<th>${AGENT_META[k].display}</th>`;
       html += '</tr></thead><tbody>';
       for (const rowKey of keys) {
@@ -1605,7 +1738,7 @@ function renderZoo() {
           } else {
             const wr = WIN_RATES[rowKey]?.[colKey];
             if (wr === undefined || wr === null) {
-              html += '<td>?</td>';
+              html += '<td style="color:#3a4a6a">—</td>';
             } else {
               const pct = Math.round(wr * 100);
               const cls = wr > 0.5 ? 'zoo-win' : wr < 0.5 ? 'zoo-lose' : 'zoo-even';
@@ -1621,6 +1754,48 @@ function renderZoo() {
 
   html += `<p class="zoo-note">Benchmark: 100 games per pair, seed 42, 2-player count-up matches. Generated ${BENCHMARK_RESULTS.generated.slice(0,10)}.</p>`;
   return `<div class="panel"><h3>Agent Zoo</h3>${html}</div>`;
+}
+
+function updateAgentInfo() {
+  const sel = document.getElementById('cfg-agent');
+  if (!sel) return;
+  const key = sel.value;
+  const meta = AGENT_META[key];
+  if (!meta) return;
+
+  // Auto-configure exact rules checkbox based on agent group
+  const exactChk = document.getElementById('cfg-exact');
+  if (exactChk) exactChk.checked = (meta.group === 'exact');
+
+  const el = document.getElementById('agent-info');
+  if (!el) return;
+
+  const isExact = meta.group === 'exact';
+  const rulesLabel = isExact ? 'Exact Hand Rules' : 'At-Least Rules';
+  const rulesColor = isExact ? '#5ba3d0' : '#27ae60';
+  const rulesBg    = isExact ? '#0d2245' : '#0d2a14';
+  const rulesBorder= isExact ? '#1a4a7a' : '#1a5a2a';
+  const rulesDesc  = isExact
+    ? 'A bid wins only if some 5-card subset of the combined pool matches the declared hand exactly.'
+    : 'A bid wins if the pool\'s best possible hand is at least as strong as the declared hand.';
+
+  const avg = avgWinRate(key);
+  const avgStr = avg !== null
+    ? `<span style="font-size:0.82rem;color:#a0b0d0">Avg win rate vs benchmarked peers: <b style="color:${avg>0.55?'#27ae60':avg<0.45?'#c0392b':'#a0b0d0'}">${(avg*100).toFixed(0)}%</b></span>`
+    : '';
+
+  const note = AGENT_RANKINGS_COMMENTARY[key] || '';
+
+  el.innerHTML = `
+<div class="agent-info-panel">
+  <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem">
+    <span class="rules-tag-play" style="background:${rulesBg};color:${rulesColor};border:1px solid ${rulesBorder}">${rulesLabel}</span>
+    ${avgStr}
+  </div>
+  <p style="font-size:0.85rem;color:#b0c0d8;margin-bottom:0.35rem">${meta.desc}</p>
+  <p style="font-size:0.8rem;color:#4a7a9a;font-style:italic;margin-bottom:${note?'0.35rem':'0'}">${rulesDesc}</p>
+  ${note ? `<p style="font-size:0.8rem;color:#7a8aaa">${note}</p>` : ''}
+</div>`;
 }
 
 function render() {
@@ -1639,6 +1814,7 @@ function render() {
     app.innerHTML = renderZoo();
   } else if (!G.st) {
     app.innerHTML = renderSetup();
+    updateAgentInfo();
   } else {
     app.innerHTML = renderGameArea();
   }
@@ -1648,13 +1824,20 @@ function render() {
 // 11. USER ACTIONS
 // ============================================================
 function buildAgent(atype) {
+  // At-least rules agents
   if (atype === 'biased30')        return new BiasedRandomAgent(0.30);
   if (atype === 'biased40')        return new BiasedRandomAgent(0.40);
   if (atype === 'biased60')        return new BiasedRandomAgent(0.60);
   if (atype === 'biased70')        return new BiasedRandomAgent(0.70);
   if (atype === 'blind')           return new BlindBaselineAgent();
   if (atype === 'conditional')     return new ConditionalAgent();
-  if (atype === 'exactconditional')return new ExactRulesConditionalAgent();
+  // Exact rules agents
+  if (atype === 'exactconditional') return new ExactRulesConditionalAgent();
+  if (atype === 'exact_biased30')   return new BiasedRandomAgent(0.30);
+  if (atype === 'exact_biased40')   return new BiasedRandomAgent(0.40);
+  if (atype === 'exact_biased60')   return new BiasedRandomAgent(0.60);
+  if (atype === 'exact_biased70')   return new BiasedRandomAgent(0.70);
+  if (atype === 'exact_random')     return new RandomAgent();
   return new RandomAgent();
 }
 
@@ -1669,14 +1852,12 @@ function navZoo() {
 }
 
 function playVsAgent(agentKey) {
-  // Switch to play view and pre-select the agent
   G.view = 'play';
   G.st = null;
   render();
-  // Pre-select agent in dropdown after render
   setTimeout(() => {
     const sel = document.getElementById('cfg-agent');
-    if (sel) { sel.value = agentKey; }
+    if (sel) { sel.value = agentKey; updateAgentInfo(); }
   }, 0);
 }
 
@@ -1686,7 +1867,8 @@ function startGame() {
   const atype = document.getElementById('cfg-agent').value;
   const mode  = document.getElementById('cfg-mode').value;
   const highHand   = document.getElementById('cfg-hh')?.checked || false;
-  const exactRules = document.getElementById('cfg-exact')?.checked || false;
+  // Auto-derive exact rules from agent group; checkbox is kept in sync by updateAgentInfo()
+  const exactRules = (AGENT_META[atype]?.group === 'exact') || document.getElementById('cfg-exact')?.checked || false;
   const fiveKings  = document.getElementById('cfg-fiveKings')?.checked || false;
   // Sync the bid space with the easter egg state before creating the match
   if (fiveKings) _activateFiveKings(); else _deactivateFiveKings();
