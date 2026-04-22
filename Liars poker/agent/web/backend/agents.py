@@ -35,7 +35,7 @@ for _p in (_PAPER_DIR, _AGENT_DIR):
         sys.path.insert(0, _p)
 
 from agent.game.engine import MatchState                                     # noqa: E402
-from agent.game.bids import CALL_ACTION, HH_ACTION, NUM_BIDS, bid_to_index   # noqa: E402
+from agent.game.bids import CALL_ACTION, HH_ACTION, NUM_BIDS, bid_to_index, all_bids   # noqa: E402
 import numpy as np                                                             # noqa: E402
 
 

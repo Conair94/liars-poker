@@ -66,6 +66,7 @@ _RANK_OF    = {name: i for i, name in enumerate(_RANK_NAMES)}
 _RANKED_COND_CACHE  = os.path.join(_DATA_DIR, "extended_conditional_probs_ranked.json")
 _MARGINAL_CACHE     = os.path.join(_DATA_DIR, "hand_rank_probs_matrix.json")
 _EXACT_RULES_CACHE  = os.path.join(_DATA_DIR, "exact_rules_probs.json")
+_EXACT_COND_CACHE   = os.path.join(_DATA_DIR, "extended_conditional_exact_probs.json")
 _FIVE_KINGS_CACHE   = os.path.join(_DATA_DIR, "five_kings_probs.json")
 
 _BIDS = all_bids()  # stable reference, length NUM_BIDS
@@ -392,6 +393,37 @@ class WarmStartLookup:
         """
         self._load_exact_rules_cache()
         return self._exact_rules_at_least.get(n)
+
+    def _load_exact_cond_cache(self) -> None:
+        if hasattr(self, "_exact_cond"):
+            return
+        self._exact_cond: Dict[str, Dict[int, np.ndarray]] = {}
+        if not os.path.exists(_EXACT_COND_CACHE):
+            return
+        with open(_EXACT_COND_CACHE) as f:
+            raw = json.load(f)
+        for cond_key, n_dict in raw.get("conditions", {}).items():
+            self._exact_cond[cond_key] = {
+                int(n_str): np.array(arr, dtype=np.float32)
+                for n_str, arr in n_dict.items()
+            }
+
+    def get_exact_rules_conditional(
+        self,
+        n: int,
+        cond_key: Optional[str],
+    ) -> Optional[np.ndarray]:
+        """
+        Return P(pool contains 5-card subset with best hand == bid_i | n, condition).
+        None if cache missing or no matching entry.
+        """
+        if cond_key is None:
+            return None
+        self._load_exact_cond_cache()
+        n_dict = self._exact_cond.get(cond_key)
+        if n_dict is None:
+            return None
+        return n_dict.get(n)
 
     def get_five_kings_at_least(self, n: int) -> Optional[np.ndarray]:
         """
