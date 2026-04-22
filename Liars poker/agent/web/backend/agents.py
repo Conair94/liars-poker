@@ -289,32 +289,114 @@ class ExactRulesBlindAgent:
 # ---------------------------------------------------------------------------
 class ExactRulesConditionalAgent:
     """
-    Conditional "peak probability" strategy for Exact Hand Rules mode.
+    Conditional strategy for Exact Hand Rules mode with game-theoretic fixes:
 
-    Adjusts per-bid exact probabilities using the agent's private hand via a
-    Bayesian likelihood-ratio correction:
+      1. Declare High Hand when the standing bid matches (or near-matches) the
+         peak of the adjusted distribution — HH and CALL have symmetric ±1
+         payoffs, and HH beats a raise when the standing bid is the most
+         likely hand.
+      2. Escalation-aware bidding: among legal raises, pick the SMALLEST bid
+         whose exact probability clears a safety threshold (preserves bid
+         space; avoids revealing info by always jumping to the global peak).
+      3. Decision-theoretic call threshold: call when P(holds | hand) < 0.5,
+         which is the zero-EV crossing of call-vs-raise in the ±1 payoff model.
+         A secondary floor is kept for very early rounds where the peak is < 0.5.
+      4. Light Bayesian update on opponent's bid: α-weighted multiplier that
+         up-weights bids sharing the opponent's primary rank.
+      5. Attempts to use exact-rules conditional tables when available
+         (`WarmStartLookup.get_exact_rules_conditional(n, cond_key)`); falls
+         back to the prior likelihood-ratio correction otherwise.
 
-        adj_exact[i] ≈ exact_prob[i] × (cond_pmf[i] / marginal_pmf[i])
-
-    Where cond_pmf and marginal_pmf are derived from the conditional and marginal
-    p_at_least tables (CONDITIONAL_PAL / MARGINAL_PAL) converted to PMFs.
-    Ratio is capped at 10 to prevent runaway values.
-
-    Falls back to ExactRulesBlindAgent if no condition matches or cache missing.
-
-    See agent/AGENT_CATALOG.md for details.
+    Falls back to ExactRulesBlindAgent if the cache is missing.
     """
 
-    def __init__(self) -> None:
-        self._blind = ExactRulesBlindAgent()
+    def __init__(
+        self,
+        hh_band: float = 0.9,
+        safety_frac: float = 0.5,
+        call_prob_threshold: float = 0.5,
+        floor_frac: float = 0.3,
+        opp_bid_alpha: float = 0.5,
+        opp_bid_up_mult: float = 1.3,
+        opp_bid_down_mult: float = 0.9,
+    ) -> None:
+        self._blind               = ExactRulesBlindAgent()
+        self.hh_band              = hh_band
+        self.safety_frac          = safety_frac
+        self.call_prob_threshold  = call_prob_threshold
+        self.floor_frac           = floor_frac
+        self.opp_bid_alpha        = opp_bid_alpha
+        self.opp_bid_up_mult      = opp_bid_up_mult
+        self.opp_bid_down_mult    = opp_bid_down_mult
 
     @staticmethod
     def _pmf_from(pal: np.ndarray) -> np.ndarray:
-        """Convert p_at_least vector to PMF."""
         pmf = np.zeros_like(pal)
         pmf[:-1] = np.maximum(0, pal[:-1] - pal[1:])
         pmf[-1]  = max(0.0, float(pal[-1]))
         return pmf
+
+    def _adjust_for_own_hand(
+        self,
+        exact_prob: np.ndarray,
+        lookup,
+        own_hand: list,
+        n: int,
+    ) -> np.ndarray:
+        """Apply hand-conditional adjustment. Prefer exact-rules conditional
+        tables when generated; otherwise fall back to a likelihood-ratio on
+        the at-least conditional tables."""
+        # Exact-rules conditional table (Task 2.5): preferred when present.
+        get_exact_cond = getattr(lookup, "get_exact_rules_conditional", None)
+        if get_exact_cond is not None:
+            try:
+                _, _, cond_key = lookup.get_features(own_hand, n)
+                if cond_key is not None:
+                    ec = get_exact_cond(n, cond_key)
+                    if ec is not None:
+                        return ec.astype(np.float32)
+            except Exception:
+                pass
+
+        # Fallback: likelihood-ratio via at-least tables.
+        try:
+            marginal, cond_vec, _ = lookup.get_features(own_hand, n)
+            marg_pmf = self._pmf_from(
+                np.flip(np.cumsum(np.flip(marginal))).astype(np.float32)
+            )
+            cond_pmf = self._pmf_from(
+                np.flip(np.cumsum(np.flip(cond_vec))).astype(np.float32)
+            )
+            mask  = marg_pmf > 1e-9
+            ratio = np.where(
+                mask,
+                np.minimum(cond_pmf / np.where(mask, marg_pmf, 1.0), 10.0),
+                1.0,
+            )
+            return (exact_prob * ratio).astype(np.float32)
+        except Exception:
+            return exact_prob.copy()
+
+    def _apply_opp_bid_belief(
+        self,
+        adj_exact: np.ndarray,
+        current_bid,
+    ) -> np.ndarray:
+        """Weak-evidence Bayesian bump: given opponent's standing bid of primary
+        rank r, up-weight bids sharing r and down-weight bids far from it."""
+        if self.opp_bid_alpha <= 0.0 or current_bid is None:
+            return adj_exact
+        r_opp = current_bid.primary_rank
+        mult = np.ones_like(adj_exact)
+        for i, bid in enumerate(all_bids()):
+            if i >= len(adj_exact):
+                break
+            if bid.primary_rank == r_opp:
+                mult[i] = self.opp_bid_up_mult
+            elif abs(bid.primary_rank - r_opp) >= 4:
+                mult[i] = self.opp_bid_down_mult
+        a = self.opp_bid_alpha
+        return ((1.0 - a) * adj_exact + a * (adj_exact * mult)).astype(np.float32)
 
     def choose_action(self, state: MatchState) -> int:
         n     = sum(state.hand_sizes[s] for s in state.active_seats())
@@ -326,47 +408,62 @@ class ExactRulesConditionalAgent:
             return self._blind.choose_action(state)
 
         try:
-            lookup = _get_warm_start()
+            lookup     = _get_warm_start()
             exact_prob = lookup.get_exact_rules_exact(n)
         except Exception:
             exact_prob = None
-
         if exact_prob is None:
             return self._blind.choose_action(state)
 
-        # Likelihood-ratio adjustment from own hand condition.
-        adj_exact = exact_prob.copy()
-        try:
-            marginal, cond_vec, _ = lookup.get_features(rs.hands[seat], n)
-            marg_pmf = self._pmf_from(
-                np.flip(np.cumsum(np.flip(marginal))).astype(np.float32)
-            )
-            cond_pmf = self._pmf_from(
-                np.flip(np.cumsum(np.flip(cond_vec))).astype(np.float32)
-            )
-            mask = marg_pmf > 1e-9
-            ratio = np.where(mask, np.minimum(cond_pmf / np.where(mask, marg_pmf, 1.0), 10.0), 1.0)
-            adj_exact = exact_prob * ratio
-        except Exception:
-            pass  # Fall through with unadjusted exact_prob
+        adj_exact = self._adjust_for_own_hand(exact_prob, lookup, rs.hands[seat], n)
+        adj_exact = self._apply_opp_bid_belief(adj_exact, rs.current_bid)
 
-        max_p = float(np.max(adj_exact))
-        call_threshold = 0.3 * max_p
+        peak_idx = int(np.argmax(adj_exact))
+        peak_p   = float(adj_exact[peak_idx])
         bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
 
-        def best_bid(cands: list) -> int:
-            return max(cands, key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
-
+        # ------------------------------------------------------------------
+        # No standing bid yet — opening bid (fix 2.2).
+        # ------------------------------------------------------------------
         if rs.current_bid is None:
-            return best_bid(bid_candidates) if bid_candidates else legal[0]
+            if not bid_candidates:
+                return legal[0]
+            safety = self.safety_frac * peak_p
+            viable = [a for a in bid_candidates if float(adj_exact[a]) >= safety]
+            if viable:
+                return min(viable)       # smallest safe-enough raise
+            return max(bid_candidates,
+                       key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
 
+        # ------------------------------------------------------------------
+        # Responding to a standing bid.
+        # ------------------------------------------------------------------
         cur_idx = bid_to_index(rs.current_bid)
-        cur_p = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
-        if CALL_ACTION in legal and cur_p < call_threshold:
-            return CALL_ACTION
+        cur_p   = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
+
+        # Fix 2.1: Declare HH when the standing bid matches (or near-matches)
+        # the peak of our adjusted distribution.
+        if HH_ACTION in legal and peak_p > 0.0:
+            if cur_idx == peak_idx or cur_p >= self.hh_band * peak_p:
+                return HH_ACTION
+
+        # Fix 2.3: decision-theoretic call threshold.
+        if CALL_ACTION in legal:
+            call_by_prob  = cur_p < self.call_prob_threshold
+            call_by_floor = cur_p < self.floor_frac * peak_p
+            if call_by_prob or call_by_floor:
+                return CALL_ACTION
+
         if not bid_candidates:
             return CALL_ACTION
-        return best_bid(bid_candidates)
+
+        # Fix 2.2: smallest legal raise above safety threshold.
+        safety = self.safety_frac * peak_p
+        viable = [a for a in bid_candidates if float(adj_exact[a]) >= safety]
+        if viable:
+            return min(viable)
+        return max(bid_candidates,
+                   key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
 
 
 # ---------------------------------------------------------------------------

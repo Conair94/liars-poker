@@ -77,7 +77,10 @@
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, separators=\\(',',':'\\)\\)\\)\")",
       "Bash(awk 'NR>=1119 && /^};/{print NR; exit}' /Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html)",
       "Bash(sed -n '1059,1062p' /Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html)",
-      "Bash(sed -n '1080,1095p' /Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html)"
+      "Bash(sed -n '1080,1095p' /Users/connorlockhart/Documents/GitHub/liars-poker/docs/index.html)",
+      "Bash(python -m agent.baseline.cfr_1v1_fast --iters 5 --max-bids 3)",
+      "Bash(python -m pytest agent/baseline/tests/test_cfr_1v1_fast.py -v -m \"not slow\")",
+      "Bash(python -m agent.baseline.cfr_1v1_overnight --name smoke_fast_test --max-bids 3 --batch 5 --total-iters 10 --solver fast)"
     ]
   }
 }

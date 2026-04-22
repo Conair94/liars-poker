@@ -42,7 +42,30 @@ for _p in (_PAPER_DIR, _AGENT_DIR):
 from agent.baseline.cfr_1v1 import (   # noqa: E402
     CFRSolver, HC_PAIR_BIDS, _all_bid_indices, _solver_summary, _cache_key,
 )
+from agent.baseline.cfr_1v1_fast import CFRSolverFast  # noqa: E402
 from agent.game.bids import CALL_ACTION, HH_ACTION, bid_to_index, Bid, HIGH_CARD  # noqa: E402
+
+
+def _make_solver(kind: str, **kwargs):
+    if kind == "fast":
+        return CFRSolverFast(**kwargs)
+    return CFRSolver(**kwargs)
+
+
+def _fast_solver_summary(solver: CFRSolverFast) -> dict:
+    """Replicates _solver_summary for CFRSolverFast (different internal API)."""
+    mix        = solver.opening_mix_by_rank()
+    game_value = solver.game_value()
+    exp        = solver.exploitability()
+    return {
+        "iterations":     solver._iterations,
+        "max_bids":       solver.max_bids,
+        "bid_space_size": len(solver.bid_space),
+        "include_hh":     solver.include_hh,
+        "exploitability": exp,
+        "game_value":     game_value,
+        "opening_mix":    {str(r): mix[r] for r in range(13)},
+    }
 
 
 def _run_dir(run_name: str) -> str:
@@ -74,7 +97,7 @@ def _append_metrics(paths: Dict[str, str], row: dict) -> None:
         f.write(json.dumps(row) + "\n")
 
 
-def _save_summary(paths: Dict[str, str], summary: dict, solver: CFRSolver) -> None:
+def _save_summary(paths: Dict[str, str], summary: dict, solver) -> None:
     # Include response mixes for HC openings at each rank (most informative).
     response_mixes = {}
     for r in range(13):
@@ -88,18 +111,19 @@ def _save_summary(paths: Dict[str, str], summary: dict, solver: CFRSolver) -> No
         json.dump(payload, f, indent=2)
 
 
-def _load_or_create_solver(args, paths: Dict[str, str]) -> CFRSolver:
+def _load_or_create_solver(args, paths: Dict[str, str]):
+    solver_cls = CFRSolverFast if args.solver == "fast" else CFRSolver
     if os.path.exists(paths["checkpoint"]):
         with open(paths["checkpoint"]) as f:
             state = json.load(f)
-        solver = CFRSolver.from_dict(state)
+        solver = solver_cls.from_dict(state)
         print(f"[resume] loaded checkpoint @ iter {solver._iterations:,}  "
-              f"max_bids={solver.max_bids}  |bids|={len(solver.bid_space)}  "
-              f"hh={solver.include_hh}")
+              f"solver={args.solver}  max_bids={solver.max_bids}  "
+              f"|bids|={len(solver.bid_space)}  hh={solver.include_hh}")
         return solver
 
     bid_space = _all_bid_indices() if args.full_bids else HC_PAIR_BIDS
-    solver = CFRSolver(
+    solver = solver_cls(
         max_bids   = args.max_bids,
         bid_space  = bid_space,
         include_hh = not args.no_hh,
@@ -108,6 +132,7 @@ def _load_or_create_solver(args, paths: Dict[str, str]) -> CFRSolver:
     with open(paths["config"], "w") as f:
         json.dump({
             "run_name":    args.name,
+            "solver":      args.solver,
             "max_bids":    args.max_bids,
             "bid_space":   list(solver.bid_space),
             "bid_space_size": len(solver.bid_space),
@@ -133,8 +158,11 @@ def main() -> None:
     parser.add_argument("--no-hh",       action="store_true")
     parser.add_argument("--full-bids",   action="store_true",
                         help="Use all 110 bids (NOT recommended — tree explodes).")
-    parser.add_argument("--eval-every",  type=int, default=1,
-                        help="Compute exploitability every N batches (default 1).")
+    parser.add_argument("--eval-every",  type=int, default=10,
+                        help="Compute exploitability every N batches (default 10).")
+    parser.add_argument("--solver",      type=str, default="fast",
+                        choices=["fast", "slow"],
+                        help="Which solver backend to use (default fast=vectorized).")
     args = parser.parse_args()
 
     paths = _paths(args.name)
@@ -178,7 +206,8 @@ def main() -> None:
         _append_metrics(paths, row)
 
         if do_eval:
-            summary = _solver_summary(solver)
+            summary = (_fast_solver_summary(solver)
+                       if args.solver == "fast" else _solver_summary(solver))
             _save_summary(paths, summary, solver)
             print(f"  iter {solver._iterations:6d}/{target}  "
                   f"batch={n} in {dt:5.1f}s  exp={exp:.4f}  gv={gv:+.4f}")
