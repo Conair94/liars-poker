@@ -83,7 +83,16 @@
       "Bash(python -m agent.baseline.cfr_1v1_overnight --name smoke_fast_test --max-bids 3 --batch 5 --total-iters 10 --solver fast)",
       "Bash(python -c \"from agent.web.backend.agents import ExactRulesConditionalAgent; a = ExactRulesConditionalAgent\\(\\); print\\('OK', a.safety_frac, a.opp_bid_alpha\\)\")",
       "Bash(python -m agent.data.compute_extended_conditional_exact_probs --dry-run)",
-      "Bash(python -m pytest agent/web/backend/tests/test_exact_rules_agents.py -x -q)"
+      "Bash(python -m pytest agent/web/backend/tests/test_exact_rules_agents.py -x -q)",
+      "Bash(sysctl -n hw.logicalcpu)",
+      "Bash(python -m agent.data.compute_extended_conditional_exact_probs --samples 500 --workers 4)",
+      "Bash(awk '{print $1, $2, $3, $11}')",
+      "Bash(awk '{print $2, $3, $11, $12}')",
+      "Bash(awk '{print $2, $3}')",
+      "Bash(python -m pytest agent/web/backend/tests/test_exact_rules_agents.py -v)",
+      "Bash(/opt/anaconda3/bin/python -c ' *)",
+      "Bash(conda run *)",
+      "Read(//opt/anaconda3/**)"
     ]
   }
 }

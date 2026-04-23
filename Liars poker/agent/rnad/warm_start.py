@@ -281,6 +281,9 @@ class WarmStartLookup:
 
         _KNOWN_CONDITIONS = set(self._conditional.keys())
 
+        # LRU feature cache: keyed by (tuple(sorted(own_hand)), n)
+        self._feature_cache: Dict[tuple, Tuple] = {}
+
     # ------------------------------------------------------------------
 
     def get_features(
@@ -303,10 +306,15 @@ class WarmStartLookup:
                            equals marginal_vec when no condition matches
         condition_key    : str or None — matched condition (for aux-loss target)
         """
+        cache_key = (tuple(sorted(own_hand)), n)
+        if cache_key in self._feature_cache:
+            return self._feature_cache[cache_key]
+
         if n < 5 or n > 25:
-            # Outside computed range: return uniform as a safe fallback
             uni = np.full(NUM_BIDS, 1.0 / NUM_BIDS, dtype=np.float32)
-            return uni, uni, None
+            result = (uni, uni, None)
+            self._feature_cache[cache_key] = result
+            return result
 
         marginal = self._marginal[n]
 
@@ -317,7 +325,10 @@ class WarmStartLookup:
             conditional = marginal
             condition_key = None
 
-        return marginal, conditional, condition_key
+        result = (marginal, conditional, condition_key)
+        if len(self._feature_cache) < 32_768:
+            self._feature_cache[cache_key] = result
+        return result
 
     def get_aux_target(
         self,

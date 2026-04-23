@@ -82,11 +82,13 @@ class Step:
 # ---------------------------------------------------------------------------
 
 def collect_round(
-    policy:     LiarsPokerNet,
-    anchor:     LiarsPokerNet,
-    hand_size:  int,
+    policy:      LiarsPokerNet,
+    anchor:      LiarsPokerNet,
+    hand_size:   int,
     num_players: int = 2,
     warm_start=None,
+    exact_rules: bool = False,
+    high_hand:   bool = True,
 ) -> List[Step]:
     """
     Play one round of Liar's Poker with both seats using `policy`.
@@ -101,8 +103,10 @@ def collect_round(
     hand_size   : cards dealt to each active player (Stage A: fixed)
     num_players : number of seats (2 for Stage A)
     warm_start  : optional WarmStartLookup (for aux target extraction)
+    exact_rules : use exact-hand-rules resolution
+    high_hand   : enable High Hand declaration action
     """
-    state = new_match(num_players)
+    state = new_match(num_players, exact_rules=exact_rules, high_hand=high_hand)
     # Override hand sizes so the "match" starts at the desired stage.
     state.hand_sizes = [hand_size] * num_players
     state.start_next_round()
@@ -176,6 +180,8 @@ def collect_match(
     num_players: int = 2,
     warm_start=None,
     max_rounds:  int = 200,
+    exact_rules: bool = False,
+    high_hand:   bool = True,
 ) -> List[Step]:
     """
     Play one full match of Liar's Poker until a winner emerges (or max_rounds
@@ -193,8 +199,10 @@ def collect_match(
     num_players : seats at the table (2 for Stage B)
     warm_start  : optional WarmStartLookup (for aux target extraction)
     max_rounds  : safety cap on round count to prevent infinite loops
+    exact_rules : use exact-hand-rules resolution
+    high_hand   : enable High Hand declaration action
     """
-    state = new_match(num_players)
+    state = new_match(num_players, exact_rules=exact_rules, high_hand=high_hand)
     all_steps: List[Step] = []
 
     for _ in range(max_rounds):
@@ -304,54 +312,58 @@ def compute_loss(
     """
     Compute the combined R-NaD loss for a batch of Steps.
 
+    Observations are encoded individually (embedding lookup varies per step)
+    but then stacked into a single (B, trunk_in_dim) tensor for one batched
+    trunk/head forward pass — ~B× faster than B sequential forwards.
+
     Returns
     -------
     total_loss : scalar Tensor (has gradient)
     metrics    : dict of float scalar metrics for logging
     """
-    policy_losses  = []
-    value_losses   = []
-    entropy_terms  = []
-    aux_losses     = []
+    # --- batched encode + forward ---
+    obs_list = [policy.encode_obs(s.info) for s in steps]
+    obs_batch = torch.stack(obs_list)                        # (B, trunk_in_dim)
 
-    for step in steps:
-        # Re-encode observation with current network weights (gradients flow)
-        obs = policy.encode_obs(step.info)
+    use_aux = config.use_aux_loss and any(s.aux_target is not None for s in steps)
+    if use_aux:
+        logits_batch, value_batch, aux_batch = policy.forward_with_aux(obs_batch)
+    else:
+        logits_batch, value_batch = policy.forward(obs_batch)
+        aux_batch = None
 
-        if config.use_aux_loss and step.aux_target is not None:
-            logits, value, aux_logits = policy.forward_with_aux(obs)
-        else:
-            logits, value = policy.forward(obs)
-            aux_logits = None
+    # --- per-step loss terms (masking differs per step) ---
+    policy_losses: List[torch.Tensor] = []
+    value_losses:  List[torch.Tensor] = []
+    entropy_terms: List[torch.Tensor] = []
+    aux_losses:    List[torch.Tensor] = []
 
-        # --- masked distribution ---
+    for i, step in enumerate(steps):
+        logits = logits_batch[i]
+        value  = value_batch[i]
+
         masked_logits = _mask_logits(logits, step.legal_actions)
         dist          = Categorical(logits=masked_logits)
 
-        log_prob      = dist.log_prob(torch.tensor(step.action, device=device))
-        entropy       = dist.entropy()
+        log_prob  = dist.log_prob(torch.tensor(step.action, device=device))
+        entropy   = dist.entropy()
 
-        # --- advantage (stop-gradient on return and baseline) ---
-        G_tilde  = torch.tensor(step.transformed_return, dtype=torch.float32, device=device)
-        baseline = torch.tensor(step.value_old,          dtype=torch.float32, device=device)
-        advantage = (G_tilde - baseline).detach()   # stop-gradient on advantage
+        G_tilde   = torch.tensor(step.transformed_return, dtype=torch.float32, device=device)
+        baseline  = torch.tensor(step.value_old,          dtype=torch.float32, device=device)
+        advantage = (G_tilde - baseline).detach()
 
-        # --- losses ---
         policy_losses.append(-log_prob * advantage)
         value_losses.append(F.mse_loss(value.squeeze(), G_tilde))
-        entropy_terms.append(-entropy)             # maximise entropy → minimise -H
+        entropy_terms.append(-entropy)
 
-        if aux_logits is not None:
+        if aux_batch is not None and step.aux_target is not None:
             tgt = torch.from_numpy(step.aux_target).to(device)
-            # CE between network's predicted pool distribution and the tabulated
-            # conditional probabilities (soft targets via KL).
             aux_losses.append(F.kl_div(
-                F.log_softmax(aux_logits, dim=-1),
+                F.log_softmax(aux_batch[i], dim=-1),
                 tgt,
                 reduction="sum",
             ))
 
-    n = len(steps)
     policy_loss  = torch.stack(policy_losses).mean()
     value_loss   = torch.stack(value_losses).mean()
     entropy_loss = torch.stack(entropy_terms).mean()
@@ -367,7 +379,7 @@ def compute_loss(
     metrics = {
         "loss/policy":  float(policy_loss.detach()),
         "loss/value":   float(value_loss.detach()),
-        "loss/entropy": float((-entropy_loss).detach()),   # log as entropy (positive)
+        "loss/entropy": float((-entropy_loss).detach()),
         "loss/aux":     float(aux_loss.detach()),
         "loss/total":   float(total.detach()),
     }
@@ -393,7 +405,12 @@ class RNaDTrainer:
         self.config = config
 
         if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            if torch.cuda.is_available():
+                device = "cuda"
+            elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+                device = "mps"
+            else:
+                device = "cpu"
         self.device = torch.device(device)
 
         # Policy network (trained)
@@ -505,6 +522,8 @@ class RNaDTrainer:
                     num_players = self.config.num_players,
                     warm_start  = self._warm_start,
                     max_rounds  = self.config.max_match_rounds,
+                    exact_rules = self.config.exact_rules,
+                    high_hand   = self.config.high_hand,
                 )
             else:
                 steps = collect_round(
@@ -513,6 +532,8 @@ class RNaDTrainer:
                     hand_size   = self.config.stage_a_hand_size,
                     num_players = self.config.num_players,
                     warm_start  = self._warm_start,
+                    exact_rules = self.config.exact_rules,
+                    high_hand   = self.config.high_hand,
                 )
             all_steps.extend(steps)
 

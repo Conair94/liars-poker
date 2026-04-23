@@ -25,6 +25,10 @@ class RNaDConfig:
     # ------------------------------------------------------------------ #
     num_players: int = 2
 
+    # Rule variants (passed to new_match())
+    exact_rules: bool = False   # True → bid must be exactly present in pool
+    high_hand:   bool = True    # True → High Hand declaration action enabled
+
     # ------------------------------------------------------------------ #
     # Network
     # ------------------------------------------------------------------ #
