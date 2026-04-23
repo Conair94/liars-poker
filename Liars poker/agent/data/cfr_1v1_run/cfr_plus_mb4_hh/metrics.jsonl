@@ -1,7 +1,4 @@
-{"iter": 100, "batch": 0, "batch_n": 100, "t_batch_s": 1162.467, "t_per_iter_s": 11.625, "exploitability": 0.671705389773221, "game_value": -0.2327465554268157}
-{"iter": 200, "batch": 1, "batch_n": 100, "t_batch_s": 4544.538, "t_per_iter_s": 45.445, "exploitability": null, "game_value": null}
-{"iter": 300, "batch": 2, "batch_n": 100, "t_batch_s": 1753.61, "t_per_iter_s": 17.536, "exploitability": 0.6916475150082088, "game_value": -0.23024877658693843}
-{"iter": 400, "batch": 3, "batch_n": 100, "t_batch_s": 10352.259, "t_per_iter_s": 103.523, "exploitability": null, "game_value": null}
-{"iter": 500, "batch": 4, "batch_n": 100, "t_batch_s": 13462.213, "t_per_iter_s": 134.622, "exploitability": 0.6894601635455346, "game_value": -0.22930748518016195}
-{"iter": 600, "batch": 5, "batch_n": 100, "t_batch_s": 1127.663, "t_per_iter_s": 11.277, "exploitability": null, "game_value": null}
-{"iter": 700, "batch": 6, "batch_n": 100, "t_batch_s": 1122.914, "t_per_iter_s": 11.229, "exploitability": 0.6899667286323481, "game_value": -0.2288489289653417}
+{"iter": 100, "batch": 0, "batch_n": 100, "t_batch_s": 62.336, "t_per_iter_s": 0.623, "exploitability": 0.5195555433606113, "game_value": -0.23409774160224636}
+{"iter": 200, "batch": 1, "batch_n": 100, "t_batch_s": 62.608, "t_per_iter_s": 0.626, "exploitability": null, "game_value": null}
+{"iter": 300, "batch": 2, "batch_n": 100, "t_batch_s": 72.366, "t_per_iter_s": 0.724, "exploitability": null, "game_value": null}
+{"iter": 400, "batch": 3, "batch_n": 100, "t_batch_s": 43.043, "t_per_iter_s": 0.43, "exploitability": null, "game_value": null}

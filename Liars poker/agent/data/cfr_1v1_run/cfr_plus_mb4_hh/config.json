@@ -1,5 +1,6 @@
 {
   "run_name": "cfr_plus_mb4_hh",
+  "solver": "fast",
   "max_bids": 4,
   "bid_space": [
     0,

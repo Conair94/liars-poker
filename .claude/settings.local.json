@@ -107,7 +107,16 @@
       "Bash(kill 26848)",
       "Bash(python3 -u -m agent.rnad.trainer --stage A --hand-size 1 --iterations 5 --batch-size 128 --exact-rules --device cpu)",
       "Bash(python3 -u -m agent.rnad.trainer --stage A --hand-size 1 --iterations 600 --batch-size 128 --exact-rules --device cpu --eval-freq 100)",
-      "Bash(tee /tmp/rnad_val_cpu.log)"
+      "Bash(tee /tmp/rnad_val_cpu.log)",
+      "Bash(awk '{print $2, $10, $11, $12, $13, $14}')",
+      "Bash(python3 -m agent.data.compute_extended_conditional_exact_probs --dry-run)",
+      "Bash(python3 -m agent.baseline.cfr_1v1_overnight --name cfr_plus_mb4_hh --max-bids 4 --batch 100 --total-iters 50000 --solver fast)",
+      "Bash(echo \"CFR+ PID: $!\")",
+      "Bash(ps -p 41329 -o pid,etime,pcpu)",
+      "Bash(python3 -m agent.rnad.trainer --stage A --hand-size 1 --iterations 5000 --batch-size 128 --exact-rules --device cpu)",
+      "Bash(echo \"R-NaD Stage A PID: $!\")",
+      "Bash(ps -p 41329 41946 -o pid,etime,pcpu,comm)",
+      "Bash(awk '{print $2, $3, $10, $11, $12, $13}')"
     ]
   }
 }

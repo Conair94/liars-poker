@@ -51,6 +51,26 @@ app = FastAPI(title="Liar's Poker")
 _SESSIONS: Dict[str, dict] = {}
 
 # ---------------------------------------------------------------------------
+# Persistent player stats (in-memory; resets on server restart)
+# ---------------------------------------------------------------------------
+# agent_key -> {"wins": int, "losses": int, "rounds_won": int, "rounds_total": int}
+_STATS: Dict[str, dict] = {}
+
+def _ensure_stats(agent_key: str) -> None:
+    if agent_key not in _STATS:
+        _STATS[agent_key] = {"wins": 0, "losses": 0, "rounds_won": 0, "rounds_total": 0}
+
+def _record_match(agent_key: str, human_won: bool, rounds_won: int, rounds_total: int) -> None:
+    _ensure_stats(agent_key)
+    s = _STATS[agent_key]
+    if human_won:
+        s["wins"] += 1
+    else:
+        s["losses"] += 1
+    s["rounds_won"]  += rounds_won
+    s["rounds_total"] += rounds_total
+
+# ---------------------------------------------------------------------------
 # Card / bid display helpers
 # ---------------------------------------------------------------------------
 _RANK_DISPLAY = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
@@ -81,6 +101,58 @@ def _bid_short(bid_idx: int) -> str:
     return f"{abbrev[b.hand_type]}-{_RANK_DISPLAY[b.primary_rank]}"
 
 
+def _render_stats_panel() -> str:
+    """Render the player stats table for the setup page."""
+    if not _STATS:
+        return ""
+    rows = []
+    for key, s in sorted(_STATS.items()):
+        played = s["wins"] + s["losses"]
+        if played == 0:
+            continue
+        win_pct = s["wins"] / played
+        pct_cls = "win-pct" if win_pct >= 0.5 else ("win-pct bad" if win_pct < 0.4 else "win-pct neutral")
+        display = AGENT_REGISTRY.get(key, {}).get("display", key)
+        rounds_total = s["rounds_total"]
+        rounds_won   = s["rounds_won"]
+        round_str = f"{rounds_won}/{rounds_total}" if rounds_total else "—"
+        rows.append(
+            f"<tr>"
+            f"<td>{display}</td>"
+            f"<td>{s['wins']}W&nbsp;{s['losses']}L</td>"
+            f'<td class="{pct_cls}">{win_pct:.0%}</td>'
+            f"<td style='color:#8090a8'>{round_str}</td>"
+            f"</tr>"
+        )
+    if not rows:
+        return ""
+    return f"""
+<div class="panel">
+  <h3>Your Record</h3>
+  <table class="stats-table">
+    <thead><tr>
+      <th>Agent</th><th>Matches</th><th>Win %</th><th>Rounds W/Total</th>
+    </tr></thead>
+    <tbody>{"".join(rows)}</tbody>
+  </table>
+</div>"""
+
+
+def _session_record_html(sess: dict) -> str:
+    """Inline W-L pill for the active game header."""
+    w = sess.get("round_wins", 0)
+    l = sess.get("round_losses", 0)
+    if w == 0 and l == 0:
+        return ""
+    return (
+        f'<span class="session-record">'
+        f'<span class="w">{w}W</span>'
+        f'&nbsp;–&nbsp;'
+        f'<span class="l">{l}L</span> rounds'
+        f'</span>'
+    )
+
+
 # ---------------------------------------------------------------------------
 # Auto-advance agents until it's the human's turn (or round / match ends)
 # ---------------------------------------------------------------------------
@@ -109,6 +181,12 @@ def _advance_agents(session_id: str) -> None:
             sess["last_result"]         = result
             sess["last_round_history"]  = list(sess["current_round_history"])
             sess["waiting_next_round"]  = True
+            human_seat = sess["human_seat"]
+            if human_seat != -1:
+                if result.winner_seat == human_seat:
+                    sess["round_wins"] += 1
+                elif result.loser_seat == human_seat:
+                    sess["round_losses"] += 1
             return
 
     sess["waiting_next_round"] = False
@@ -259,6 +337,23 @@ details[open].rules-panel summary h3::after { content: " ▾"; }
 .bid-select-group { display: flex; gap: 0.5rem; align-items: flex-end; flex: 1; }
 .bid-select-group select { flex: 1; margin-bottom: 0; }
 optgroup { background: #0d2a50; color: #8090a8; font-size: 0.8rem; }
+
+/* Stats table */
+.stats-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.stats-table th { color: #8090a8; font-weight: 500; text-align: left;
+                  padding: 0.3rem 0.5rem; border-bottom: 1px solid #2a3a5e; }
+.stats-table td { padding: 0.3rem 0.5rem; border-bottom: 1px solid #1e2e4e; color: #c0d0f0; }
+.stats-table tr:last-child td { border-bottom: none; }
+.stats-table .win-pct { color: #27ae60; font-weight: 600; }
+.stats-table .win-pct.bad { color: #c0392b; }
+.stats-table .win-pct.neutral { color: #c9a84c; }
+
+/* Session record pill */
+.session-record { display: inline-block; font-size: 0.8rem; padding: 0.2rem 0.6rem;
+                  border-radius: 10px; background: #1e2e4e; color: #a0b0d0;
+                  border: 1px solid #2a3a5e; margin-left: 0.5rem; }
+.session-record .w { color: #27ae60; font-weight: 700; }
+.session-record .l { color: #c0392b; font-weight: 700; }
 """
 
 
@@ -351,7 +446,7 @@ def _render_setup_form() -> str:
 
     registry_js = _agent_registry_js()
 
-    return _RULES_HTML + f"""
+    return _render_stats_panel() + _RULES_HTML + f"""
 <div class="panel" id="setup-panel">
   <h3>New Game</h3>
   <form hx-post="/game/new" hx-target="#game-area" hx-swap="outerHTML"
@@ -420,7 +515,7 @@ def _player_label(seat: int, human_seat: int) -> str:
     return "You" if seat == human_seat else f"Agent {seat}"
 
 
-def _render_players(state: MatchState, human_seat: int) -> str:
+def _render_players(state: MatchState, human_seat: int, record_html: str = "") -> str:
     cp = state.round_state.current_player if state.round_state else -1
     rows = []
     for seat in range(state.num_players):
@@ -458,7 +553,7 @@ def _render_players(state: MatchState, human_seat: int) -> str:
 
     return (
         '<div class="panel">'
-        '<h3>Players</h3>'
+        f'<h3>Players{record_html}</h3>'
         + "".join(rows)
         + "</div>"
     )
@@ -687,6 +782,7 @@ def _render_game_area(session_id: str) -> str:
     waiting_next      = sess.get("waiting_next_round", False)
     last_history      = sess.get("last_round_history", [])
 
+    agent_key  = sess.get("agent_key", "")
     new_game_btn = """
         <form hx-get="/setup" hx-target="body" hx-swap="innerHTML" style="margin-top:1rem">
           <button type="submit">New Game</button>
@@ -694,6 +790,17 @@ def _render_game_area(session_id: str) -> str:
 
     # ---------- terminal ----------
     if state.terminal:
+        # Record match result once
+        if not spectator and not sess.get("stats_recorded", False):
+            you_won = (state.winner == human_seat)
+            _record_match(
+                agent_key,
+                human_won    = you_won,
+                rounds_won   = sess.get("round_wins", 0),
+                rounds_total = sess.get("round_wins", 0) + sess.get("round_losses", 0),
+            )
+            sess["stats_recorded"] = True
+
         winner_name = _player_label(state.winner, human_seat)
         if spectator:
             banner_msg = f"{winner_name} won the match."
@@ -702,6 +809,18 @@ def _render_game_area(session_id: str) -> str:
             you_won    = (state.winner == human_seat)
             banner_msg = "You won the match!" if you_won else f"{winner_name} won the match."
             banner_sub = "Congratulations — you beat the opponent!" if you_won else "Better luck next time."
+
+        # Rematch button — same agent and seat
+        rematch_btn = ""
+        if not spectator and agent_key:
+            rematch_btn = f"""
+        <form hx-post="/game/new" hx-target="#game-area" hx-swap="outerHTML"
+              style="display:inline; margin-left:0.5rem;">
+          <input type="hidden" name="agent_type" value="{agent_key}">
+          <input type="hidden" name="human_seat" value="{human_seat}">
+          <input type="hidden" name="num_players" value="{state.num_players}">
+          <button type="submit" class="secondary">Rematch</button>
+        </form>"""
 
         result_block = ""
         if last_result is not None:
@@ -713,14 +832,18 @@ def _render_game_area(session_id: str) -> str:
   <div class="winner-banner">
     <h2>{banner_msg}</h2>
     <p>{banner_sub}</p>
-    {new_game_btn}
+    <div style="margin-top:1rem; display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+      {new_game_btn}
+      {rematch_btn}
+    </div>
   </div>
 </div>"""
 
     # ---------- between rounds ----------
     if waiting_next and last_result is not None:
         result_block  = _render_result(last_result, human_seat, state, session_id, last_history)
-        players_block = _render_players(state, human_seat)
+        record_html   = _session_record_html(sess)
+        players_block = _render_players(state, human_seat, record_html)
         return f"""
 <div id="game-area">
   {players_block}
@@ -744,7 +867,8 @@ def _render_game_area(session_id: str) -> str:
 </div>"""
 
     # ---------- active round (player) ----------
-    players_block  = _render_players(state, human_seat)
+    record_html    = _session_record_html(sess)
+    players_block  = _render_players(state, human_seat, record_html)
     hand_block     = _render_hand(rs.hands[human_seat], session_id)
     history_block  = _render_bid_history(state, human_seat)
 
@@ -804,14 +928,19 @@ def new_game(
         if seat != human_seat:  # human_seat == -1 fills every seat
             agents[seat] = build_agent(agent_type)
 
+    _ensure_stats(agent_type)
     _SESSIONS[session_id] = {
         "state":                  state,
         "human_seat":             human_seat,
         "agents":                 agents,
+        "agent_key":              agent_type,
         "last_result":            None,
         "waiting_next_round":     False,
         "current_round_history":  [],
         "last_round_history":     [],
+        "round_wins":             0,
+        "round_losses":           0,
+        "stats_recorded":         False,
     }
 
     # Start the first round.
@@ -846,6 +975,12 @@ def take_action(session_id: str, action: int = Form(...)):
         sess["last_result"]        = result
         sess["last_round_history"] = list(sess["current_round_history"])
         sess["waiting_next_round"] = True
+        human_seat = sess["human_seat"]
+        if human_seat != -1:
+            if result.winner_seat == human_seat:
+                sess["round_wins"] += 1
+            elif result.loser_seat == human_seat:
+                sess["round_losses"] += 1
         return HTMLResponse(_render_game_area(session_id))
 
     # Human bid — advance agents.
