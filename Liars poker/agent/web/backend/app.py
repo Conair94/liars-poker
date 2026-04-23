@@ -29,7 +29,7 @@ for _p in (_PAPER_DIR, _AGENT_DIR):
 
 from agent.game.engine import MatchState, RoundResult, new_match  # noqa: E402
 from agent.game.bids import (  # noqa: E402
-    CALL_ACTION, NUM_BIDS, all_bids, bid_to_index, index_to_bid,
+    CALL_ACTION, HH_ACTION, NUM_BIDS, all_bids, bid_to_index, index_to_bid,
     HAND_NAMES, RANK_NAMES,
 )
 from .agents import AGENT_REGISTRY, build_agent  # noqa: E402
@@ -167,6 +167,8 @@ button.danger { background: #c0392b; color: #fff; }
 button.danger:hover { background: #e74c3c; }
 button.secondary { background: #2a3a5e; color: #c0d0f0; }
 button.secondary:hover { background: #3a4e7e; }
+button.hh-btn { background: #7a5c00; color: #ffe98a; border: 1px solid #c9a84c; }
+button.hh-btn:hover { background: #9a7800; }
 
 .card {
     display: inline-block;
@@ -505,7 +507,9 @@ def _render_bid_history(state: MatchState, human_seat: int) -> str:
     for turn_seat, action in rs.history:
         who = _player_label(turn_seat, human_seat)
         if action == CALL_ACTION:
-            items.append(f"<li><b>{who}</b>: CALL</li>")
+            items.append(f"<li><b>{who}</b>: Call Bluff</li>")
+        elif action == HH_ACTION:
+            items.append(f'<li><b>{who}</b>: <span style="color:#c9a84c">★ Declare High Hand</span></li>')
         else:
             items.append(f'<li class="current-bid"><b>{who}</b>: {_bid_label(action)}</li>')
 
@@ -525,7 +529,8 @@ def _render_bid_history(state: MatchState, human_seat: int) -> str:
 def _render_action_area(state: MatchState, session_id: str) -> str:
     legal     = state.legal_actions()
     can_call  = CALL_ACTION in legal
-    bid_idxs  = [a for a in legal if a != CALL_ACTION]
+    can_hh    = HH_ACTION in legal
+    bid_idxs  = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
 
     # Group legal bids by hand type into <optgroup> sections.
     # This lets users navigate "Pair → rank" instead of scrolling 100 flat entries.
@@ -567,12 +572,22 @@ def _render_action_area(state: MatchState, session_id: str) -> str:
         f'</form>'
     ) if can_call else ""
 
+    hh_btn = (
+        f'<form hx-post="/game/{session_id}/action" hx-target="#game-area" hx-swap="outerHTML">'
+        f'<input type="hidden" name="action" value="{HH_ACTION}">'
+        f'<button type="submit" class="hh-btn" style="margin-top:1.55rem;" '
+        f'title="Declare that the standing bid is EXACTLY the best hand in the pool">'
+        f'Declare High Hand ★</button>'
+        f'</form>'
+    ) if can_hh else ""
+
     return f"""
 <div class="panel action-area">
   <h3>Your Action</h3>
   <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:flex-start;">
     {bid_form_html}
     {call_btn}
+    {hh_btn}
   </div>
 </div>"""
 
@@ -586,6 +601,8 @@ def _render_round_history(history: list, human_seat: int) -> str:
         who = _player_label(seat, human_seat)
         if action == CALL_ACTION:
             items.append(f'<li><b>{who}</b>: <span style="color:#c0392b">Call Bluff</span></li>')
+        elif action == HH_ACTION:
+            items.append(f'<li><b>{who}</b>: <span style="color:#c9a84c">★ Declare High Hand</span></li>')
         else:
             items.append(f'<li><b>{who}</b>: {_bid_label(action)}</li>')
     return (
@@ -611,7 +628,19 @@ def _render_result(result: RoundResult, human_seat: int, state: MatchState, sess
     caller_name = _player_label(result.caller_seat, human_seat)
     loser_name  = _player_label(result.loser_seat, human_seat)
 
-    if result.call_succeeded:
+    if getattr(result, "is_high_hand", False):
+        declarer_name = _player_label(result.caller_seat, human_seat)
+        if result.declaration_correct:
+            outcome = (
+                f"★ {declarer_name} declared High Hand — pool was exactly {pool_best_str} "
+                f"(bid was {bid_str})! Declaration correct — bidder penalised."
+            )
+        else:
+            outcome = (
+                f"★ {declarer_name} declared High Hand — but pool best was {pool_best_str} "
+                f"(bid was {bid_str}). Declaration wrong — declarer penalised."
+            )
+    elif result.call_succeeded:
         outcome = f"{caller_name} called the bluff — pool was only {pool_best_str} (bid was {bid_str})!"
     else:
         outcome = f"{caller_name}'s call failed — pool had {pool_best_str} ≥ {bid_str}!"

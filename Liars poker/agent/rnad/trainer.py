@@ -133,8 +133,10 @@ def collect_round(
         dist_r = Categorical(logits=logits_r)
         action = int(dist_p.sample().item())
 
-        log_prob_old = float(dist_p.log_prob(torch.tensor(action)).item())
-        log_prob_reg = float(dist_r.log_prob(torch.tensor(action)).item())
+        _dev = logits_p.device
+        action_t     = torch.tensor(action, device=_dev)
+        log_prob_old = float(dist_p.log_prob(action_t).item())
+        log_prob_reg = float(dist_r.log_prob(action_t).item())
 
         # Aux target (if requested and in range)
         aux_tgt = None
@@ -229,8 +231,10 @@ def collect_match(
             dist_r = Categorical(logits=logits_r)
             action = int(dist_p.sample().item())
 
-            log_prob_old = float(dist_p.log_prob(torch.tensor(action)).item())
-            log_prob_reg = float(dist_r.log_prob(torch.tensor(action)).item())
+            _dev = logits_p.device
+            action_t     = torch.tensor(action, device=_dev)
+            log_prob_old = float(dist_p.log_prob(action_t).item())
+            log_prob_reg = float(dist_r.log_prob(action_t).item())
 
             aux_tgt = None
             if warm_start is not None:

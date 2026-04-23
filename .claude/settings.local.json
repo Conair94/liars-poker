@@ -92,7 +92,8 @@
       "Bash(python -m pytest agent/web/backend/tests/test_exact_rules_agents.py -v)",
       "Bash(/opt/anaconda3/bin/python -c ' *)",
       "Bash(conda run *)",
-      "Read(//opt/anaconda3/**)"
+      "Read(//opt/anaconda3/**)",
+      "Read(//private/tmp/**)"
     ]
   }
 }
