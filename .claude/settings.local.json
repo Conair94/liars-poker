@@ -93,7 +93,17 @@
       "Bash(/opt/anaconda3/bin/python -c ' *)",
       "Bash(conda run *)",
       "Read(//opt/anaconda3/**)",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "Bash(python3 -m agent.benchmark --help)",
+      "Bash(python3 -m agent.benchmark --games 200 --seed 42)",
+      "Bash(echo \"Benchmark PID: $!\")",
+      "Bash(python3 -m agent.rnad.trainer --stage A --hand-size 1 --iterations 600 --batch-size 128 --exact-rules)",
+      "Bash(tee /tmp/rnad_validation.log)",
+      "Bash(sort -k6,7)",
+      "Bash(ps -p 24484 -p 26848 -o pid,etime,pcpu)",
+      "Bash(kill 24484)",
+      "Bash(python3 -u -m agent.rnad.trainer --stage A --hand-size 1 --iterations 10 --batch-size 128 --exact-rules)",
+      "Bash(ps -p 26848 -o pid,etime,pcpu)"
     ]
   }
 }

@@ -637,6 +637,10 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size",  type=int,   default=128)
     parser.add_argument("--lr",          type=float, default=3e-4)
     parser.add_argument("--no-warm-start", action="store_true")
+    parser.add_argument("--exact-rules",  action="store_true",
+                        help="Use exact-hand-rules resolution (bid must be exactly present in pool)")
+    parser.add_argument("--no-high-hand", action="store_true",
+                        help="Disable High Hand declaration action")
     parser.add_argument("--resume",      type=str,   default=None)
     args = parser.parse_args()
 
@@ -652,6 +656,8 @@ if __name__ == "__main__":
             episodes_per_update  = args.batch_size,
             lr                   = args.lr,
             use_warm_start       = not args.no_warm_start,
+            exact_rules          = args.exact_rules,
+            high_hand            = not args.no_high_hand,
         )
         trainer = RNaDTrainer(cfg)
 
