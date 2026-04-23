@@ -14,7 +14,7 @@
 | M1 | Game engine (pure Python) | `agent/game/engine.py` + `agent/game/bids.py`; unit tests passing | ✅ Done |
 | M2 | Blind-game baseline strategy | `agent/baseline/blind_equilibrium.py`; backward induction for N=2; 8/8 tests | ✅ Done |
 | M2b | Warm-start lookup | `agent/rnad/warm_start.py`; marginal + conditional vectors for R-NaD network; 16/16 tests | ✅ Done |
-| M2c | CFR 1v1 Nash solver (Stage A reference) | `agent/baseline/cfr_1v1.py`; vanilla CFR with rank abstraction + max_bids cap + HH action; 20k-iter checkpoint at exploitability=0.738; `agent/baseline/cfr_1v1_overnight.py` for resumed runs; `CFRNashAgent` available in web UI | 🟡 Partial — see §5.5 for convergence findings |
+| M2c | CFR 1v1 Nash solver (Stage A reference) | `agent/baseline/cfr_1v1.py` (reference); `agent/baseline/cfr_1v1_fast.py` (vectorized, 75× faster); overnight driver `cfr_1v1_overnight.py --solver fast`; 8/8 tests; `CFRNashAgent` in web UI | 🟡 Partial — fast solver ready, 50k-iter production run pending |
 | M6a | Minimal web interface | FastAPI + HTMX; playable vs. random and blind baseline; `agent/web/` | ✅ Done |
 | M3 | R-NaD trainer (self-play) | `agent/rnad/config.py`, `network.py`, `trainer.py`, `eval.py`; 14/14 tests; Stage A + Stage B (full match/elimination) complete | ✅ Done (Stage A + B) |
 | M6b | Full web interface | Trained agent, stats recording, session replay, match history | 🔲 After M3 |
@@ -205,10 +205,14 @@ Reward-transformed self-play with entropy regularization:
   4. Periodically update π_reg ← π (or Polyak average)
 - Convergence: the sequence of anchors traces out a path to a Nash equilibrium of the unregularized game.
 
-### 5.2 Infrastructure choices
-- **Framework:** OpenSpiel's `python/algorithms/` for the self-play loop; PyTorch for the network (better ecosystem for transformers than TF1 JAX in OpenSpiel). An alternative is to use the JAX reference R-NaD in DeepMind's Stratego release if it's open-sourced.
-- **Compute:** Start on a single GPU (RTX-class). Blind variant should converge on CPU.
-- **Logging:** Weights & Biases or TensorBoard; track exploitability against best-response computed via `exploitability.py` from OpenSpiel.
+### 5.2 Infrastructure choices (implemented 2026-04-22)
+- **Framework:** Custom PyTorch self-play loop (`agent/rnad/trainer.py`); no OpenSpiel dependency in the training path. The game engine (`agent/game/engine.py`) provides the environment.
+- **Compute:** Auto-detects CUDA → MPS (Apple Silicon GPU) → CPU in `RNaDTrainer.__init__`. MPS confirmed working (Apple M-series).
+- **Batched loss:** `compute_loss` encodes all steps in a batch, runs a single `policy.forward(obs_batch)` call over all steps, then applies per-step action masking. Eliminates repeated forward passes in the inner loop.
+- **Warm-start cache:** `WarmStartLookup.get_features` is LRU-cached (max 32,768 entries, keyed by `(sorted_hand, n)`). Cache hit rate >99% after a few iterations.
+- **Configuration:** `RNaDConfig` has `exact_rules: bool` and `high_hand: bool` flags; both thread through `_collect_batch → collect_round/collect_match → new_match(exact_rules, high_hand)`. Default: `exact_rules=False, high_hand=True`.
+- **MPS device fix:** `torch.tensor(action, device=logits.device)` ensures action tensors are on the same device as policy tensors; prevents MPS allocation errors.
+- **Logging:** Checkpoint log to stdout; TensorBoard integration planned.
 
 ### 5.3 Evaluation
 - **Exploitability** (OpenSpiel `exploitability.nash_conv`) — primary metric for N=2. For N≥3, report approximate best-response win rate as an empirical proxy.
@@ -251,14 +255,26 @@ Single network, shared weights across all (N, hand-size) configurations.
    
    P1 is never in doubt — pure bidding eliminates all strategic uncertainty. Nash requires P0 to mix bids so P1 cannot infer P0's rank from the bid alone. The correct Stage A reference is computed by `agent/baseline/cfr_1v1.py`, a vanilla CFR solver over the 2652 possible ordered 1-card deals (abstracted to 169 rank-pairs for tractability). It outputs mixed opening frequencies per rank. R-NaD Stage A convergence check = exploitability matches CFR Nash, not blind equilibrium.
 
-   **Empirical CFR findings (2026-04-20, `mb3_hh_overnight` run):**
+   **Empirical CFR findings (2026-04-20, `mb3_hh_overnight` run — vanilla CFR baseline):**
    - Configuration: max_bids=3, bid_space=HC+Pair (26 bids), include_hh=True, 20,000 iterations
    - Game value (P0 EV): −0.227 — first mover has structural disadvantage at n=2, consistent with §2.6
-   - Exploitability after 20k iters: **0.738** — still high; plateau indicates vanilla CFR's O(1/√T) convergence is slow for this game structure
-   - 38,376 infosets learned; checkpoint at `agent/data/cfr_1v1_run/mb3_hh_overnight/checkpoint.json`
+   - Exploitability after 20k iters: **0.738** — high plateau; vanilla CFR O(1/√T) is slow for this structure
+   - 38,376 infosets; checkpoint at `agent/data/cfr_1v1_run/mb3_hh_overnight/checkpoint.json`
    - Performance vs. baselines (win rate as P0 over 10k rounds): beats random (~85%), beats blind baseline (~70%)
-   - The CFR Nash agent samples from the average strategy (not argmax) — required to be unexploitable by best-response opponent
-   - **Next step:** Upgrade to CFR+ (regret matching+ with floor at 0, linear-weighted averaging). CFR+ converges 10–100× faster in practice for similar game configurations; expected to reach exploitability < 0.1 within 10k iters at max_bids=4.
+
+   **Vectorized fast solver (2026-04-22, `agent/baseline/cfr_1v1_fast.py`):**
+   - Full tree precomputed once in `__init__` (17,902 internal + 35,802 terminal nodes at max_bids=4)
+   - Bottom-up/top-down passes vectorized over all 169 rank-pairs using `np.einsum`
+   - **75× speedup**: max_bids=4 drops from 30.3 s/iter → 405 ms/iter; 50k iters feasible in ~5.5h
+   - Exploitability computation: ~0.25 s (was ~60 s); use `--eval-every 10` in overnight driver
+   - Equivalence-verified against reference solver: ≤2 top-1 bid disagreements per rank at 500 iters
+     (minor divergence expected — fast solver floors regrets once/iter vs. per-rank-pair in reference)
+   - **Production run command:**
+     ```
+     python -m agent.baseline.cfr_1v1_overnight \
+         --name cfr_plus_mb4_hh --max-bids 4 --batch 100 --total-iters 50000 --solver fast
+     ```
+   - R-NaD Stage A target: match exploitability of the converged fast-solver checkpoint (expected <0.1)
 
 2. **Stage B — dynamic hand size, N=2.** Full match structure with elimination (hand sizes 1→5). The blind equilibrium under exact rules must be recomputed (different from the at-least equilibrium; see §4.1 and §2.6). Range tracking becomes meaningful at hand_size ≥ 2 (pool ≥ 4 cards). This is the first "real" game; the range tracker begins to matter.
 3. **Stage C — variable N ∈ {2..5}.** This is the **critical leap in difficulty**: multiple opponents means the range tracker must maintain N−1 simultaneous per-opponent posteriors, joint distribution complexity grows, and APU (Shi et al. 2022) must be applied for training stability. Randomize N per episode. Train the same network to generality across table sizes. Formal exploitability claims remain N=2 only.
@@ -348,7 +364,7 @@ Per workspace convention, all Stage 2 code lives inside the paper folder — no 
 
 **Resolved (2026-04-20):**
 - ~~**Game length.**~~ **YES, cap via `max_bids`.** At n=2 with 26-bid space restriction (HC+Pair only), `max_bids=3` is tractable at ~1.5s/iter; `max_bids=4` is ~9s/iter; uncapped is intractable. In practice 1v1 games rarely exceed 5 bids. CFR tree is forcibly terminated at `max_bids` by treating any bet past the limit as illegal. The truncation introduces a small approximation error that is acceptable for the Stage A benchmark. See `cfr_1v1.py` and §5.5 empirical findings.
-- ~~**Stage A Nash benchmark.**~~ **PARTIAL.** `agent/baseline/cfr_1v1.py` implemented with rank abstraction (169 rank-pairs instead of 2652 deals), max_bids cap, HH_ACTION support, and chance-reach weighting. 20k-iter overnight run completed at exploitability=0.738. Vanilla CFR converges O(1/√T) — plateau is expected; CFR+ (regret matching+ with linear averaging) is the natural upgrade to reach exploitability < 0.01. Checkpoint and metrics at `agent/data/cfr_1v1_run/mb3_hh_overnight/`. `CFRNashAgent` serves this checkpoint in the web UI under exact-rules + HH settings. R-NaD Stage A target = match this exploitability, then improve as CFR+ improves the reference.
+- ~~**Stage A Nash benchmark.**~~ **INFRASTRUCTURE COMPLETE; production run pending.** `agent/baseline/cfr_1v1.py` (reference) + `agent/baseline/cfr_1v1_fast.py` (vectorized, 75× faster). Reference run `mb3_hh_overnight` reached exploitability=0.738 at 20k iters (vanilla CFR plateau). Vectorized solver verified equivalent; production run `cfr_plus_mb4_hh` (max_bids=4, 50k iters, ~5.5h) needs to be launched. Expected exploitability <0.1 given CFR+ convergence properties.
 
 **Still open:**
 2. **Public state reconstruction for ReBeL.** How expensive is belief propagation over card Liar's Poker public states? Dice are exchangeable; cards are not (suits break symmetry). Affects M5 method choice.
