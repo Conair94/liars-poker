@@ -1,6 +1,9 @@
 # Training Optimization & Agent Correctness Plan
 
-Drafted 2026-04-21 based on profiling + audit of `agent/baseline/cfr_1v1.py`,
+Drafted 2026-04-21. **Implemented 2026-04-22** — all three tasks complete.
+See bottom for implementation summary and run schedule.
+
+Drafted based on profiling + audit of `agent/baseline/cfr_1v1.py`,
 `agent/rnad/trainer.py`, and `agent/web/backend/agents.py::ExactRulesConditionalAgent`.
 
 Scope: three independent workstreams, each with measured baselines and
@@ -455,5 +458,54 @@ Implementation sketch (optional, only if results need it):
 | Task | New files | Modified files |
 |---|---|---|
 | 1 | `agent/baseline/cfr_1v1_fast.py`, `agent/baseline/tests/test_cfr_1v1_fast.py` | `agent/baseline/cfr_1v1_overnight.py` |
-| 2 | `agent/web/backend/tests/test_exact_rules_agents.py`, `agent/data/compute_extended_conditional_exact_probs.py`, `agent/data/extended_conditional_exact_probs_ranked.json` | `agent/web/backend/agents.py`, `agent/rnad/warm_start.py` |
-| 3 | (none) | `agent/rnad/trainer.py`, `agent/rnad/network.py`, `agent/rnad/config.py`, `agent/rnad/warm_start.py` |
+| 2 | `agent/web/backend/tests/test_exact_rules_agents.py`, `agent/data/compute_extended_conditional_exact_probs.py` | `agent/web/backend/agents.py`, `agent/rnad/warm_start.py` |
+| 3 | (none) | `agent/rnad/trainer.py`, `agent/rnad/config.py`, `agent/rnad/warm_start.py` |
+| HH site | (none) | `agent/web/backend/app.py` |
+
+---
+
+## Implementation Summary — 2026-04-22
+
+All tasks implemented and smoke-tested. Key results:
+
+### Task 1 results
+- `CFRSolverFast.iterate()`: 72ms at max_bids=3, 405ms at max_bids=4 (75× faster)
+- `exploitability()`: 0.25s (was ~60s)
+- 8 tests passing; ≤2 top-1 disagreements vs slow solver at 500 iters (expected — different floor cadence)
+
+### Task 2 results
+- All 5 agent fixes live in `ExactRulesConditionalAgent`
+- 9 unit tests passing (each fix verified in isolation with monkeypatched FakeLookup)
+- `compute_extended_conditional_exact_probs.py` running (started 2026-04-22 ~22:05, 9 workers, 10k samples/condition, ~4-6h)
+
+### Task 3 results
+- MPS auto-detected on Apple Silicon — confirmed working via smoke test
+- `compute_loss` batched forward confirmed numerically correct on MPS
+- `exact_rules=True, high_hand=True` flows end-to-end through collection and loss
+
+### High Hand website
+- "Declare High Hand ★" button live in exact-rules games
+- Gold-colored label in bid history and round history for HH actions
+- Result box shows correct/incorrect declaration outcome text
+
+---
+
+## Run schedule (as of 2026-04-22)
+
+| Script | Status | Command |
+|---|---|---|
+| `compute_extended_conditional_exact_probs.py` | **RUNNING** (started 22:05) | — |
+| `cfr_1v1_overnight --solver fast` 50k | **NOT STARTED** | see §Execution order |
+| R-NaD Stage A exact_rules MPS | **NOT STARTED** | after conditional MC done |
+
+### Launch CFR+ now (before sleeping)
+
+```bash
+cd "papers/Liars poker"
+python -m agent.baseline.cfr_1v1_overnight \
+    --name cfr_plus_mb4_hh \
+    --max-bids 4 --batch 100 --total-iters 50000 \
+    --solver fast
+```
+
+Estimated: ~5.5h. Checkpoint every 100 iters; safe to Ctrl-C and resume.
