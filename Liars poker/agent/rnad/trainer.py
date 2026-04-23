@@ -641,11 +641,15 @@ if __name__ == "__main__":
                         help="Use exact-hand-rules resolution (bid must be exactly present in pool)")
     parser.add_argument("--no-high-hand", action="store_true",
                         help="Disable High Hand declaration action")
+    parser.add_argument("--eval-freq",   type=int,   default=None,
+                        help="Override eval frequency (default: from RNaDConfig)")
+    parser.add_argument("--device",      type=str,   default=None,
+                        help="Force device: cpu, mps, or cuda (default: auto-detect)")
     parser.add_argument("--resume",      type=str,   default=None)
     args = parser.parse_args()
 
     if args.resume:
-        trainer = RNaDTrainer.load_checkpoint(args.resume)
+        trainer = RNaDTrainer.load_checkpoint(args.resume, device=args.device)
     else:
         cfg = RNaDConfig(
             stage                = args.stage,
@@ -659,6 +663,8 @@ if __name__ == "__main__":
             exact_rules          = args.exact_rules,
             high_hand            = not args.no_high_hand,
         )
-        trainer = RNaDTrainer(cfg)
+        if args.eval_freq is not None:
+            cfg.eval_freq = args.eval_freq
+        trainer = RNaDTrainer(cfg, device=args.device)
 
     trainer.train()

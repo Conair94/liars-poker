@@ -103,7 +103,11 @@
       "Bash(ps -p 24484 -p 26848 -o pid,etime,pcpu)",
       "Bash(kill 24484)",
       "Bash(python3 -u -m agent.rnad.trainer --stage A --hand-size 1 --iterations 10 --batch-size 128 --exact-rules)",
-      "Bash(ps -p 26848 -o pid,etime,pcpu)"
+      "Bash(ps -p 26848 -o pid,etime,pcpu)",
+      "Bash(kill 26848)",
+      "Bash(python3 -u -m agent.rnad.trainer --stage A --hand-size 1 --iterations 5 --batch-size 128 --exact-rules --device cpu)",
+      "Bash(python3 -u -m agent.rnad.trainer --stage A --hand-size 1 --iterations 600 --batch-size 128 --exact-rules --device cpu --eval-freq 100)",
+      "Bash(tee /tmp/rnad_val_cpu.log)"
     ]
   }
 }
