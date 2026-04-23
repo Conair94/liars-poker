@@ -2,3 +2,16 @@
 {"iter": 200, "batch": 1, "batch_n": 100, "t_batch_s": 62.608, "t_per_iter_s": 0.626, "exploitability": null, "game_value": null}
 {"iter": 300, "batch": 2, "batch_n": 100, "t_batch_s": 72.366, "t_per_iter_s": 0.724, "exploitability": null, "game_value": null}
 {"iter": 400, "batch": 3, "batch_n": 100, "t_batch_s": 43.043, "t_per_iter_s": 0.43, "exploitability": null, "game_value": null}
+{"iter": 500, "batch": 4, "batch_n": 100, "t_batch_s": 64.74, "t_per_iter_s": 0.647, "exploitability": null, "game_value": null}
+{"iter": 600, "batch": 5, "batch_n": 100, "t_batch_s": 62.13, "t_per_iter_s": 0.621, "exploitability": null, "game_value": null}
+{"iter": 700, "batch": 6, "batch_n": 100, "t_batch_s": 69.395, "t_per_iter_s": 0.694, "exploitability": null, "game_value": null}
+{"iter": 800, "batch": 7, "batch_n": 100, "t_batch_s": 70.608, "t_per_iter_s": 0.706, "exploitability": null, "game_value": null}
+{"iter": 900, "batch": 8, "batch_n": 100, "t_batch_s": 63.889, "t_per_iter_s": 0.639, "exploitability": null, "game_value": null}
+{"iter": 1000, "batch": 9, "batch_n": 100, "t_batch_s": 62.532, "t_per_iter_s": 0.625, "exploitability": null, "game_value": null}
+{"iter": 1100, "batch": 10, "batch_n": 100, "t_batch_s": 66.898, "t_per_iter_s": 0.669, "exploitability": 0.4838611113733478, "game_value": -0.22706890884020461}
+{"iter": 1200, "batch": 11, "batch_n": 100, "t_batch_s": 66.095, "t_per_iter_s": 0.661, "exploitability": null, "game_value": null}
+{"iter": 1300, "batch": 12, "batch_n": 100, "t_batch_s": 65.934, "t_per_iter_s": 0.659, "exploitability": null, "game_value": null}
+{"iter": 1400, "batch": 13, "batch_n": 100, "t_batch_s": 62.253, "t_per_iter_s": 0.623, "exploitability": null, "game_value": null}
+{"iter": 1500, "batch": 14, "batch_n": 100, "t_batch_s": 69.235, "t_per_iter_s": 0.692, "exploitability": null, "game_value": null}
+{"iter": 1600, "batch": 15, "batch_n": 100, "t_batch_s": 67.601, "t_per_iter_s": 0.676, "exploitability": null, "game_value": null}
+{"iter": 1700, "batch": 16, "batch_n": 100, "t_batch_s": 65.711, "t_per_iter_s": 0.657, "exploitability": null, "game_value": null}
