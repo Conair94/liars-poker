@@ -116,7 +116,8 @@
       "Bash(python3 -m agent.rnad.trainer --stage A --hand-size 1 --iterations 5000 --batch-size 128 --exact-rules --device cpu)",
       "Bash(echo \"R-NaD Stage A PID: $!\")",
       "Bash(ps -p 41329 41946 -o pid,etime,pcpu,comm)",
-      "Bash(awk '{print $2, $3, $10, $11, $12, $13}')"
+      "Bash(awk '{print $2, $3, $10, $11, $12, $13}')",
+      "Bash(awk '{print $2, $3\"%\", $10, $11, $12, $13, $14}')"
     ]
   }
 }
