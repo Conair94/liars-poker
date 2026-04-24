@@ -1,26 +1,13 @@
-Here are a list of new features the website and agent will need to be designed for: 
+Here is a todo list to work on for the next agent, formed by my thoughts on 4/23/2026
 
-## Count down mode
-All players start with 5 cards and lose a card when their bluff is called or if they incorrectly call someone else's valid bid. 
-
-A player with zero cards is eliminated. The game ends when only one player remains with cards. 
-## High hand
-If a player is given a bid of hand X, and the player believes this is infact the highest hand, then they are allowed to declare "highest hand" If this is the highest hand then the player who made the called bid is penalized a card and the player who successfully called high hand is rewarded. 
-
-The penalty is losing a card in count down mode, and gaining a card in count up mode. The reward is gaining a card in count down mode and losing a card in count up mode. If the player loses a card in count down mode and only has 1 card, then the penalized player gains two cards. 
-
-## Exact hand rule set
-A second game mode needs to be added that requires bids to be made for exact hands in the pool. For instance, for a hand to be considered existent in the pool, a hand of 5 cards (or the entire pool of cards if the pool size is less than 5) must be made where the bid is the exact legal hand resulting in 5 cards.
-
-For instance if the bid is pair of aces and the pool cards are Ace Ace Ace 2 3, then the bid is not valid as the only hand that can be made is a 3 of a kind. 
-If instead the pool cards where Ace Ace Ace 2 3 4 then the pair call would be valid since the 5 card poker hand Ace Ace 2 3 4 can be formed which is a legal pair of aces in poker. 
-
-## Rebuilding the blind and conditional agent. 
-
-A new agent will have to be trained with montecarlo simulation for the exact rules variant. The old and new agents will be required to retrained for the high card rule as well. The count up or count down should not require a new rule set. 
-The premise is the same, whenever a call has a less than 50% likelihood of existing, then it is reject.
-
-The high hand will have to be accommodated for with the conditional bot, for instance in a 1v1 with 1 card each, if the player holds an Ace, they know very likely that they hold a high card.
-
-## A secret easter egg, 5 kings in the deck. 
-Allow a secret mode to be toggled on which puts 5 kings in the deck making 5 of a kind kings a valid hand which is higher ranked than all other hands. 
+1. There is an obviously exploitable behavior in the mixed conditional model, it still makes completely nonsensical bids when the handsize would otherwise forbid that hand. I think likely what is happening is that the mixed strategy when not implementing its hard coded bid will bid a random hand. This leads to flushes and 4 of a kinds when less than 5 cards are possible. It should be basically impossible to bid these hands even with only 10 cards on the table. 
+    1.We need to brainstorm fixes to this, I think a promising start is to implement 1/4 of the time bidding the conditionally highest hand, 1/4 of the time bidding the minimum viable hand, 1/4 bidding a hand in between that and 1/4 of the time bidding a slightly higher hand than this. 
+    2. Perhaps adjusting these weights dynamically. Also if an opponent ever makes an impossible bid it should always call bluff. 
+    3. In this way, the bidding space is actually highly limited, at any given time there are less than 10 or viable bids. 
+    4. likewise the response needs to be dynamic, if an opponent over bids a hand that was already at the upper end of the viable hands, then it needs to call the bluff. 
+    5. The fundamental idea of the benchmark ladder of agents building off the conditional probabilities is good, but this needs to be reworked according to some of these ideas. 
+    6. To this end, a good agent should have some failsafe to ensure it never makes drastically unviable bids. 
+2. The files in the directory have grown bloated and the number of markdown files is immense. A more standardized training and file structure system needs to be implemented, so that working on the agents and training the agents can be properly separated and context is not wasted on reading unneeded files. 
+    1. This will likely take a lot of work and need a full session or more. 
+    2. As much of the process of benchmarking and training agents should be as automated as possible, including looking at individual game logs and assessing the flaws a particular agent will have and how they can be fixed. This sort of reflection process should be automated as well and will take time to develop.
+    3. Context and tokens are limited resource and more choices should be made to conserve these. Brainstorm ideas of how to streamline this process according to best development practices. 
