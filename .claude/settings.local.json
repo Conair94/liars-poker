@@ -124,7 +124,8 @@
       "Bash(python3 benchmark.py --exact --help)",
       "Bash(python3 -m agent.benchmark --exact)",
       "Bash(python3 -m agent.benchmark --games 20 --seed 42)",
-      "Bash(tee /tmp/benchmark_result.txt)"
+      "Bash(tee /tmp/benchmark_result.txt)",
+      "Bash(python -m agent.benchmark --games 200 --seed 42)"
     ]
   }
 }

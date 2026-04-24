@@ -398,6 +398,37 @@ class ExactRulesConditionalAgent:
         a = self.opp_bid_alpha
         return ((1.0 - a) * adj_exact + a * (adj_exact * mult)).astype(np.float32)
 
+    def _compute_adj_exact(
+        self,
+        exact_prob: np.ndarray,
+        lookup,
+        own_hand: list,
+        current_bid,
+        n: int,
+    ) -> np.ndarray:
+        """Compute adjusted exact probabilities. Subclasses can override to add
+        additional belief updates (e.g. opponent modelling)."""
+        adj = self._adjust_for_own_hand(exact_prob, lookup, own_hand, n)
+        adj = self._apply_opp_bid_belief(adj, current_bid)
+        return adj
+
+    def _call_threshold(self, state: MatchState) -> float:
+        """Return the call probability threshold. Subclasses can override for
+        adaptive behaviour based on round history."""
+        return self.call_prob_threshold
+
+    def _select_bid(
+        self,
+        candidates: list,
+        adj_exact: np.ndarray,
+        viable: list,
+    ) -> int:
+        """Choose a bid from candidates. Override in subclasses for mixed
+        strategies; default is deterministic min(viable)."""
+        if viable:
+            return min(viable)
+        return max(candidates, key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
+
     def choose_action(self, state: MatchState) -> int:
         n     = sum(state.hand_sizes[s] for s in state.active_seats())
         rs    = state.round_state
@@ -415,25 +446,21 @@ class ExactRulesConditionalAgent:
         if exact_prob is None:
             return self._blind.choose_action(state)
 
-        adj_exact = self._adjust_for_own_hand(exact_prob, lookup, rs.hands[seat], n)
-        adj_exact = self._apply_opp_bid_belief(adj_exact, rs.current_bid)
+        adj_exact = self._compute_adj_exact(exact_prob, lookup, rs.hands[seat], rs.current_bid, n)
 
         peak_idx = int(np.argmax(adj_exact))
         peak_p   = float(adj_exact[peak_idx])
         bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
 
         # ------------------------------------------------------------------
-        # No standing bid yet — opening bid (fix 2.2).
+        # No standing bid yet — opening bid.
         # ------------------------------------------------------------------
         if rs.current_bid is None:
             if not bid_candidates:
                 return legal[0]
             safety = self.safety_frac * peak_p
             viable = [a for a in bid_candidates if float(adj_exact[a]) >= safety]
-            if viable:
-                return min(viable)       # smallest safe-enough raise
-            return max(bid_candidates,
-                       key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
+            return self._select_bid(bid_candidates, adj_exact, viable)
 
         # ------------------------------------------------------------------
         # Responding to a standing bid.
@@ -441,29 +468,273 @@ class ExactRulesConditionalAgent:
         cur_idx = bid_to_index(rs.current_bid)
         cur_p   = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
 
-        # Fix 2.1: Declare HH when the standing bid matches (or near-matches)
-        # the peak of our adjusted distribution.
+        # Declare HH when the standing bid matches (or near-matches) the peak.
         if HH_ACTION in legal and peak_p > 0.0:
             if cur_idx == peak_idx or cur_p >= self.hh_band * peak_p:
                 return HH_ACTION
 
-        # Fix 2.3: decision-theoretic call threshold.
+        # Decision-theoretic call threshold.
+        call_threshold = self._call_threshold(state)
         if CALL_ACTION in legal:
-            call_by_prob  = cur_p < self.call_prob_threshold
-            call_by_floor = cur_p < self.floor_frac * peak_p
-            if call_by_prob or call_by_floor:
+            if cur_p < call_threshold or cur_p < self.floor_frac * peak_p:
                 return CALL_ACTION
 
         if not bid_candidates:
             return CALL_ACTION
 
-        # Fix 2.2: smallest legal raise above safety threshold.
+        # Smallest legal raise above safety threshold.
         safety = self.safety_frac * peak_p
         viable = [a for a in bid_candidates if float(adj_exact[a]) >= safety]
-        if viable:
-            return min(viable)
-        return max(bid_candidates,
-                   key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
+        return self._select_bid(bid_candidates, adj_exact, viable)
+
+
+# ---------------------------------------------------------------------------
+class ExactRulesMixedAgent(ExactRulesConditionalAgent):
+    """
+    ExactRulesConditionalAgent + softmax bid sampling to prevent information leakage.
+
+    Under ExactRulesConditionalAgent the opening bid is deterministic: the agent
+    always picks min(viable), so an opponent who knows the strategy can narrow the
+    bidder's card rank from a single bid.  This agent samples from the viable set
+    using a softmax weighted by adj_exact probabilities, controlled by
+    `bid_temperature` τ.  τ→0 recovers the deterministic baseline; τ≈0.05 spreads
+    mass across 2–4 nearby bids without sacrificing much EV.
+
+    All other logic (HH declaration, call threshold, Bayesian rank bump) is
+    inherited from ExactRulesConditionalAgent.
+
+    Data: same as ExactRulesConditionalAgent.
+    Mode: Exact Hand Rules + High Hand.
+    """
+
+    def __init__(
+        self,
+        hh_band: float = 0.9,
+        safety_frac: float = 0.5,
+        call_prob_threshold: float = 0.5,
+        floor_frac: float = 0.3,
+        opp_bid_alpha: float = 0.5,
+        opp_bid_up_mult: float = 1.3,
+        opp_bid_down_mult: float = 0.9,
+        bid_temperature: float = 0.05,
+    ) -> None:
+        super().__init__(
+            hh_band=hh_band,
+            safety_frac=safety_frac,
+            call_prob_threshold=call_prob_threshold,
+            floor_frac=floor_frac,
+            opp_bid_alpha=opp_bid_alpha,
+            opp_bid_up_mult=opp_bid_up_mult,
+            opp_bid_down_mult=opp_bid_down_mult,
+        )
+        self.bid_temperature = bid_temperature
+
+    def _softmax_sample(self, candidates: list, weights: np.ndarray) -> int:
+        """Sample from candidates proportional to softmax(weights / τ)."""
+        if len(candidates) == 1:
+            return candidates[0]
+        w = np.array(
+            [float(weights[a]) if a < len(weights) else 0.0 for a in candidates],
+            dtype=np.float64,
+        )
+        w = np.clip(w, 0.0, None)
+        if self.bid_temperature <= 0.0 or w.sum() <= 0.0:
+            return candidates[int(np.argmax(w))]
+        w = np.exp(w / self.bid_temperature)
+        w /= w.sum()
+        return candidates[int(np.random.choice(len(candidates), p=w))]
+
+    def _select_bid(self, candidates: list, adj_exact: np.ndarray, viable: list) -> int:
+        pool = viable if viable else candidates
+        return self._softmax_sample(pool, adj_exact)
+
+
+# ---------------------------------------------------------------------------
+class ExactRulesOpponentModelAgent(ExactRulesMixedAgent):
+    """
+    ExactRulesMixedAgent + principled self-model Bayesian update on opponent bids.
+
+    When the opponent makes a bid B, the heuristic rank-bump in
+    ExactRulesConditionalAgent is replaced with a principled posterior:
+
+        P(opp_cond | opp_bid = B) ∝ cond_table[opp_cond][n][B]
+
+    where cond_table is the exact-rules conditional probability table (same data
+    used for own-hand adjustment).  The pool distribution is then updated as a
+    linear blend of our own conditional distribution and the posterior-weighted
+    average of opponent conditional distributions:
+
+        adj_final = (1 − α) × our_adj + α × blended_opp_dist
+
+    `opp_model_alpha` = 0 reduces to ExactRulesMixedAgent; = 1 ignores own
+    conditional and trusts opponent signal fully.
+
+    Data: same as ExactRulesConditionalAgent (requires extended_conditional_exact_probs.json).
+    Mode: Exact Hand Rules + High Hand.
+    """
+
+    def __init__(
+        self,
+        hh_band: float = 0.9,
+        safety_frac: float = 0.5,
+        call_prob_threshold: float = 0.5,
+        floor_frac: float = 0.3,
+        bid_temperature: float = 0.05,
+        opp_model_alpha: float = 0.4,
+    ) -> None:
+        # Disable the inherited heuristic rank-bump; replaced by principled model.
+        super().__init__(
+            hh_band=hh_band,
+            safety_frac=safety_frac,
+            call_prob_threshold=call_prob_threshold,
+            floor_frac=floor_frac,
+            opp_bid_alpha=0.0,   # disable inherited heuristic
+            bid_temperature=bid_temperature,
+        )
+        self.opp_model_alpha = opp_model_alpha
+
+    def _opponent_model_update(
+        self,
+        our_adj: np.ndarray,
+        lookup,
+        current_bid,
+        n: int,
+    ) -> np.ndarray:
+        """Blend our adjusted distribution with a Bayesian update on the
+        opponent's bid using their conditional tables."""
+        if self.opp_model_alpha <= 0.0 or current_bid is None:
+            return our_adj
+
+        get_exact_cond = getattr(lookup, "get_exact_rules_conditional", None)
+        if get_exact_cond is None:
+            return our_adj
+
+        bid_idx = bid_to_index(current_bid)
+        known_conds = list(getattr(lookup, "known_conditions", set()))
+        if not known_conds:
+            return our_adj
+
+        # For each known condition, get P(pool | n, cond) and
+        # P(opp bid B | cond) ≈ cond_dist[B] (unnormalized likelihood).
+        weights = []
+        cond_dists = []
+        for cond_key in known_conds:
+            dist = get_exact_cond(n, cond_key)
+            if dist is None or len(dist) <= bid_idx:
+                continue
+            likelihood = float(dist[bid_idx])
+            if likelihood <= 0.0:
+                continue
+            weights.append(likelihood)
+            cond_dists.append(dist)
+
+        if not weights:
+            return our_adj
+
+        weights_arr = np.array(weights, dtype=np.float64)
+        weights_arr /= weights_arr.sum()
+
+        blended = np.zeros(len(our_adj), dtype=np.float32)
+        for w, dist in zip(weights_arr, cond_dists):
+            length = min(len(dist), len(blended))
+            blended[:length] += float(w) * dist[:length]
+
+        # Normalise blended to sum to 1 (it should already, but guard against drift).
+        total = blended.sum()
+        if total > 0:
+            blended /= total
+
+        a = self.opp_model_alpha
+        return ((1.0 - a) * our_adj + a * blended).astype(np.float32)
+
+    def _compute_adj_exact(
+        self,
+        exact_prob: np.ndarray,
+        lookup,
+        own_hand: list,
+        current_bid,
+        n: int,
+    ) -> np.ndarray:
+        adj = self._adjust_for_own_hand(exact_prob, lookup, own_hand, n)
+        adj = self._opponent_model_update(adj, lookup, current_bid, n)
+        return adj
+
+
+# ---------------------------------------------------------------------------
+class ExactRulesAdaptiveAgent(ExactRulesOpponentModelAgent):
+    """
+    ExactRulesOpponentModelAgent + adaptive call threshold.
+
+    Tracks the opponent's observed bluff rate from MatchState.round_history and
+    adjusts the call probability threshold accordingly:
+
+      - High bluff rate  → lower threshold  (call challenges more readily)
+      - Low bluff rate   → higher threshold (accept more bids as honest)
+
+    The adjustment uses `adaptive_lr` to scale the shift around the base
+    call_prob_threshold, clamped to [adaptive_min, adaptive_max].  Requires at
+    least `min_history` resolved rounds before adapting; defaults to base
+    threshold with insufficient data.
+
+    Data: same as ExactRulesOpponentModelAgent.
+    Mode: Exact Hand Rules + High Hand.
+    """
+
+    def __init__(
+        self,
+        hh_band: float = 0.9,
+        safety_frac: float = 0.5,
+        call_prob_threshold: float = 0.5,
+        floor_frac: float = 0.3,
+        bid_temperature: float = 0.05,
+        opp_model_alpha: float = 0.4,
+        adaptive_lr: float = 0.4,
+        adaptive_min: float = 0.25,
+        adaptive_max: float = 0.75,
+        min_history: int = 3,
+    ) -> None:
+        super().__init__(
+            hh_band=hh_band,
+            safety_frac=safety_frac,
+            call_prob_threshold=call_prob_threshold,
+            floor_frac=floor_frac,
+            bid_temperature=bid_temperature,
+            opp_model_alpha=opp_model_alpha,
+        )
+        self.adaptive_lr  = adaptive_lr
+        self.adaptive_min = adaptive_min
+        self.adaptive_max = adaptive_max
+        self.min_history  = min_history
+
+    def _call_threshold(self, state: MatchState) -> float:
+        """Adjust call threshold based on observed opponent bluff rate."""
+        rs   = state.round_state
+        seat = rs.current_player
+        history = state.round_history
+
+        # Collect rounds where we (seat) called the opponent's bid.
+        bluffs = 0
+        honest = 0
+        for rr in history:
+            if rr.is_high_hand:
+                continue
+            if rr.caller_seat == seat:
+                # We called; check whether it was a bluff.
+                if rr.call_succeeded:
+                    bluffs += 1
+                else:
+                    honest += 1
+
+        total = bluffs + honest
+        if total < self.min_history:
+            return self.call_prob_threshold
+
+        bluff_rate = bluffs / total
+        # Shift threshold down when opponent bluffs often, up when they're honest.
+        # bluff_rate = 0.5 → no adjustment; >0.5 → lower threshold; <0.5 → raise it.
+        adjustment = (bluff_rate - 0.5) * self.adaptive_lr
+        adapted = self.call_prob_threshold - adjustment
+        return max(self.adaptive_min, min(self.adaptive_max, adapted))
 
 
 # ---------------------------------------------------------------------------
@@ -596,7 +867,7 @@ AGENT_REGISTRY: dict = {
     },
     "exactconditional": {
         "display":      "Exact Rules Conditional",
-        "description":  "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment.",
+        "description":  "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment. Deterministic opener — baseline of the ladder.",
         "rules": {
             "exact_rules": True,
             "high_hand":   True,
@@ -604,6 +875,39 @@ AGENT_REGISTRY: dict = {
         },
         "rules_label":  "Exact rules + High Hand declaration, 52-card deck",
         "class":        "ExactRulesConditionalAgent",
+    },
+    "exact_mixed": {
+        "display":      "Exact Rules Mixed Strategy",
+        "description":  "Adds softmax bid sampling (τ=0.05) to the Conditional agent. Prevents rank leakage: the opener no longer deterministically reveals card rank. Ladder rung 2.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand declaration, 52-card deck",
+        "class":        "ExactRulesMixedAgent",
+    },
+    "exact_opp_model": {
+        "display":      "Exact Rules Opponent Model",
+        "description":  "Adds principled Bayesian inference over opponent hand condition given their bid, replacing the heuristic rank-bump. Uses exact conditional tables to compute P(opp_cond | opp_bid). Ladder rung 3.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand declaration, 52-card deck",
+        "class":        "ExactRulesOpponentModelAgent",
+    },
+    "exact_adaptive": {
+        "display":      "Exact Rules Adaptive",
+        "description":  "Full ladder: mixed bidding + opponent modelling + adaptive call threshold. Tracks opponent bluff rate across rounds and shifts call threshold accordingly. Ladder rung 4.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand declaration, 52-card deck",
+        "class":        "ExactRulesAdaptiveAgent",
     },
     "cfr_nash_mb3": {
         "display":      "CFR Nash (n=2, 20k iters)",
@@ -686,7 +990,10 @@ _AGENT_CLASS_MAP = {
     "BiasedRandom70Agent":      lambda: BiasedRandomAgent(0.70),
     "BlindBaselineAgent":       lambda: BlindBaselineAgent(),
     "ConditionalAgent":         lambda: ConditionalAgent(),
-    "ExactRulesConditionalAgent": lambda: ExactRulesConditionalAgent(),
+    "ExactRulesConditionalAgent":  lambda: ExactRulesConditionalAgent(),
+    "ExactRulesMixedAgent":        lambda: ExactRulesMixedAgent(),
+    "ExactRulesOpponentModelAgent": lambda: ExactRulesOpponentModelAgent(),
+    "ExactRulesAdaptiveAgent":     lambda: ExactRulesAdaptiveAgent(),
     "CFRNashAgent":             _make_cfr_nash,
 }
 
