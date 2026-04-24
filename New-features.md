@@ -9,3 +9,8 @@ Here is a todo list to work on for the next agent, formed by my thoughts on 4/23
     2. Then the model should make a plan/checklist doc of everything that will be needed for that feature. 
     3. Then the model should write a testing checklist of all functionalities to test including edge cases.
     4. After the above 3 things have been completed, implementation can start.  
+3. Some current problems that should be fixed in the new design agent are as follows:
+    1. Changing the agents client side as well as web side is wasteful, requiring double the amount of edits. Either a new hosting set up or simpler front end integration is needed. 
+    2. When benchmarking agents, not as many tests are needed, it is more important to keep track of the choices made during games so looking at that data can be used to automatically highlight potential errors and room for improvement. This will require new I/O 
+    3. The file system needs to be organized for future growth better. 
+    4. The current Nash and CFR agents are boderline useless, they will have to be fully redesigned for higher hand sizes from the start so that they are not obsolete. 
