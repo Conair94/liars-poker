@@ -93,11 +93,12 @@ to isolate the value of each feature.
 - **Registry key**: `exact_mixed`
 
 #### Rung 3 — `ExactRulesOpponentModelAgent`
-- **Adds**: principled Bayesian update on opponent bids, replacing the
-  heuristic rank-bump.  Given opponent bid B, computes posterior over opponent
-  hand conditions: `P(opp_cond | opp_bid=B) ∝ cond_table[opp_cond][n][B]`.
-  Final adjusted distribution is a linear blend of own conditional and the
-  posterior-weighted opponent conditional (`opp_model_alpha=0.4`).
+- **Adds**: principled Bayesian update on opponent bids when conditional tables
+  exist (n ≥ 5).  Given opponent bid B, computes posterior over opponent hand
+  conditions: `P(opp_cond | opp_bid=B) ∝ cond_table[opp_cond][n][B]`.
+  Final adjusted distribution is a linear blend (`opp_model_alpha=0.25`).
+  Falls back to the inherited heuristic rank-bump when n < 5 (no conditional
+  tables for single-card hands), so it never regresses below rung 2.
 - **Data**: same as rung 1 (uses `get_exact_rules_conditional`).
 - **Registry key**: `exact_opp_model`
 

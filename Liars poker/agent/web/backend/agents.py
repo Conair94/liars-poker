@@ -554,20 +554,18 @@ class ExactRulesOpponentModelAgent(ExactRulesMixedAgent):
     """
     ExactRulesMixedAgent + principled self-model Bayesian update on opponent bids.
 
-    When the opponent makes a bid B, the heuristic rank-bump in
-    ExactRulesConditionalAgent is replaced with a principled posterior:
+    When conditional tables exist for the current pool size (n ≥ 5), replaces
+    the heuristic rank-bump with a principled posterior over opponent hand conditions:
 
         P(opp_cond | opp_bid = B) ∝ cond_table[opp_cond][n][B]
 
-    where cond_table is the exact-rules conditional probability table (same data
-    used for own-hand adjustment).  The pool distribution is then updated as a
-    linear blend of our own conditional distribution and the posterior-weighted
-    average of opponent conditional distributions:
+    The pool distribution is updated as a linear blend:
 
-        adj_final = (1 − α) × our_adj + α × blended_opp_dist
+        adj_final = (1 − α) × our_adj + α × posterior_weighted_opp_dist
 
-    `opp_model_alpha` = 0 reduces to ExactRulesMixedAgent; = 1 ignores own
-    conditional and trusts opponent signal fully.
+    When no conditional tables exist (n < 5 — all conditions require ≥ 2 cards
+    but at n=2 each player holds only 1 card), falls back to the inherited
+    heuristic rank-bump so the Bayesian path never regresses below rung 2.
 
     Data: same as ExactRulesConditionalAgent (requires extended_conditional_exact_probs.json).
     Mode: Exact Hand Rules + High Hand.
@@ -580,15 +578,20 @@ class ExactRulesOpponentModelAgent(ExactRulesMixedAgent):
         call_prob_threshold: float = 0.5,
         floor_frac: float = 0.3,
         bid_temperature: float = 0.05,
-        opp_model_alpha: float = 0.4,
+        opp_model_alpha: float = 0.25,
+        # Heuristic params kept for fallback use at n < 5
+        opp_bid_alpha: float = 0.5,
+        opp_bid_up_mult: float = 1.3,
+        opp_bid_down_mult: float = 0.9,
     ) -> None:
-        # Disable the inherited heuristic rank-bump; replaced by principled model.
         super().__init__(
             hh_band=hh_band,
             safety_frac=safety_frac,
             call_prob_threshold=call_prob_threshold,
             floor_frac=floor_frac,
-            opp_bid_alpha=0.0,   # disable inherited heuristic
+            opp_bid_alpha=opp_bid_alpha,
+            opp_bid_up_mult=opp_bid_up_mult,
+            opp_bid_down_mult=opp_bid_down_mult,
             bid_temperature=bid_temperature,
         )
         self.opp_model_alpha = opp_model_alpha
@@ -600,8 +603,8 @@ class ExactRulesOpponentModelAgent(ExactRulesMixedAgent):
         current_bid,
         n: int,
     ) -> np.ndarray:
-        """Blend our adjusted distribution with a Bayesian update on the
-        opponent's bid using their conditional tables."""
+        """Bayesian blend using conditional tables. Returns our_adj (same object)
+        when no tables are available so callers can detect a no-op via identity."""
         if self.opp_model_alpha <= 0.0 or current_bid is None:
             return our_adj
 
@@ -614,8 +617,6 @@ class ExactRulesOpponentModelAgent(ExactRulesMixedAgent):
         if not known_conds:
             return our_adj
 
-        # For each known condition, get P(pool | n, cond) and
-        # P(opp bid B | cond) ≈ cond_dist[B] (unnormalized likelihood).
         weights = []
         cond_dists = []
         for cond_key in known_conds:
@@ -629,7 +630,7 @@ class ExactRulesOpponentModelAgent(ExactRulesMixedAgent):
             cond_dists.append(dist)
 
         if not weights:
-            return our_adj
+            return our_adj  # same object — signals "no update"
 
         weights_arr = np.array(weights, dtype=np.float64)
         weights_arr /= weights_arr.sum()
@@ -639,7 +640,6 @@ class ExactRulesOpponentModelAgent(ExactRulesMixedAgent):
             length = min(len(dist), len(blended))
             blended[:length] += float(w) * dist[:length]
 
-        # Normalise blended to sum to 1 (it should already, but guard against drift).
         total = blended.sum()
         if total > 0:
             blended /= total
@@ -656,7 +656,13 @@ class ExactRulesOpponentModelAgent(ExactRulesMixedAgent):
         n: int,
     ) -> np.ndarray:
         adj = self._adjust_for_own_hand(exact_prob, lookup, own_hand, n)
-        adj = self._opponent_model_update(adj, lookup, current_bid, n)
+        # Try principled Bayesian update; fall back to heuristic when no tables.
+        bayesian = self._opponent_model_update(adj, lookup, current_bid, n)
+        if bayesian is adj:
+            # No conditional tables for this n — use inherited heuristic instead.
+            adj = self._apply_opp_bid_belief(adj, current_bid)
+        else:
+            adj = bayesian
         return adj
 
 

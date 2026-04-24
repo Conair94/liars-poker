@@ -1,427 +1,70 @@
 {
-  "generated": "2026-04-24T00:17:40.866151+00:00",
-  "games_per_pair": 20,
+  "generated": "2026-04-24T01:43:30.435673+00:00",
+  "games_per_pair": 500,
   "seed": 42,
+  "groups": [
+    "exact_ladder"
+  ],
   "results": {
-    "biased30_vs_biased40": {
-      "agent_a": "biased30",
-      "agent_b": "biased40",
-      "games": 20,
-      "wins_a": 7,
-      "wins_b": 13,
-      "win_rate_a": 0.35,
-      "win_rate_b": 0.65,
-      "group": "standard"
+    "exactconditional_vs_exact_mixed": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_mixed",
+      "games": 500,
+      "wins_a": 213,
+      "wins_b": 287,
+      "win_rate_a": 0.426,
+      "win_rate_b": 0.574,
+      "group": "exact_ladder"
     },
-    "biased30_vs_random": {
-      "agent_a": "biased30",
-      "agent_b": "random",
-      "games": 20,
-      "wins_a": 20,
-      "wins_b": 0,
-      "win_rate_a": 1.0,
-      "win_rate_b": 0.0,
-      "group": "standard"
+    "exactconditional_vs_exact_opp_model": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_opp_model",
+      "games": 500,
+      "wins_a": 214,
+      "wins_b": 286,
+      "win_rate_a": 0.428,
+      "win_rate_b": 0.572,
+      "group": "exact_ladder"
     },
-    "biased30_vs_biased60": {
-      "agent_a": "biased30",
-      "agent_b": "biased60",
-      "games": 20,
-      "wins_a": 4,
-      "wins_b": 16,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "standard"
+    "exactconditional_vs_exact_adaptive": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_adaptive",
+      "games": 500,
+      "wins_a": 218,
+      "wins_b": 282,
+      "win_rate_a": 0.436,
+      "win_rate_b": 0.564,
+      "group": "exact_ladder"
     },
-    "biased30_vs_biased70": {
-      "agent_a": "biased30",
-      "agent_b": "biased70",
-      "games": 20,
-      "wins_a": 1,
-      "wins_b": 19,
-      "win_rate_a": 0.05,
-      "win_rate_b": 0.95,
-      "group": "standard"
+    "exact_mixed_vs_exact_opp_model": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_opp_model",
+      "games": 500,
+      "wins_a": 274,
+      "wins_b": 226,
+      "win_rate_a": 0.548,
+      "win_rate_b": 0.452,
+      "group": "exact_ladder"
     },
-    "biased30_vs_blind": {
-      "agent_a": "biased30",
-      "agent_b": "blind",
-      "games": 20,
-      "wins_a": 5,
-      "wins_b": 15,
-      "win_rate_a": 0.25,
-      "win_rate_b": 0.75,
-      "group": "standard"
+    "exact_mixed_vs_exact_adaptive": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_adaptive",
+      "games": 500,
+      "wins_a": 282,
+      "wins_b": 218,
+      "win_rate_a": 0.564,
+      "win_rate_b": 0.436,
+      "group": "exact_ladder"
     },
-    "biased30_vs_conditional": {
-      "agent_a": "biased30",
-      "agent_b": "conditional",
-      "games": 20,
-      "wins_a": 5,
-      "wins_b": 15,
-      "win_rate_a": 0.25,
-      "win_rate_b": 0.75,
-      "group": "standard"
-    },
-    "biased40_vs_random": {
-      "agent_a": "biased40",
-      "agent_b": "random",
-      "games": 20,
-      "wins_a": 20,
-      "wins_b": 0,
-      "win_rate_a": 1.0,
-      "win_rate_b": 0.0,
-      "group": "standard"
-    },
-    "biased40_vs_biased60": {
-      "agent_a": "biased40",
-      "agent_b": "biased60",
-      "games": 20,
-      "wins_a": 6,
-      "wins_b": 14,
-      "win_rate_a": 0.3,
-      "win_rate_b": 0.7,
-      "group": "standard"
-    },
-    "biased40_vs_biased70": {
-      "agent_a": "biased40",
-      "agent_b": "biased70",
-      "games": 20,
-      "wins_a": 1,
-      "wins_b": 19,
-      "win_rate_a": 0.05,
-      "win_rate_b": 0.95,
-      "group": "standard"
-    },
-    "biased40_vs_blind": {
-      "agent_a": "biased40",
-      "agent_b": "blind",
-      "games": 20,
-      "wins_a": 7,
-      "wins_b": 13,
-      "win_rate_a": 0.35,
-      "win_rate_b": 0.65,
-      "group": "standard"
-    },
-    "biased40_vs_conditional": {
-      "agent_a": "biased40",
-      "agent_b": "conditional",
-      "games": 20,
-      "wins_a": 5,
-      "wins_b": 15,
-      "win_rate_a": 0.25,
-      "win_rate_b": 0.75,
-      "group": "standard"
-    },
-    "random_vs_biased60": {
-      "agent_a": "random",
-      "agent_b": "biased60",
-      "games": 20,
-      "wins_a": 1,
-      "wins_b": 19,
-      "win_rate_a": 0.05,
-      "win_rate_b": 0.95,
-      "group": "standard"
-    },
-    "random_vs_biased70": {
-      "agent_a": "random",
-      "agent_b": "biased70",
-      "games": 20,
-      "wins_a": 1,
-      "wins_b": 19,
-      "win_rate_a": 0.05,
-      "win_rate_b": 0.95,
-      "group": "standard"
-    },
-    "random_vs_blind": {
-      "agent_a": "random",
-      "agent_b": "blind",
-      "games": 20,
-      "wins_a": 0,
-      "wins_b": 20,
-      "win_rate_a": 0.0,
-      "win_rate_b": 1.0,
-      "group": "standard"
-    },
-    "random_vs_conditional": {
-      "agent_a": "random",
-      "agent_b": "conditional",
-      "games": 20,
-      "wins_a": 0,
-      "wins_b": 20,
-      "win_rate_a": 0.0,
-      "win_rate_b": 1.0,
-      "group": "standard"
-    },
-    "biased60_vs_biased70": {
-      "agent_a": "biased60",
-      "agent_b": "biased70",
-      "games": 20,
-      "wins_a": 9,
-      "wins_b": 11,
-      "win_rate_a": 0.45,
-      "win_rate_b": 0.55,
-      "group": "standard"
-    },
-    "biased60_vs_blind": {
-      "agent_a": "biased60",
-      "agent_b": "blind",
-      "games": 20,
-      "wins_a": 4,
-      "wins_b": 16,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "standard"
-    },
-    "biased60_vs_conditional": {
-      "agent_a": "biased60",
-      "agent_b": "conditional",
-      "games": 20,
-      "wins_a": 4,
-      "wins_b": 16,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "standard"
-    },
-    "biased70_vs_blind": {
-      "agent_a": "biased70",
-      "agent_b": "blind",
-      "games": 20,
-      "wins_a": 6,
-      "wins_b": 14,
-      "win_rate_a": 0.3,
-      "win_rate_b": 0.7,
-      "group": "standard"
-    },
-    "biased70_vs_conditional": {
-      "agent_a": "biased70",
-      "agent_b": "conditional",
-      "games": 20,
-      "wins_a": 3,
-      "wins_b": 17,
-      "win_rate_a": 0.15,
-      "win_rate_b": 0.85,
-      "group": "standard"
-    },
-    "blind_vs_conditional": {
-      "agent_a": "blind",
-      "agent_b": "conditional",
-      "games": 20,
-      "wins_a": 11,
-      "wins_b": 9,
+    "exact_opp_model_vs_exact_adaptive": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_adaptive",
+      "games": 500,
+      "wins_a": 275,
+      "wins_b": 225,
       "win_rate_a": 0.55,
       "win_rate_b": 0.45,
-      "group": "standard"
-    },
-    "exactconditional_vs_cfr_nash_mb3": {
-      "agent_a": "exactconditional",
-      "agent_b": "cfr_nash_mb3",
-      "games": 20,
-      "wins_a": 12,
-      "wins_b": 8,
-      "win_rate_a": 0.6,
-      "win_rate_b": 0.4,
-      "group": "exact"
-    },
-    "exactconditional_vs_exact_biased70": {
-      "agent_a": "exactconditional",
-      "agent_b": "exact_biased70",
-      "games": 20,
-      "wins_a": 19,
-      "wins_b": 1,
-      "win_rate_a": 0.95,
-      "win_rate_b": 0.05,
-      "group": "exact"
-    },
-    "exactconditional_vs_exact_biased60": {
-      "agent_a": "exactconditional",
-      "agent_b": "exact_biased60",
-      "games": 20,
-      "wins_a": 17,
-      "wins_b": 3,
-      "win_rate_a": 0.85,
-      "win_rate_b": 0.15,
-      "group": "exact"
-    },
-    "exactconditional_vs_exact_biased40": {
-      "agent_a": "exactconditional",
-      "agent_b": "exact_biased40",
-      "games": 20,
-      "wins_a": 19,
-      "wins_b": 1,
-      "win_rate_a": 0.95,
-      "win_rate_b": 0.05,
-      "group": "exact"
-    },
-    "exactconditional_vs_exact_biased30": {
-      "agent_a": "exactconditional",
-      "agent_b": "exact_biased30",
-      "games": 20,
-      "wins_a": 17,
-      "wins_b": 3,
-      "win_rate_a": 0.85,
-      "win_rate_b": 0.15,
-      "group": "exact"
-    },
-    "exactconditional_vs_exact_random": {
-      "agent_a": "exactconditional",
-      "agent_b": "exact_random",
-      "games": 20,
-      "wins_a": 19,
-      "wins_b": 1,
-      "win_rate_a": 0.95,
-      "win_rate_b": 0.05,
-      "group": "exact"
-    },
-    "cfr_nash_mb3_vs_exact_biased70": {
-      "agent_a": "cfr_nash_mb3",
-      "agent_b": "exact_biased70",
-      "games": 20,
-      "wins_a": 15,
-      "wins_b": 5,
-      "win_rate_a": 0.75,
-      "win_rate_b": 0.25,
-      "group": "exact"
-    },
-    "cfr_nash_mb3_vs_exact_biased60": {
-      "agent_a": "cfr_nash_mb3",
-      "agent_b": "exact_biased60",
-      "games": 20,
-      "wins_a": 11,
-      "wins_b": 9,
-      "win_rate_a": 0.55,
-      "win_rate_b": 0.45,
-      "group": "exact"
-    },
-    "cfr_nash_mb3_vs_exact_biased40": {
-      "agent_a": "cfr_nash_mb3",
-      "agent_b": "exact_biased40",
-      "games": 20,
-      "wins_a": 11,
-      "wins_b": 9,
-      "win_rate_a": 0.55,
-      "win_rate_b": 0.45,
-      "group": "exact"
-    },
-    "cfr_nash_mb3_vs_exact_biased30": {
-      "agent_a": "cfr_nash_mb3",
-      "agent_b": "exact_biased30",
-      "games": 20,
-      "wins_a": 10,
-      "wins_b": 10,
-      "win_rate_a": 0.5,
-      "win_rate_b": 0.5,
-      "group": "exact"
-    },
-    "cfr_nash_mb3_vs_exact_random": {
-      "agent_a": "cfr_nash_mb3",
-      "agent_b": "exact_random",
-      "games": 20,
-      "wins_a": 4,
-      "wins_b": 16,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "exact"
-    },
-    "exact_biased70_vs_exact_biased60": {
-      "agent_a": "exact_biased70",
-      "agent_b": "exact_biased60",
-      "games": 20,
-      "wins_a": 3,
-      "wins_b": 17,
-      "win_rate_a": 0.15,
-      "win_rate_b": 0.85,
-      "group": "exact"
-    },
-    "exact_biased70_vs_exact_biased40": {
-      "agent_a": "exact_biased70",
-      "agent_b": "exact_biased40",
-      "games": 20,
-      "wins_a": 4,
-      "wins_b": 16,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "exact"
-    },
-    "exact_biased70_vs_exact_biased30": {
-      "agent_a": "exact_biased70",
-      "agent_b": "exact_biased30",
-      "games": 20,
-      "wins_a": 1,
-      "wins_b": 19,
-      "win_rate_a": 0.05,
-      "win_rate_b": 0.95,
-      "group": "exact"
-    },
-    "exact_biased70_vs_exact_random": {
-      "agent_a": "exact_biased70",
-      "agent_b": "exact_random",
-      "games": 20,
-      "wins_a": 19,
-      "wins_b": 1,
-      "win_rate_a": 0.95,
-      "win_rate_b": 0.05,
-      "group": "exact"
-    },
-    "exact_biased60_vs_exact_biased40": {
-      "agent_a": "exact_biased60",
-      "agent_b": "exact_biased40",
-      "games": 20,
-      "wins_a": 8,
-      "wins_b": 12,
-      "win_rate_a": 0.4,
-      "win_rate_b": 0.6,
-      "group": "exact"
-    },
-    "exact_biased60_vs_exact_biased30": {
-      "agent_a": "exact_biased60",
-      "agent_b": "exact_biased30",
-      "games": 20,
-      "wins_a": 2,
-      "wins_b": 18,
-      "win_rate_a": 0.1,
-      "win_rate_b": 0.9,
-      "group": "exact"
-    },
-    "exact_biased60_vs_exact_random": {
-      "agent_a": "exact_biased60",
-      "agent_b": "exact_random",
-      "games": 20,
-      "wins_a": 20,
-      "wins_b": 0,
-      "win_rate_a": 1.0,
-      "win_rate_b": 0.0,
-      "group": "exact"
-    },
-    "exact_biased40_vs_exact_biased30": {
-      "agent_a": "exact_biased40",
-      "agent_b": "exact_biased30",
-      "games": 20,
-      "wins_a": 10,
-      "wins_b": 10,
-      "win_rate_a": 0.5,
-      "win_rate_b": 0.5,
-      "group": "exact"
-    },
-    "exact_biased40_vs_exact_random": {
-      "agent_a": "exact_biased40",
-      "agent_b": "exact_random",
-      "games": 20,
-      "wins_a": 20,
-      "wins_b": 0,
-      "win_rate_a": 1.0,
-      "win_rate_b": 0.0,
-      "group": "exact"
-    },
-    "exact_biased30_vs_exact_random": {
-      "agent_a": "exact_biased30",
-      "agent_b": "exact_random",
-      "games": 20,
-      "wins_a": 20,
-      "wins_b": 0,
-      "win_rate_a": 1.0,
-      "win_rate_b": 0.0,
-      "group": "exact"
+      "group": "exact_ladder"
     }
   }
 }

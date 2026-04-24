@@ -125,7 +125,8 @@
       "Bash(python3 -m agent.benchmark --exact)",
       "Bash(python3 -m agent.benchmark --games 20 --seed 42)",
       "Bash(tee /tmp/benchmark_result.txt)",
-      "Bash(python -m agent.benchmark --games 200 --seed 42)"
+      "Bash(python -m agent.benchmark --games 200 --seed 42)",
+      "Bash(python -m agent.benchmark --games 500 --seed 42 --groups exact_ladder)"
     ]
   }
 }
