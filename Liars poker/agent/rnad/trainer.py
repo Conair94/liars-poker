@@ -498,6 +498,8 @@ class RNaDTrainer:
                     num_players=self.config.num_players,
                     stage=self.config.stage,
                     device=self.device,
+                    exact_rules=self.config.exact_rules,
+                    high_hand=self.config.high_hand,
                 )
                 self._log_eval(it, results)
 

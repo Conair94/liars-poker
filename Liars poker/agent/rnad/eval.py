@@ -49,6 +49,8 @@ def play_round(
     policy_seat: int,
     hand_size:   int,
     num_players: int = 2,
+    exact_rules: bool = False,
+    high_hand:   bool = True,
 ) -> Dict[str, float]:
     """
     Play one round.  policy occupies `policy_seat`; opponent occupies all others.
@@ -58,7 +60,7 @@ def play_round(
         "entropy" : average entropy of the policy's distributions this round
         "n_bids"  : total actions taken (round length)
     """
-    state = new_match(num_players)
+    state = new_match(num_players, exact_rules=exact_rules, high_hand=high_hand)
     state.hand_sizes = [hand_size] * num_players
     state.start_next_round()
 
@@ -101,6 +103,8 @@ def _bid_accuracy_episode(
     policy:     LiarsPokerNet,
     hand_size:  int,
     num_players: int = 2,
+    exact_rules: bool = False,
+    high_hand:   bool = True,
 ) -> float:
     """
     Play one round where the policy's greedy action is compared to the
@@ -110,7 +114,7 @@ def _bid_accuracy_episode(
     from agent.baseline.blind_equilibrium import get_blind_equilibrium
     from agent.game.bids import bid_to_index, Bid
 
-    state = new_match(num_players)
+    state = new_match(num_players, exact_rules=exact_rules, high_hand=high_hand)
     state.hand_sizes = [hand_size] * num_players
     state.start_next_round()
 
@@ -223,6 +227,8 @@ def evaluate_policy(
     num_players:  int   = 2,
     stage:        str   = "A",
     device:       Optional[torch.device] = None,
+    exact_rules:  bool  = False,
+    high_hand:    bool  = True,
 ) -> Dict[str, float]:
     """
     Run the full evaluation suite and return a metrics dict.
@@ -257,10 +263,10 @@ def evaluate_policy(
             r_blind  = play_match(policy, blind_agent,  seat, num_players)
             rounds_list.append(r_blind["rounds"])
         else:
-            r_random = play_round(policy, random_agent, seat, hand_size, num_players)
-            r_blind  = play_round(policy, blind_agent,  seat, hand_size, num_players)
+            r_random = play_round(policy, random_agent, seat, hand_size, num_players, exact_rules, high_hand)
+            r_blind  = play_round(policy, blind_agent,  seat, hand_size, num_players, exact_rules, high_hand)
             if ep < 200:  # bid accuracy is slower; sample fewer
-                accuracies.append(_bid_accuracy_episode(policy, hand_size, num_players))
+                accuracies.append(_bid_accuracy_episode(policy, hand_size, num_players, exact_rules, high_hand))
 
         wins_vs_random.append(r_random["win"])
         wins_vs_blind.append(r_blind["win"])
@@ -287,6 +293,8 @@ def print_calibration_report(
     hand_size:  int   = 1,
     num_players: int  = 2,
     n_episodes: int   = 1000,
+    exact_rules: bool = False,
+    high_hand:   bool = True,
 ) -> None:
     """
     Print a table comparing the policy's action frequencies to the
@@ -302,7 +310,7 @@ def print_calibration_report(
     action_counts: dict = {}  # bid_idx → {action: count}
 
     for _ in range(n_episodes):
-        state = new_match(num_players)
+        state = new_match(num_players, exact_rules=exact_rules, high_hand=high_hand)
         state.hand_sizes = [hand_size] * num_players
         state.start_next_round()
 
@@ -384,11 +392,15 @@ if __name__ == "__main__":
     parser.add_argument("--hand-size",   type=int, default=1)
     parser.add_argument("--num-players", type=int, default=2)
     parser.add_argument("--episodes",    type=int, default=500)
+    parser.add_argument("--exact-rules", action="store_true",
+                        help="Use exact-hand resolution rules")
+    parser.add_argument("--no-high-hand", action="store_true",
+                        help="Disable High Hand declaration action")
     parser.add_argument("--calibration", action="store_true",
                         help="Print calibration report vs blind baseline")
     args = parser.parse_args()
 
-    ckpt   = torch.load(args.checkpoint, map_location="cpu")
+    ckpt   = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     config = ckpt["config"]
     net    = LiarsPokerNet(config)
     net.load_state_dict(ckpt["policy_state"])
@@ -402,6 +414,8 @@ if __name__ == "__main__":
         hand_size    = args.hand_size,
         num_players  = args.num_players,
         stage        = args.stage,
+        exact_rules  = args.exact_rules,
+        high_hand    = not args.no_high_hand,
     )
     for k, v in results.items():
         print(f"  {k:<30}: {v:.4f}")
@@ -411,4 +425,6 @@ if __name__ == "__main__":
             net,
             hand_size   = args.hand_size,
             num_players = args.num_players,
+            exact_rules = args.exact_rules,
+            high_hand   = not args.no_high_hand,
         )
