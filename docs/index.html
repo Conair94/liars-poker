@@ -848,6 +848,9 @@ class ExactRulesConditionalAgent {
     if (!rs.currentBid) return cands.length ? bestBid : legal[0];
 
     const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    // Declare High Hand when the standing bid is at or near the probability peak —
+    // it's more likely correct than a bluff call and prevents the opponent from raising.
+    if (legal.includes(HH_ACTION) && (exactProb[curIdx] || 0) >= 0.9 * maxP) return HH_ACTION;
     if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
     return cands.length ? bestBid : CALL_ACTION;
   }
@@ -1316,7 +1319,9 @@ function renderActionArea() {
   const callBtn = canCall
     ? `<button class="danger" onclick="doCall()" style="margin-top:1.55rem">Call Bluff</button>`
     : '';
-  const hhBtn = ''; // High Hand Declaration temporarily hidden
+  const hhBtn = canHH
+    ? `<button onclick="doHighHand()" style="margin-top:1.55rem;background:#2a2a0d;border-color:#6a5a1a;color:#c9a84c" title="Declare the standing bid is the highest possible hand in the pool">♚ Declare Highest Hand</button>`
+    : '';
 
   return `<div class="panel action-area">
     <h3>Your Action</h3>
@@ -1353,6 +1358,10 @@ function renderResult(result, history, showNextBtn) {
     outcome = result.declarationCorrect
       ? `${callerName} declared correctly — pool best was exactly ${pbStr}! Bidder penalized.`
       : `${callerName}'s highest-hand declaration was wrong — pool best was ${pbStr}, not exactly ${bidStr}!`;
+  } else if (G.st?.exactRules) {
+    outcome = result.callSucceeded
+      ? `${callerName} called the bluff — no exact ${bidStr} in the pool (pool best: ${pbStr})!`
+      : `${callerName}'s call failed — the pool contained exactly ${bidStr}!`;
   } else {
     outcome = result.callSucceeded
       ? `${callerName} called the bluff — pool was only ${pbStr} (bid was ${bidStr})!`
@@ -1696,10 +1705,15 @@ function updateAgentInfo() {
 
   const note = AGENT_RANKINGS_COMMENTARY[key] || '';
 
+  const hhBadge = isExact
+    ? `<span class="rules-tag-play" style="background:#1a1a2e;color:#c9a84c;border:1px solid #4a3a1a">High Hand ♚</span>`
+    : '';
+
   el.innerHTML = `
 <div class="agent-info-panel">
   <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.5rem">
     <span class="rules-tag-play" style="background:${rulesBg};color:${rulesColor};border:1px solid ${rulesBorder}">${rulesLabel}</span>
+    ${hhBadge}
     ${avgStr}
   </div>
   <p style="font-size:0.85rem;color:#b0c0d8;margin-bottom:0.35rem">${meta.desc}</p>
@@ -1776,9 +1790,10 @@ function startGame() {
   const seat  = parseInt(document.getElementById('cfg-seat').value);
   const atype = document.getElementById('cfg-agent').value;
   const mode  = document.getElementById('cfg-mode').value;
-  const highHand   = document.getElementById('cfg-hh')?.checked || false;
-  // Auto-derive exact rules from agent group; checkbox is kept in sync by updateAgentInfo()
-  const exactRules = (AGENT_META[atype]?.group === 'exact') || document.getElementById('cfg-exact')?.checked || false;
+  // Auto-derive both flags from agent group (exact-rules agents always play with High Hand)
+  const isExactAgent = AGENT_META[atype]?.group === 'exact';
+  const highHand   = isExactAgent || document.getElementById('cfg-hh')?.checked || false;
+  const exactRules = isExactAgent || document.getElementById('cfg-exact')?.checked || false;
   G.beerKing = Math.random() < 0.1;  // 1-in-10 chance K♦ shows as K🍺 this game
   G.humanSeat = (seat === -1) ? -1 : Math.max(0, Math.min(seat, np - 1));
   G.agentType = atype;
