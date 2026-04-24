@@ -9,6 +9,7 @@
 ## Changelog
 
 - **rev. 2 (2026-04-24):** Decision made to retire the public web demo and focus on local development. §8 rewritten as "Frontend retirement." Q1 in §13 resolved and removed. New §14 "Brainstorming — Paths Forward" added with research-oriented suggestions.
+- **rev. 3 (2026-04-24):** All open questions answered. §13 converted from "Open Questions" to "Decisions Log." Downstream text (goals, repo layout, config choice, rollout, §14 ordering) updated to reflect decisions. New §14.12 "Now vs. Later" replaces the prior suggested ordering. Doc is now ready to seed the plan artifact.
 
 This document is the first of three required artifacts before any refactoring begins (design doc → plan/checklist → testing checklist → implementation, per `New-features.md` §2). It defines *what* the refactored pipeline must do and the I/O contract between its pieces. It does **not** prescribe code; that is the next doc.
 
@@ -36,10 +37,11 @@ The project has outgrown its original structure. Symptoms, in order of pain:
 - **G7.** A foundation that supports a state-of-the-art CFR/Nash/RL redesign in later sessions.
 
 ### Non-Goals (for this refactor)
-- Not rewriting the paper's LaTeX or results.
-- Not retraining existing checkpoints — they should migrate forward via a loader shim.
-- Not building the new Nash/CFR agent itself — only the infrastructure that will later host it.
+- Not rewriting the paper's LaTeX or results. Paper stays in this repo under `paper/` (Q5 resolved).
+- Not retraining existing checkpoints — one-shot manual migration into `data/checkpoints/` is acceptable; no auto-detect shim needed (Q8 resolved). Data loss tolerated since much will be re-run anyway.
+- Not building the new Nash/CFR agent itself — only the infrastructure that will later host it. Target hand size for the future redesign is **5 cards per player** (Q2 resolved).
 - Not changing the game rules or hand evaluator.
+- **Not iterating on heuristic ladder agents** during the refactor. They are **frozen** in their current state (Q3 resolved); any further heuristic work waits until infrastructure and I/O are rebuilt.
 
 ## 3. Requirements
 
@@ -48,7 +50,7 @@ The project has outgrown its original structure. Symptoms, in order of pain:
 - **F2.** Every game played during benchmarking writes a `decisions.jsonl` record per turn (schema in §6).
 - **F3.** A `reflect` subcommand reads `decisions.jsonl` and produces a flaw report — a ranked list of suspicious decisions per agent.
 - **F4.** Agents are defined by a composition of three interfaces (§7). The ladder heuristics, CFR, and R-NaD agents must all fit this.
-- **F5.** The web demo consumes the same agent definitions as the benchmark (approach chosen in §8).
+- **F5.** ~~The web demo consumes the same agent definitions as the benchmark.~~ *Obsolete: web demo retired (§8).*
 - **F6.** A `run_id` namespaces every output under `data/runs/<run_id>/` — no more files in ad-hoc locations.
 - **F7.** Existing checkpoints under `Liars poker/agent/checkpoints/` load without retraining.
 
@@ -73,12 +75,12 @@ liars-poker/
 │   │   ├── search/              # CFR, CFR+, future DeepStack
 │   │   └── learned/             # R-NaD, future Deep CFR / NFSP
 │   ├── training/
-│   │   ├── configs/             # one file per canonical run (YAML or TOML — Q5)
+│   │   ├── configs/             # Hydra-style YAML, one file per canonical run
 │   │   ├── runners/             # solvers and trainers
 │   │   ├── benchmark.py         # tournament runner, writes decisions.jsonl
 │   │   ├── reflect.py           # scans decisions.jsonl → flaw report
 │   │   └── probs/               # probability-table generators
-│   └── web/                     # whichever frontend strategy wins (§8)
+│   └── interop/                 # OpenSpiel adapter (Q10 resolved — yes) + future bridges
 ├── data/
 │   ├── probs/                   # precomputed probability tables (moved from agent/data)
 │   ├── checkpoints/             # model weights
@@ -87,18 +89,19 @@ liars-poker/
 │       ├── metrics.json         # summary stats
 │       ├── decisions.jsonl      # per-turn records
 │       └── summary.md           # human-readable report + reflection highlights
-├── paper/                       # LaTeX sources (moved from "Liars poker/")
-├── docs/                        # GH Pages site (unchanged until §8 resolved)
+├── paper/                       # LaTeX sources (moved from "Liars poker/") — stays in-repo
+├── archive/                     # web-2026-04/ — retired frontend kept for reference only
 └── docs-internal/
     └── design/                  # this doc, literature survey, ADRs
+├── tests/                       # unified test tree mirroring src/ (Q9 resolved)
 ```
 
 **Why this shape.** Flattens the `Liars poker/agent/web/backend/...` nesting. Paper and code cleanly separated. Every run's artifacts live in *one* folder, not sprawled across `agent/data/` and `agent/checkpoints/`.
 
 ## 5. Configuration & Run IDs
 
-- **Config format:** one file per canonical experiment under `src/training/configs/`. Candidates: YAML, TOML, or Python dataclasses. (Open question Q5.)
-- **Run ID:** `YYYYMMDD-<agent_or_experiment>-<short_hash>` where the hash is of the resolved config. Deterministic: same config → same ID → idempotent overwrite.
+- **Config format:** **Hydra-style YAML** (Q4 resolved — no preference stated, so chosen for (a) native Hydra integration per §14.9, (b) human-friendliness, (c) matches OpenSpiel-adjacent conventions). Configs live at `src/training/configs/`, composable via Hydra overrides.
+- **Run ID:** `YYYYMMDD-<name>-<short_hash>` (Q7 resolved), where the hash is of the resolved config. Deterministic: same config → same ID → idempotent overwrite.
 - **Seeds:** every config must specify a seed; benchmark fans it out deterministically across games.
 
 ## 6. Decision Log Schema
@@ -235,22 +238,34 @@ The refactor is done when:
 - **A5.** Every run output lives under `data/runs/<run_id>/` and nowhere else.
 - **A6.** A fresh Claude Code session can reach productive work from `README.md` without loading more than 200 lines of docs.
 
-## 13. Open Questions (please answer before next session)
+## 13. Decisions Log
 
-1. **Project goal balance.** Is the priority (a) shipping strong agents for the paper, (b) building reusable research infra, or (c) both, with infra as means to end? This shifts how aggressively to invest in modular interfaces vs. just making current agents stronger.
-2. **Target hand sizes** for the forthcoming Nash/CFR redesign — 5, 7, 9, arbitrary? Drives algorithm choice.
-3. **Heuristic ladder future.** Freeze at current behavior (maintenance-free going forward), or keep iterating?
-4. **Config format.** YAML, TOML, or Python dataclasses? (Dataclasses are most native; YAML is most human-friendly; TOML is a middle ground.)
-5. **Paper location.** Keep LaTeX under `paper/` in this repo, or split into a separate repo?
-6. **Reflection cadence.** Run automatically after every benchmark, or as an on-demand `reflect` subcommand?
-7. **Run-ID convention.** Accept `YYYYMMDD-<name>-<hash>`, or prefer something else (e.g. `wandb`-style ulids)?
-8. **Checkpoint migration.** Should the loader auto-detect old checkpoint paths from `Liars poker/agent/checkpoints/` and rewrite them into `data/checkpoints/`, or do a one-shot manual move?
-9. **Test infra.** Pytest lives in a few scattered folders today — consolidate under `tests/` mirroring `src/`, or per-package `tests/` dirs?
-10. **OpenSpiel bridge.** Willing to adopt OpenSpiel as a reference/infra dependency (unlocks free Deep CFR, NFSP, PSRO, MCCFR baselines — see §14.4), or keep the game engine fully in-house?
+All 10 prior open questions answered 2026-04-24. These drive the plan doc (`TRAINING_PIPELINE_PLAN.md`, next artifact).
 
-Resolved:
+| # | Question | Decision | Implication |
+| --- | --- | --- | --- |
+| Q1 | Project-goal balance | **Infrastructure-first.** Build extremely strong research infra so that very strong agents become possible downstream. Secondary goal: establish good research practices for future, more intense AI-in-games work. | Invest heavily in modular interfaces (§7), exploitability tooling (§14.1), and process hygiene (§14.9, §14.11). Do **not** patch the current agents to chase a better number before the refactor. |
+| Q2 | Target hand size for Nash/CFR redesign | **5 cards per player.** | Everything in the future Nash/CFR redesign is sized for 2-player × 5-card hands (pool size 10). Hand abstraction (§14.3) becomes necessary, not optional, at this scale. |
+| Q3 | Heuristic ladder future | **Frozen.** Revisit after infrastructure + I/O rebuild completes. | Zero heuristic-ladder edits during the refactor. They are wrapped in the new interfaces as-is for benchmark continuity (§12 A1) and nothing more. |
+| Q4 | Config format | **YAML (Hydra-style).** No user preference; chosen for Hydra/OpenSpiel compatibility and readability. | Hydra adopted as the config system. `src/training/configs/` holds composable YAML. |
+| Q5 | Paper location | **In-repo under `paper/`.** | Repo root no longer contains LaTeX artifacts. `paper/` becomes the canonical location. |
+| Q6 | Reflection cadence | **Post-batch, not per-benchmark.** | `reflect` is an on-demand subcommand; benchmark runner does *not* invoke it automatically. A later cron job (§14.11) can run it nightly when that's cheap. |
+| Q7 | Run-ID convention | `YYYYMMDD-<name>-<hash>`. | Adopted as §5 specifies. |
+| Q8 | Checkpoint migration | **One-shot manual move** into `data/checkpoints/`. No auto-detect shim. | Simplest path. F7 relaxed — if a checkpoint can't be mapped, accept a re-train rather than build migration code. |
+| Q9 | Test infra | **Unified `tests/` tree mirroring `src/`.** | Single pytest root; consolidate the scattered test dirs as part of P1. |
+| Q10 | OpenSpiel adoption | **Yes — adopt OpenSpiel and related prebuilt tools.** In-house technology is explicitly *not* a goal. | Major: reshapes §14. OpenSpiel adapter moves to Phase P4 of rollout. Exploitability, Deep CFR, NFSP, PSRO, MCCFR, R-NaD reference implementations all come for free. Kuhn/Leduc come for free for §14.2. |
 
-- ~~**Frontend hosting.**~~ (2026-04-24) Retire the public web demo; focus on local development. See §8.
+Resolved earlier:
+
+- ~~**Frontend hosting (original Q1).**~~ (2026-04-24) Retire the public web demo; focus on local development. See §8.
+
+### 13.1 Downstream Effects on This Doc
+
+- **§4 layout:** `src/interop/` added for the OpenSpiel adapter; unified `tests/` tree at repo root.
+- **§5:** Hydra-style YAML is now canonical.
+- **§11 rollout:** OpenSpiel adapter slotted into P4 (before agent refactor) so learned agents can be built against OpenSpiel primitives directly.
+- **§12 acceptance:** A1 (no win-rate regression) now targets *only* the heuristic ladder since it is frozen — CFR and R-NaD agents get their own acceptance criteria once their new wrappers exist.
+- **§14 reordering:** see new §14.12 "Now vs. Later."
 
 ## 14. Brainstorming — Paths Forward for SOTA Research
 
@@ -350,20 +365,54 @@ Smaller, compounding suggestions for how we work, orthogonal to the above:
 - **Reproducibility harness in CI.** A GitHub Action that runs a tiny version of the benchmark on every PR and diffs win-rates against a frozen baseline. Catches regressions like the pre-retirement JS/Python drift.
 - **Nightly "reflection" cron.** Once §9's `reflect.py` exists, schedule it nightly against the current head; surface any newly-introduced flaw classes before they compound.
 
-### 14.12 Suggested Ordering
+### 14.12 Now vs. Later
 
-If I were sequencing the research program around the refactor:
+Given the answers to Q1–Q10 — infrastructure-first, OpenSpiel adopted, heuristics frozen, process hygiene explicitly valued — the §14 items split cleanly into three buckets. Only the "now" bucket needs to appear in the next plan doc; "later" and "paper-phase" items are logged here so they aren't forgotten but are out of scope for the imminent refactor.
 
-1. Refactor (P1) + retire frontend (P2) + decision logging (P3). *Prerequisite for everything.*
-2. Exploitability solver (14.1) + experiment tracking (14.9). *No more flying blind.*
-3. OpenSpiel adapter (14.4) — if Q10 is yes. *Buys the algorithm zoo.*
-4. Small-game oracle curriculum (14.2). *Correctness floor.*
-5. JAX engine rewrite (14.7). *Throughput unlock.*
-6. Pick **one** of: ReBeL-style continual resolving (14.5), PSRO (14.6), hand abstraction (14.3). All three is a PhD; one is a paper.
-7. Human-play dataset (14.8) and/or theory pairing (14.10) — as the writing phase approaches.
+#### Now — think about and design for during the refactor (P1–P5)
 
-This ordering is a suggestion, not a plan. Please push back on any item you disagree with — items you veto can be dropped from the next plan doc.
+These are either free side-effects of decisions already made (14.1, 14.2, 14.4) or cheap, compounding practices that must be installed **before** the agent work begins or they never will be (14.9, 14.11).
+
+- **14.4 OpenSpiel integration** — *directly mandated by Q10.* Adapter goes in Phase P4 of the rollout; every subsequent agent is built to register as an OpenSpiel game. This single decision makes 14.1, 14.2, 14.5, and 14.6 cheaper.
+- **14.1 Exploitability as north-star metric** — *comes ~free via OpenSpiel's best-response solver.* Wire it into the benchmark output schema in Phase P3 so every run reports exploitability alongside win-rate. Required to credibly claim convergence for any future learned agent.
+- **14.2 Small-game oracle curriculum** — *comes ~free via OpenSpiel's Kuhn/Leduc implementations plus a tiny Liar's Poker variant.* Use as unit-tests-with-teeth for every new algorithm: "does your CFR converge to the known Nash on Kuhn-sized Liar's Poker?" Cheap correctness floor.
+- **14.9 Experiment tracking stack (Hydra + W&B)** — *Q1 explicitly asks for good research practices.* Install on day 1 of the refactor. Cost is hours; benefit compounds over every experiment for the rest of the project.
+- **14.11 Process improvements** — specifically the ADR log (records decisions like "frontend retired 2026-04-24" so future sessions don't re-litigate them), the agent-card front-matter (standardizes how a new agent is documented), and auto-generated paper tables from `data/runs/` (keeps the paper always in sync with current numbers). These are hygiene, not research — but Q1 flags them as first-class goals.
+
+#### Later — active research once the foundation is solid (post-P5)
+
+These are the actual research shots the refactored infrastructure exists to enable. They belong in their own design docs, one per shot.
+
+- **14.3 Hand abstraction / bucketing** — *becomes necessary at the 5-card target (Q2).* First concrete lever once CFR-style solvers meet the target hand size and blow up without abstraction. Likely the first post-refactor design doc.
+- **14.5 ReBeL / DeepStack-style continual resolving** — the strongest path to a genuinely SOTA agent. High cost, high reward. Depends on 14.3 (abstraction) and 14.1 (exploitability) being solid.
+- **14.6 PSRO / population-based training** — strong secondary research direction; particularly attractive because OpenSpiel ships a PSRO implementation. Can progress in parallel with 14.5 once infra is done.
+- **14.7 JAX engine rewrite** — *deferred until throughput is a measured bottleneck.* Today's game engine is fast enough for CFR-scale work; rewriting preemptively is the textbook premature optimization.
+
+#### Paper phase — only when agents are interesting enough
+
+These items add the most value when there are real, strong agents to report on. Doing them before there's a story to tell is waste.
+
+- **14.8 Human-play dataset** — depends on having agents worth comparing humans against.
+- **14.10 Theory + empirics pairing** — writing-phase item. Sustained theory work only pays off at the moment a paper is being drafted.
+
+#### Summary Table
+
+| Item | Bucket | Why |
+| --- | --- | --- |
+| 14.4 OpenSpiel | **Now** | Directly mandated by Q10 |
+| 14.1 Exploitability | **Now** | Free with OpenSpiel; required metric |
+| 14.2 Small-game oracle | **Now** | Free with OpenSpiel; correctness floor |
+| 14.9 Experiment tracking | **Now** | Q1 goal; compounds immediately |
+| 14.11 Process improvements | **Now** | Q1 goal; cheap; installs habits |
+| 14.3 Hand abstraction | Later | First research lever at 5-card target |
+| 14.5 ReBeL continual resolving | Later | Main SOTA shot |
+| 14.6 PSRO | Later | Secondary shot; free from OpenSpiel |
+| 14.7 JAX rewrite | Later | Defer until throughput measured as bottleneck |
+| 14.8 Human-play dataset | Paper phase | Needs strong agents to compare against |
+| 14.10 Theory pairing | Paper phase | Writing-phase item |
+
+The "now" bucket becomes §§1–5 of the next plan doc. The "later" and "paper-phase" items are parked in this doc only; each gets its own design doc when its turn comes, following the same New-features.md §2 gate (design → plan → tests → implementation).
 
 ---
 
-*Next artifact:* once Q1–Q10 are answered, produce **`TRAINING_PIPELINE_PLAN.md`** — the concrete checklist of file moves, interface stubs, and migration ordering.
+*Next artifact:* produce **`TRAINING_PIPELINE_PLAN.md`** — the concrete checklist of file moves, interface stubs, and migration ordering, based on the decisions in §13 and the "Now" bucket in §14.12.
