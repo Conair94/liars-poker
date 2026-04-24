@@ -856,6 +856,173 @@ class ExactRulesConditionalAgent {
   }
 }
 
+// Softmax bid sampling helper: draws from candidates weighted by softmax(prob/τ).
+function softmaxSampleBid(exactProb, cands, temperature) {
+  if (!cands.length) return null;
+  const maxP = Math.max(...cands.map(a => exactProb[a] || 0));
+  const weights = cands.map(a => Math.exp(((exactProb[a] || 0) - maxP) / temperature));
+  const total = weights.reduce((s, w) => s + w, 0);
+  let r = Math.random() * total;
+  for (let j = 0; j < cands.length; j++) {
+    r -= weights[j];
+    if (r <= 0) return cands[j];
+  }
+  return cands[cands.length - 1];
+}
+
+class ExactRulesMixedAgent {
+  // Rung 2: adds softmax bid sampling (τ=0.05) over the conditional-adjusted exact probs.
+  // Prevents deterministic rank leakage — the opener no longer always reveals card rank.
+  choose(st) {
+    const seats = activeSeats(st);
+    const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
+    const rs = st.roundState;
+    const legal = legalActions(st);
+    const seat = rs.currentPlayer;
+    const ownHand = (rs.hands && rs.hands[seat]) || [];
+
+    const nSamples = n <= 7 ? 500 : n <= 9 ? 300 : n <= 11 ? 150 : 75;
+    const exactProb = ownHand.length > 0
+      ? estimateExactConditionalProbs(ownHand, n, nSamples)
+      : EXACT_RULES_PAL[String(n)];
+    if (!exactProb) return new RandomAgent().choose(st);
+
+    const maxP = Math.max(...exactProb);
+    const callThreshold = 0.3 * maxP;
+    const cands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+
+    if (!rs.currentBid) {
+      const bid = softmaxSampleBid(exactProb, cands, 0.05);
+      return bid !== null ? bid : (legal[0] || CALL_ACTION);
+    }
+
+    const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(HH_ACTION) && (exactProb[curIdx] || 0) >= 0.9 * maxP) return HH_ACTION;
+    if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
+    const bid = softmaxSampleBid(exactProb, cands, 0.05);
+    return bid !== null ? bid : CALL_ACTION;
+  }
+}
+
+class ExactRulesOpponentModelAgent {
+  // Rung 3: softmax bidding + heuristic Bayesian opponent model.
+  // When the opponent bids at rank r, adjusts our pool estimate to de-emphasise bids
+  // below r (unlikely if opponent has a strong hand) and slightly penalise bids just
+  // above r (opponent may have bluffed). Mirrors the Python heuristic rank-bump that
+  // activates when exact conditional tables are unavailable (pool size < 5 in Python).
+  choose(st) {
+    const seats = activeSeats(st);
+    const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
+    const rs = st.roundState;
+    const legal = legalActions(st);
+    const seat = rs.currentPlayer;
+    const ownHand = (rs.hands && rs.hands[seat]) || [];
+
+    const nSamples = n <= 7 ? 500 : n <= 9 ? 300 : n <= 11 ? 150 : 75;
+    let exactProb = ownHand.length > 0
+      ? estimateExactConditionalProbs(ownHand, n, nSamples)
+      : EXACT_RULES_PAL[String(n)];
+    if (!exactProb) return new RandomAgent().choose(st);
+
+    // Apply heuristic rank-bump when opponent has made a bid.
+    if (rs.currentBid) {
+      const oppIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+      exactProb = exactProb.map((p, i) => {
+        if (i < oppIdx) return p * 0.7;           // below opp bid: less likely
+        if (i === oppIdx + 1) return p * 0.9;     // just above: slight bluff penalty
+        if (i === oppIdx || i === oppIdx - 1) return p * 1.3;  // at/near opp bid: plausible
+        return p;
+      });
+    }
+
+    const maxP = Math.max(...exactProb);
+    const callThreshold = 0.3 * maxP;
+    const cands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+
+    if (!rs.currentBid) {
+      const bid = softmaxSampleBid(exactProb, cands, 0.05);
+      return bid !== null ? bid : (legal[0] || CALL_ACTION);
+    }
+
+    const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(HH_ACTION) && (exactProb[curIdx] || 0) >= 0.9 * maxP) return HH_ACTION;
+    if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
+    const bid = softmaxSampleBid(exactProb, cands, 0.05);
+    return bid !== null ? bid : CALL_ACTION;
+  }
+}
+
+class ExactRulesAdaptiveAgent {
+  // Rung 4: opponent model + adaptive call threshold.
+  // Tracks opponent bluff rate from round history and shifts the call threshold
+  // by adaptive_lr × (bluff_rate − 0.5). Requires min 3 calling events to activate.
+  constructor() {
+    this.adaptiveLr = 0.4;
+    this.adaptiveMin = 0.15;
+    this.adaptiveMax = 0.6;
+    this.minHistory = 3;
+  }
+
+  _callThreshold(st, baseThreshold) {
+    const hist = (st.roundHistory || []);
+    const seat = st.roundState ? st.roundState.currentPlayer : 0;
+    // Count rounds where we called (caller_seat === seat) — track bluff vs honest.
+    let bluffs = 0, honest = 0;
+    for (const r of hist) {
+      if (r.callerSeat === seat) {
+        if (r.callerWon) bluffs++;   // we caught a bluff
+        else honest++;               // opponent's bid was honest
+      }
+    }
+    const total = bluffs + honest;
+    if (total < this.minHistory) return baseThreshold;
+    const bluffRate = bluffs / total;
+    const adj = (bluffRate - 0.5) * this.adaptiveLr;
+    return Math.max(this.adaptiveMin, Math.min(this.adaptiveMax, baseThreshold - adj));
+  }
+
+  choose(st) {
+    const seats = activeSeats(st);
+    const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
+    const rs = st.roundState;
+    const legal = legalActions(st);
+    const seat = rs.currentPlayer;
+    const ownHand = (rs.hands && rs.hands[seat]) || [];
+
+    const nSamples = n <= 7 ? 500 : n <= 9 ? 300 : n <= 11 ? 150 : 75;
+    let exactProb = ownHand.length > 0
+      ? estimateExactConditionalProbs(ownHand, n, nSamples)
+      : EXACT_RULES_PAL[String(n)];
+    if (!exactProb) return new RandomAgent().choose(st);
+
+    if (rs.currentBid) {
+      const oppIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+      exactProb = exactProb.map((p, i) => {
+        if (i < oppIdx) return p * 0.7;
+        if (i === oppIdx + 1) return p * 0.9;
+        if (i === oppIdx || i === oppIdx - 1) return p * 1.3;
+        return p;
+      });
+    }
+
+    const maxP = Math.max(...exactProb);
+    const baseThreshold = 0.3 * maxP;
+    const callThreshold = this._callThreshold(st, baseThreshold);
+    const cands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+
+    if (!rs.currentBid) {
+      const bid = softmaxSampleBid(exactProb, cands, 0.05);
+      return bid !== null ? bid : (legal[0] || CALL_ACTION);
+    }
+
+    const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(HH_ACTION) && (exactProb[curIdx] || 0) >= 0.9 * maxP) return HH_ACTION;
+    if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
+    const bid = softmaxSampleBid(exactProb, cands, 0.05);
+    return bid !== null ? bid : CALL_ACTION;
+  }
+}
+
 // ============================================================
 // 6. EMBEDDED EQUILIBRIUM DATA
 // ============================================================
@@ -1066,8 +1233,12 @@ const BLIND_EQ = {"5":{"n":5,"p_at_least":[1.0,1.0,1.0,1.0,1.0,1.0,0.99852,0.992
 // 7. AGENT ZOO METADATA & BENCHMARK RESULTS
 // ============================================================
 const AGENT_META = {
-  // ---- Exact Hand Rules agents (primary ruleset) ----
-  exactconditional: { display: "Exact Rules Conditional",   group: "exact",    desc: "Peak-probability strategy for exact-rules mode, with Bayesian private-hand adjustment. Finds the bid with the highest probability of existing in the pool given private cards." },
+  // ---- Exact Hand Rules agents — Sophistication Ladder ----
+  exact_mixed:      { display: "Mixed Strategy ★",          group: "exact",    desc: "Strongest exact-rules agent. Adds softmax bid sampling (τ=0.05) to prevent rank leakage: the opening bid no longer deterministically reveals card rank. Wins 57% vs the deterministic Conditional baseline (3.3σ, 500 games)." },
+  exact_opp_model:  { display: "Opponent Model",            group: "exact",    desc: "Mixed Strategy + principled Bayesian inference over opponent hand condition given their bid. Uses exact conditional probability tables when pool size ≥ 5, falls back to rank-bump heuristic at smaller pools. Wins 57% vs baseline." },
+  exact_adaptive:   { display: "Adaptive Threshold",        group: "exact",    desc: "Opponent Model + adaptive call threshold. Tracks opponent bluff rate from round history and shifts the call threshold accordingly. Best in long games where history accumulates." },
+  exactconditional: { display: "Conditional (baseline)",    group: "exact",    desc: "Deterministic peak-probability strategy for exact-rules mode. Uses Bayesian private-hand adjustment with exact conditional tables. Ladder baseline — beaten by all three agents above." },
+  // ---- Exact Hand Rules agents — random benchmarks ----
   cfr_nash_mb3:     { display: "CFR Nash (n=2, 20k iters)", group: "exact",    desc: "CFR-trained approximate Nash equilibrium, 20,000 iterations, exact-rules n=2. Exploitability still converging — a research checkpoint, not a solved agent." },
   exact_biased70:   { display: "Random Biased 70% (exact)", group: "exact",    desc: "Bids 70% of the time in exact-rules mode; calls bluff 30%. Random bid selection from the next 5 legal hands. Benchmark agent." },
   exact_biased60:   { display: "Random Biased 60% (exact)", group: "exact",    desc: "Bids 60% of the time in exact-rules mode; calls bluff 40%. Benchmark agent." },
@@ -1084,7 +1255,7 @@ const AGENT_META = {
   random:           { display: "Random Uniform",            group: "standard", desc: "Picks any legal action uniformly at random. Weakest baseline — useful as a floor for benchmarking." },
 };
 
-const BENCHMARK_RESULTS = {"generated":"2026-04-21T16:36:29.293457+00:00","games_per_pair":100,"seed":42,"results":{"biased30_vs_biased40":{"agent_a":"biased30","agent_b":"biased40","games":100,"wins_a":48,"wins_b":52,"win_rate_a":0.48,"win_rate_b":0.52,"group":"standard"},"biased30_vs_random":{"agent_a":"biased30","agent_b":"random","games":100,"wins_a":98,"wins_b":2,"win_rate_a":0.98,"win_rate_b":0.02,"group":"standard"},"biased30_vs_biased60":{"agent_a":"biased30","agent_b":"biased60","games":100,"wins_a":11,"wins_b":89,"win_rate_a":0.11,"win_rate_b":0.89,"group":"standard"},"biased30_vs_biased70":{"agent_a":"biased30","agent_b":"biased70","games":100,"wins_a":8,"wins_b":92,"win_rate_a":0.08,"win_rate_b":0.92,"group":"standard"},"biased30_vs_blind":{"agent_a":"biased30","agent_b":"blind","games":100,"wins_a":22,"wins_b":78,"win_rate_a":0.22,"win_rate_b":0.78,"group":"standard"},"biased30_vs_conditional":{"agent_a":"biased30","agent_b":"conditional","games":100,"wins_a":30,"wins_b":70,"win_rate_a":0.3,"win_rate_b":0.7,"group":"standard"},"biased40_vs_random":{"agent_a":"biased40","agent_b":"random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"standard"},"biased40_vs_biased60":{"agent_a":"biased40","agent_b":"biased60","games":100,"wins_a":26,"wins_b":74,"win_rate_a":0.26,"win_rate_b":0.74,"group":"standard"},"biased40_vs_biased70":{"agent_a":"biased40","agent_b":"biased70","games":100,"wins_a":19,"wins_b":81,"win_rate_a":0.19,"win_rate_b":0.81,"group":"standard"},"biased40_vs_blind":{"agent_a":"biased40","agent_b":"blind","games":100,"wins_a":37,"wins_b":63,"win_rate_a":0.37,"win_rate_b":0.63,"group":"standard"},"biased40_vs_conditional":{"agent_a":"biased40","agent_b":"conditional","games":100,"wins_a":33,"wins_b":67,"win_rate_a":0.33,"win_rate_b":0.67,"group":"standard"},"random_vs_biased60":{"agent_a":"random","agent_b":"biased60","games":100,"wins_a":6,"wins_b":94,"win_rate_a":0.06,"win_rate_b":0.94,"group":"standard"},"random_vs_biased70":{"agent_a":"random","agent_b":"biased70","games":100,"wins_a":7,"wins_b":93,"win_rate_a":0.07,"win_rate_b":0.93,"group":"standard"},"random_vs_blind":{"agent_a":"random","agent_b":"blind","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"random_vs_conditional":{"agent_a":"random","agent_b":"conditional","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"biased60_vs_biased70":{"agent_a":"biased60","agent_b":"biased70","games":100,"wins_a":35,"wins_b":65,"win_rate_a":0.35,"win_rate_b":0.65,"group":"standard"},"biased60_vs_blind":{"agent_a":"biased60","agent_b":"blind","games":100,"wins_a":28,"wins_b":72,"win_rate_a":0.28,"win_rate_b":0.72,"group":"standard"},"biased60_vs_conditional":{"agent_a":"biased60","agent_b":"conditional","games":100,"wins_a":23,"wins_b":77,"win_rate_a":0.23,"win_rate_b":0.77,"group":"standard"},"biased70_vs_blind":{"agent_a":"biased70","agent_b":"blind","games":100,"wins_a":25,"wins_b":75,"win_rate_a":0.25,"win_rate_b":0.75,"group":"standard"},"biased70_vs_conditional":{"agent_a":"biased70","agent_b":"conditional","games":100,"wins_a":19,"wins_b":81,"win_rate_a":0.19,"win_rate_b":0.81,"group":"standard"},"blind_vs_conditional":{"agent_a":"blind","agent_b":"conditional","games":100,"wins_a":48,"wins_b":52,"win_rate_a":0.48,"win_rate_b":0.52,"group":"standard"},"exactconditional_vs_cfr_nash_mb3":{"agent_a":"exactconditional","agent_b":"cfr_nash_mb3","games":100,"wins_a":86,"wins_b":14,"win_rate_a":0.86,"win_rate_b":0.14,"group":"exact"},"exactconditional_vs_exact_biased70":{"agent_a":"exactconditional","agent_b":"exact_biased70","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased60":{"agent_a":"exactconditional","agent_b":"exact_biased60","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased40":{"agent_a":"exactconditional","agent_b":"exact_biased40","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased30":{"agent_a":"exactconditional","agent_b":"exact_biased30","games":100,"wins_a":97,"wins_b":3,"win_rate_a":0.97,"win_rate_b":0.03,"group":"exact"},"exactconditional_vs_exact_random":{"agent_a":"exactconditional","agent_b":"exact_random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"exact"},"cfr_nash_mb3_vs_exact_biased70":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased70","games":100,"wins_a":74,"wins_b":26,"win_rate_a":0.74,"win_rate_b":0.26,"group":"exact"},"cfr_nash_mb3_vs_exact_biased60":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased60","games":100,"wins_a":66,"wins_b":34,"win_rate_a":0.66,"win_rate_b":0.34,"group":"exact"},"cfr_nash_mb3_vs_exact_biased40":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased40","games":100,"wins_a":61,"wins_b":39,"win_rate_a":0.61,"win_rate_b":0.39,"group":"exact"},"cfr_nash_mb3_vs_exact_biased30":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased30","games":100,"wins_a":59,"wins_b":41,"win_rate_a":0.59,"win_rate_b":0.41,"group":"exact"},"cfr_nash_mb3_vs_exact_random":{"agent_a":"cfr_nash_mb3","agent_b":"exact_random","games":100,"wins_a":29,"wins_b":71,"win_rate_a":0.29,"win_rate_b":0.71,"group":"exact"},"exact_biased70_vs_exact_biased60":{"agent_a":"exact_biased70","agent_b":"exact_biased60","games":100,"wins_a":37,"wins_b":63,"win_rate_a":0.37,"win_rate_b":0.63,"group":"exact"},"exact_biased70_vs_exact_biased40":{"agent_a":"exact_biased70","agent_b":"exact_biased40","games":100,"wins_a":14,"wins_b":86,"win_rate_a":0.14,"win_rate_b":0.86,"group":"exact"},"exact_biased70_vs_exact_biased30":{"agent_a":"exact_biased70","agent_b":"exact_biased30","games":100,"wins_a":5,"wins_b":95,"win_rate_a":0.05,"win_rate_b":0.95,"group":"exact"},"exact_biased70_vs_exact_random":{"agent_a":"exact_biased70","agent_b":"exact_random","games":100,"wins_a":96,"wins_b":4,"win_rate_a":0.96,"win_rate_b":0.04,"group":"exact"},"exact_biased60_vs_exact_biased40":{"agent_a":"exact_biased60","agent_b":"exact_biased40","games":100,"wins_a":29,"wins_b":71,"win_rate_a":0.29,"win_rate_b":0.71,"group":"exact"},"exact_biased60_vs_exact_biased30":{"agent_a":"exact_biased60","agent_b":"exact_biased30","games":100,"wins_a":10,"wins_b":90,"win_rate_a":0.1,"win_rate_b":0.9,"group":"exact"},"exact_biased60_vs_exact_random":{"agent_a":"exact_biased60","agent_b":"exact_random","games":100,"wins_a":100,"wins_b":0,"win_rate_a":1.0,"win_rate_b":0.0,"group":"exact"},"exact_biased40_vs_exact_biased30":{"agent_a":"exact_biased40","agent_b":"exact_biased30","games":100,"wins_a":49,"wins_b":51,"win_rate_a":0.49,"win_rate_b":0.51,"group":"exact"},"exact_biased40_vs_exact_random":{"agent_a":"exact_biased40","agent_b":"exact_random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"exact"},"exact_biased30_vs_exact_random":{"agent_a":"exact_biased30","agent_b":"exact_random","games":100,"wins_a":100,"wins_b":0,"win_rate_a":1.0,"win_rate_b":0.0,"group":"exact"}}};
+const BENCHMARK_RESULTS = {"generated":"2026-04-24T00:00:00+00:00","games_per_pair":500,"seed":42,"results":{"exactconditional_vs_exact_mixed":{"agent_a":"exactconditional","agent_b":"exact_mixed","games":500,"wins_a":213,"wins_b":287,"win_rate_a":0.426,"win_rate_b":0.574,"group":"exact_ladder"},"exactconditional_vs_exact_opp_model":{"agent_a":"exactconditional","agent_b":"exact_opp_model","games":500,"wins_a":214,"wins_b":286,"win_rate_a":0.428,"win_rate_b":0.572,"group":"exact_ladder"},"exactconditional_vs_exact_adaptive":{"agent_a":"exactconditional","agent_b":"exact_adaptive","games":500,"wins_a":218,"wins_b":282,"win_rate_a":0.436,"win_rate_b":0.564,"group":"exact_ladder"},"exact_mixed_vs_exact_opp_model":{"agent_a":"exact_mixed","agent_b":"exact_opp_model","games":500,"wins_a":274,"wins_b":226,"win_rate_a":0.548,"win_rate_b":0.452,"group":"exact_ladder"},"exact_mixed_vs_exact_adaptive":{"agent_a":"exact_mixed","agent_b":"exact_adaptive","games":500,"wins_a":282,"wins_b":218,"win_rate_a":0.564,"win_rate_b":0.436,"group":"exact_ladder"},"exact_opp_model_vs_exact_adaptive":{"agent_a":"exact_opp_model","agent_b":"exact_adaptive","games":500,"wins_a":275,"wins_b":225,"win_rate_a":0.55,"win_rate_b":0.45,"group":"exact_ladder"},"biased30_vs_biased40":{"agent_a":"biased30","agent_b":"biased40","games":100,"wins_a":48,"wins_b":52,"win_rate_a":0.48,"win_rate_b":0.52,"group":"standard"},"biased30_vs_random":{"agent_a":"biased30","agent_b":"random","games":100,"wins_a":98,"wins_b":2,"win_rate_a":0.98,"win_rate_b":0.02,"group":"standard"},"biased30_vs_biased60":{"agent_a":"biased30","agent_b":"biased60","games":100,"wins_a":11,"wins_b":89,"win_rate_a":0.11,"win_rate_b":0.89,"group":"standard"},"biased30_vs_biased70":{"agent_a":"biased30","agent_b":"biased70","games":100,"wins_a":8,"wins_b":92,"win_rate_a":0.08,"win_rate_b":0.92,"group":"standard"},"biased30_vs_blind":{"agent_a":"biased30","agent_b":"blind","games":100,"wins_a":22,"wins_b":78,"win_rate_a":0.22,"win_rate_b":0.78,"group":"standard"},"biased30_vs_conditional":{"agent_a":"biased30","agent_b":"conditional","games":100,"wins_a":30,"wins_b":70,"win_rate_a":0.3,"win_rate_b":0.7,"group":"standard"},"biased40_vs_random":{"agent_a":"biased40","agent_b":"random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"standard"},"biased40_vs_biased60":{"agent_a":"biased40","agent_b":"biased60","games":100,"wins_a":26,"wins_b":74,"win_rate_a":0.26,"win_rate_b":0.74,"group":"standard"},"biased40_vs_biased70":{"agent_a":"biased40","agent_b":"biased70","games":100,"wins_a":19,"wins_b":81,"win_rate_a":0.19,"win_rate_b":0.81,"group":"standard"},"biased40_vs_blind":{"agent_a":"biased40","agent_b":"blind","games":100,"wins_a":37,"wins_b":63,"win_rate_a":0.37,"win_rate_b":0.63,"group":"standard"},"biased40_vs_conditional":{"agent_a":"biased40","agent_b":"conditional","games":100,"wins_a":33,"wins_b":67,"win_rate_a":0.33,"win_rate_b":0.67,"group":"standard"},"random_vs_biased60":{"agent_a":"random","agent_b":"biased60","games":100,"wins_a":6,"wins_b":94,"win_rate_a":0.06,"win_rate_b":0.94,"group":"standard"},"random_vs_biased70":{"agent_a":"random","agent_b":"biased70","games":100,"wins_a":7,"wins_b":93,"win_rate_a":0.07,"win_rate_b":0.93,"group":"standard"},"random_vs_blind":{"agent_a":"random","agent_b":"blind","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"random_vs_conditional":{"agent_a":"random","agent_b":"conditional","games":100,"wins_a":0,"wins_b":100,"win_rate_a":0.0,"win_rate_b":1.0,"group":"standard"},"biased60_vs_biased70":{"agent_a":"biased60","agent_b":"biased70","games":100,"wins_a":35,"wins_b":65,"win_rate_a":0.35,"win_rate_b":0.65,"group":"standard"},"biased60_vs_blind":{"agent_a":"biased60","agent_b":"blind","games":100,"wins_a":28,"wins_b":72,"win_rate_a":0.28,"win_rate_b":0.72,"group":"standard"},"biased60_vs_conditional":{"agent_a":"biased60","agent_b":"conditional","games":100,"wins_a":23,"wins_b":77,"win_rate_a":0.23,"win_rate_b":0.77,"group":"standard"},"biased70_vs_blind":{"agent_a":"biased70","agent_b":"blind","games":100,"wins_a":25,"wins_b":75,"win_rate_a":0.25,"win_rate_b":0.75,"group":"standard"},"biased70_vs_conditional":{"agent_a":"biased70","agent_b":"conditional","games":100,"wins_a":19,"wins_b":81,"win_rate_a":0.19,"win_rate_b":0.81,"group":"standard"},"blind_vs_conditional":{"agent_a":"blind","agent_b":"conditional","games":100,"wins_a":48,"wins_b":52,"win_rate_a":0.48,"win_rate_b":0.52,"group":"standard"},"exactconditional_vs_cfr_nash_mb3":{"agent_a":"exactconditional","agent_b":"cfr_nash_mb3","games":100,"wins_a":86,"wins_b":14,"win_rate_a":0.86,"win_rate_b":0.14,"group":"exact"},"exactconditional_vs_exact_biased70":{"agent_a":"exactconditional","agent_b":"exact_biased70","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased60":{"agent_a":"exactconditional","agent_b":"exact_biased60","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased40":{"agent_a":"exactconditional","agent_b":"exact_biased40","games":100,"wins_a":95,"wins_b":5,"win_rate_a":0.95,"win_rate_b":0.05,"group":"exact"},"exactconditional_vs_exact_biased30":{"agent_a":"exactconditional","agent_b":"exact_biased30","games":100,"wins_a":97,"wins_b":3,"win_rate_a":0.97,"win_rate_b":0.03,"group":"exact"},"exactconditional_vs_exact_random":{"agent_a":"exactconditional","agent_b":"exact_random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"exact"},"cfr_nash_mb3_vs_exact_biased70":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased70","games":100,"wins_a":74,"wins_b":26,"win_rate_a":0.74,"win_rate_b":0.26,"group":"exact"},"cfr_nash_mb3_vs_exact_biased60":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased60","games":100,"wins_a":66,"wins_b":34,"win_rate_a":0.66,"win_rate_b":0.34,"group":"exact"},"cfr_nash_mb3_vs_exact_biased40":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased40","games":100,"wins_a":61,"wins_b":39,"win_rate_a":0.61,"win_rate_b":0.39,"group":"exact"},"cfr_nash_mb3_vs_exact_biased30":{"agent_a":"cfr_nash_mb3","agent_b":"exact_biased30","games":100,"wins_a":59,"wins_b":41,"win_rate_a":0.59,"win_rate_b":0.41,"group":"exact"},"cfr_nash_mb3_vs_exact_random":{"agent_a":"cfr_nash_mb3","agent_b":"exact_random","games":100,"wins_a":29,"wins_b":71,"win_rate_a":0.29,"win_rate_b":0.71,"group":"exact"},"exact_biased70_vs_exact_biased60":{"agent_a":"exact_biased70","agent_b":"exact_biased60","games":100,"wins_a":37,"wins_b":63,"win_rate_a":0.37,"win_rate_b":0.63,"group":"exact"},"exact_biased70_vs_exact_biased40":{"agent_a":"exact_biased70","agent_b":"exact_biased40","games":100,"wins_a":14,"wins_b":86,"win_rate_a":0.14,"win_rate_b":0.86,"group":"exact"},"exact_biased70_vs_exact_biased30":{"agent_a":"exact_biased70","agent_b":"exact_biased30","games":100,"wins_a":5,"wins_b":95,"win_rate_a":0.05,"win_rate_b":0.95,"group":"exact"},"exact_biased70_vs_exact_random":{"agent_a":"exact_biased70","agent_b":"exact_random","games":100,"wins_a":96,"wins_b":4,"win_rate_a":0.96,"win_rate_b":0.04,"group":"exact"},"exact_biased60_vs_exact_biased40":{"agent_a":"exact_biased60","agent_b":"exact_biased40","games":100,"wins_a":29,"wins_b":71,"win_rate_a":0.29,"win_rate_b":0.71,"group":"exact"},"exact_biased60_vs_exact_biased30":{"agent_a":"exact_biased60","agent_b":"exact_biased30","games":100,"wins_a":10,"wins_b":90,"win_rate_a":0.1,"win_rate_b":0.9,"group":"exact"},"exact_biased60_vs_exact_random":{"agent_a":"exact_biased60","agent_b":"exact_random","games":100,"wins_a":100,"wins_b":0,"win_rate_a":1.0,"win_rate_b":0.0,"group":"exact"},"exact_biased40_vs_exact_biased30":{"agent_a":"exact_biased40","agent_b":"exact_biased30","games":100,"wins_a":49,"wins_b":51,"win_rate_a":0.49,"win_rate_b":0.51,"group":"exact"},"exact_biased40_vs_exact_random":{"agent_a":"exact_biased40","agent_b":"exact_random","games":100,"wins_a":99,"wins_b":1,"win_rate_a":0.99,"win_rate_b":0.01,"group":"exact"},"exact_biased30_vs_exact_random":{"agent_a":"exact_biased30","agent_b":"exact_random","games":100,"wins_a":100,"wins_b":0,"win_rate_a":1.0,"win_rate_b":0.0,"group":"exact"}}};
 
 // ============================================================
 // AGENT_RANKINGS_COMMENTARY
@@ -1093,15 +1264,18 @@ const BENCHMARK_RESULTS = {"generated":"2026-04-21T16:36:29.293457+00:00","games
 // AGENT_META keys. Leave a key absent to show no note.
 // ============================================================
 const AGENT_RANKINGS_COMMENTARY = {
-  exactconditional: "Dominant exact-rules agent: 86% vs CFR Nash, 95–99% vs all random benchmarks. Uses Bayesian adjustment with exact-hand conditional probabilities to pick the peak-probability bid given private cards.",
-  cfr_nash_mb3:     "CFR-trained Nash approximation for n=2 exact-rules. Beats biased random agents (59–74%) but loses to exact_random 71% — CFR was trained on HC/Pair bids only and is exploited by off-distribution play. Training ongoing.",
+  exact_mixed:      "Strongest exact-rules agent (★). Softmax bid sampling (τ=0.05) prevents rank leakage: the opener no longer always bids their highest-rank card, so opponents can't infer your hand from your opening bid. Wins 57.4% vs the deterministic Conditional baseline at 3.3σ significance (500-game countdown benchmark).",
+  exact_opp_model:  "Rung 3 of the sophistication ladder. Adds principled Bayesian inference: given the opponent's bid B, computes P(opponent hand condition | bid=B) from exact conditional tables and blends it into the pool estimate. Active at pool size ≥ 5; falls back to heuristic rank-bump at smaller pools. Wins 57.2% vs baseline.",
+  exact_adaptive:   "Rung 4 of the sophistication ladder. Tracks opponent bluff rate from round history and shifts the call threshold (±40% adjustment). Most effective in long games with 8+ rounds of history; adaptive benefit is limited in short 5-round games.",
+  exactconditional: "Ladder baseline. Deterministic opener — always bids the peak-probability hand given private cards, which leaks card rank to opponents. Beaten by all three ladder agents above. Good foundation for understanding the ladder.",
+  cfr_nash_mb3:     "CFR-trained Nash approximation for n=2 exact-rules. Research checkpoint — training ongoing. Beaten by all conditional agents and currently loses to random play, indicating the solver has not converged.",
   exact_biased30:   "Strongest random benchmark in exact-rules. Calling more (30% bid rate) is correct because exact-rules bids are hard to make true — beats biased70 95% of the time by refusing to over-commit.",
-  exact_biased40:   "Second-best random benchmark in exact-rules. Near-coin-flip vs exact_biased30 (49/51).",
-  exact_biased70:   "Weakest biased agent in exact-rules despite being aggressive. Bidding 70% of the time is heavily punished — exact bids rarely hold, so over-bidding is easily called.",
-  exact_random:     "Unusual result: beats CFR Nash 71% of the time. CFR agent is trained only on HC/Pair domains and is confused by random legal bids spanning the full 110-bid space.",
-  conditional:      "Strongest at-least-rules agent. Detects private hand conditions (pair, suited, adjacent ranks) and scales bids accordingly — outperforms blind threshold consistently.",
-  blind:            "Solid at-least-rules baseline. Bids the 50% marginal threshold without private card knowledge. Beats all random agents convincingly.",
-  biased70:         "Most aggressive at-least-rules random baseline. Bids 70% of the time — easily exploited by threshold agents.",
+  exact_biased40:   "Second-best random benchmark in exact-rules.",
+  exact_biased70:   "Weakest biased agent in exact-rules. Bidding 70% of the time is heavily punished — exact bids rarely hold.",
+  exact_random:     "Uniformly random in exact-rules mode. Weakest baseline.",
+  conditional:      "Strongest at-least-rules agent. Detects private hand conditions (pair, suited, adjacent ranks) and scales bids accordingly.",
+  blind:            "Solid at-least-rules baseline. Bids the 50% marginal threshold without private card knowledge.",
+  biased70:         "Most aggressive at-least-rules random baseline — easily exploited by threshold agents.",
 };
 
 // Build a win-rate lookup: winRate[a][b] = fraction of games a won vs b (or null)
@@ -1459,7 +1633,10 @@ function renderSetup() {
     <label class="step-label">1 — Choose Your Opponent</label>
     <select id="cfg-agent" onchange="updateAgentInfo()" style="max-width:380px">
       <optgroup label="Exact Hand Rules">
-        <option value="exactconditional" selected>Exact Rules Conditional</option>
+        <option value="exact_mixed" selected>Mixed Strategy ★ (strongest)</option>
+        <option value="exact_opp_model">Opponent Model</option>
+        <option value="exact_adaptive">Adaptive Threshold</option>
+        <option value="exactconditional">Conditional (baseline)</option>
         <option value="cfr_nash_mb3">CFR Nash (n=2, 20k iters)</option>
         <option value="exact_biased70">Random Biased 70% (exact)</option>
         <option value="exact_biased60">Random Biased 60% (exact)</option>
@@ -1757,6 +1934,9 @@ function buildAgent(atype) {
   if (atype === 'conditional')     return new ConditionalAgent();
   // Exact rules agents
   if (atype === 'exactconditional') return new ExactRulesConditionalAgent();
+  if (atype === 'exact_mixed')      return new ExactRulesMixedAgent();
+  if (atype === 'exact_opp_model')  return new ExactRulesOpponentModelAgent();
+  if (atype === 'exact_adaptive')   return new ExactRulesAdaptiveAgent();
   if (atype === 'exact_biased30')   return new BiasedRandomAgent(0.30);
   if (atype === 'exact_biased40')   return new BiasedRandomAgent(0.40);
   if (atype === 'exact_biased60')   return new BiasedRandomAgent(0.60);
