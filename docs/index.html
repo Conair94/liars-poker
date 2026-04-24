@@ -241,6 +241,20 @@ function bidGe(a, b) { // a >= b?
   return a.ht > b.ht || (a.ht === b.ht && a.pr >= b.pr);
 }
 
+// Minimum pool cards required for each hand type (index matches ht constant).
+// HC=0, Pair=1, 2P=2, 3K=3, St=4, Fl=5, FH=6, 4K=7, SF=8
+const _MIN_CARDS_FOR_HT = [1, 2, 4, 3, 5, 5, 5, 4, 5];
+
+function isBidFeasible(action, n) {
+  if (action >= NUM_BIDS) return true; // CALL / HH always valid
+  const bid = ALL_BIDS[action];
+  return n >= (_MIN_CARDS_FOR_HT[bid.ht] || 1);
+}
+
+function filterFeasible(candidates, n) {
+  return candidates.filter(a => isBidFeasible(a, n));
+}
+
 // ============================================================
 // 2. SEEDED RNG
 // ============================================================
@@ -840,7 +854,7 @@ class ExactRulesConditionalAgent {
 
     const maxP = Math.max(...exactProb);
     const callThreshold = 0.3 * maxP;
-    const cands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+    const cands = filterFeasible(legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION), n);
     const bestBid = cands.length
       ? cands.reduce((best, a) => (exactProb[a] || 0) > (exactProb[best] || 0) ? a : best, cands[0])
       : CALL_ACTION;
@@ -848,8 +862,9 @@ class ExactRulesConditionalAgent {
     if (!rs.currentBid) return cands.length ? bestBid : legal[0];
 
     const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
-    // Declare High Hand when the standing bid is at or near the probability peak —
-    // it's more likely correct than a bluff call and prevents the opponent from raising.
+    // Opponent bid is physically impossible — guaranteed bluff.
+    if (legal.includes(CALL_ACTION) && !isBidFeasible(curIdx, n)) return CALL_ACTION;
+    // Declare High Hand when the standing bid is at or near the probability peak.
     if (legal.includes(HH_ACTION) && (exactProb[curIdx] || 0) >= 0.9 * maxP) return HH_ACTION;
     if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
     return cands.length ? bestBid : CALL_ACTION;
@@ -870,9 +885,24 @@ function softmaxSampleBid(exactProb, cands, temperature) {
   return cands[cands.length - 1];
 }
 
+// Structured 4-way mixed bid selector (replaces softmax).
+// Picks equally from: peak-prob bid, min-viable bid, mid-range bid, second-above-min.
+// Guarantees bids stay within the feasible set — no flushes with 2 cards on the table.
+function mixedSelectBid(exactProb, cands) {
+  if (!cands.length) return null;
+  if (cands.length === 1) return cands[0];
+  const sorted = [...cands].sort((a, b) => a - b);
+  const bestIdx  = cands.reduce((best, a) => (exactProb[a] || 0) > (exactProb[best] || 0) ? a : best, cands[0]);
+  const minBid   = sorted[0];
+  const midBid   = sorted[Math.floor(sorted.length / 2)];
+  const aboveMin = sorted.length > 1 ? sorted[1] : sorted[0];
+  const roll = Math.floor(Math.random() * 4);
+  return [bestIdx, minBid, midBid, aboveMin][roll];
+}
+
 class ExactRulesMixedAgent {
-  // Rung 2: adds softmax bid sampling (τ=0.05) over the conditional-adjusted exact probs.
-  // Prevents deterministic rank leakage — the opener no longer always reveals card rank.
+  // Rung 2: structured 4-way mixed bidding to prevent rank leakage.
+  // Never bids hands impossible given current pool size; always calls impossible opponent bids.
   choose(st) {
     const seats = activeSeats(st);
     const n = seats.reduce((s, i) => s + st.handSizes[i], 0);
@@ -889,17 +919,19 @@ class ExactRulesMixedAgent {
 
     const maxP = Math.max(...exactProb);
     const callThreshold = 0.3 * maxP;
-    const cands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+    const cands = filterFeasible(legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION), n);
 
     if (!rs.currentBid) {
-      const bid = softmaxSampleBid(exactProb, cands, 0.05);
+      const bid = mixedSelectBid(exactProb, cands);
       return bid !== null ? bid : (legal[0] || CALL_ACTION);
     }
 
     const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    // Opponent bid is physically impossible — guaranteed bluff.
+    if (legal.includes(CALL_ACTION) && !isBidFeasible(curIdx, n)) return CALL_ACTION;
     if (legal.includes(HH_ACTION) && (exactProb[curIdx] || 0) >= 0.9 * maxP) return HH_ACTION;
     if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
-    const bid = softmaxSampleBid(exactProb, cands, 0.05);
+    const bid = mixedSelectBid(exactProb, cands);
     return bid !== null ? bid : CALL_ACTION;
   }
 }
@@ -937,17 +969,18 @@ class ExactRulesOpponentModelAgent {
 
     const maxP = Math.max(...exactProb);
     const callThreshold = 0.3 * maxP;
-    const cands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+    const cands = filterFeasible(legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION), n);
 
     if (!rs.currentBid) {
-      const bid = softmaxSampleBid(exactProb, cands, 0.05);
+      const bid = mixedSelectBid(exactProb, cands);
       return bid !== null ? bid : (legal[0] || CALL_ACTION);
     }
 
     const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(CALL_ACTION) && !isBidFeasible(curIdx, n)) return CALL_ACTION;
     if (legal.includes(HH_ACTION) && (exactProb[curIdx] || 0) >= 0.9 * maxP) return HH_ACTION;
     if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
-    const bid = softmaxSampleBid(exactProb, cands, 0.05);
+    const bid = mixedSelectBid(exactProb, cands);
     return bid !== null ? bid : CALL_ACTION;
   }
 }
@@ -1008,17 +1041,18 @@ class ExactRulesAdaptiveAgent {
     const maxP = Math.max(...exactProb);
     const baseThreshold = 0.3 * maxP;
     const callThreshold = this._callThreshold(st, baseThreshold);
-    const cands = legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION);
+    const cands = filterFeasible(legal.filter(a => a !== CALL_ACTION && a !== HH_ACTION), n);
 
     if (!rs.currentBid) {
-      const bid = softmaxSampleBid(exactProb, cands, 0.05);
+      const bid = mixedSelectBid(exactProb, cands);
       return bid !== null ? bid : (legal[0] || CALL_ACTION);
     }
 
     const curIdx = bidToIndex(rs.currentBid.ht, rs.currentBid.pr);
+    if (legal.includes(CALL_ACTION) && !isBidFeasible(curIdx, n)) return CALL_ACTION;
     if (legal.includes(HH_ACTION) && (exactProb[curIdx] || 0) >= 0.9 * maxP) return HH_ACTION;
     if (legal.includes(CALL_ACTION) && (exactProb[curIdx] || 0) < callThreshold) return CALL_ACTION;
-    const bid = softmaxSampleBid(exactProb, cands, 0.05);
+    const bid = mixedSelectBid(exactProb, cands);
     return bid !== null ? bid : CALL_ACTION;
   }
 }
