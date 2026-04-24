@@ -35,8 +35,41 @@ for _p in (_PAPER_DIR, _AGENT_DIR):
         sys.path.insert(0, _p)
 
 from agent.game.engine import MatchState                                     # noqa: E402
-from agent.game.bids import CALL_ACTION, HH_ACTION, NUM_BIDS, bid_to_index, all_bids   # noqa: E402
+from agent.game.bids import (                                                  # noqa: E402
+    CALL_ACTION, HH_ACTION, NUM_BIDS, bid_to_index, index_to_bid, all_bids,
+    HIGH_CARD, PAIR, TWO_PAIR, THREE_OF_A_KIND, STRAIGHT, FLUSH,
+    FULL_HOUSE, FOUR_OF_A_KIND, STRAIGHT_FLUSH,
+)
 import numpy as np                                                             # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Minimum pool cards required for each hand type to be achievable.
+# Bids whose hand_type requires more cards than the pool should never be made
+# and should always be called as bluffs when an opponent makes them.
+_MIN_CARDS_FOR_HAND = {
+    HIGH_CARD:       1,
+    PAIR:            2,
+    TWO_PAIR:        4,
+    THREE_OF_A_KIND: 3,
+    STRAIGHT:        5,
+    FLUSH:           5,
+    FULL_HOUSE:      5,
+    FOUR_OF_A_KIND:  4,
+    STRAIGHT_FLUSH:  5,
+}
+
+
+def _is_bid_feasible(action: int, n: int) -> bool:
+    """Return True if the bid could possibly be satisfied with n total pool cards."""
+    if action >= NUM_BIDS:
+        return True  # CALL / HH are always valid responses
+    bid = index_to_bid(action)
+    return n >= _MIN_CARDS_FOR_HAND.get(bid.hand_type, 1)
+
+
+def _filter_feasible(candidates: list, n: int) -> list:
+    """Return only those candidates whose hand type is achievable with n cards."""
+    return [a for a in candidates if _is_bid_feasible(a, n)]
 
 
 # ---------------------------------------------------------------------------
@@ -268,11 +301,22 @@ class ExactRulesBlindAgent:
                 pass
 
         if exact_prob is None:
-            return self._rng.choice(legal)
+            feasible = _filter_feasible([a for a in legal if a not in (CALL_ACTION, HH_ACTION)], n)
+            if feasible:
+                return self._rng.choice(feasible)
+            return CALL_ACTION if CALL_ACTION in legal else legal[0]
 
         max_p = float(np.max(exact_prob))
         call_threshold = 0.3 * max_p
-        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
+        bid_candidates = _filter_feasible(
+            [a for a in legal if a not in (CALL_ACTION, HH_ACTION)], n
+        )
+
+        # Opponent bid is physically impossible — guaranteed bluff.
+        if rs.current_bid is not None and CALL_ACTION in legal:
+            cur_idx = bid_to_index(rs.current_bid)
+            if not _is_bid_feasible(cur_idx, n):
+                return CALL_ACTION
 
         if rs.current_bid is None:
             return self._best_bid(bid_candidates, exact_prob) if bid_candidates else legal[0]
@@ -450,7 +494,9 @@ class ExactRulesConditionalAgent:
 
         peak_idx = int(np.argmax(adj_exact))
         peak_p   = float(adj_exact[peak_idx])
-        bid_candidates = [a for a in legal if a not in (CALL_ACTION, HH_ACTION)]
+        bid_candidates = _filter_feasible(
+            [a for a in legal if a not in (CALL_ACTION, HH_ACTION)], n
+        )
 
         # ------------------------------------------------------------------
         # No standing bid yet — opening bid.
@@ -466,7 +512,12 @@ class ExactRulesConditionalAgent:
         # Responding to a standing bid.
         # ------------------------------------------------------------------
         cur_idx = bid_to_index(rs.current_bid)
-        cur_p   = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
+
+        # Opponent's bid is physically impossible — guaranteed bluff.
+        if CALL_ACTION in legal and not _is_bid_feasible(cur_idx, n):
+            return CALL_ACTION
+
+        cur_p = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
 
         # Declare HH when the standing bid matches (or near-matches) the peak.
         if HH_ACTION in legal and peak_p > 0.0:
@@ -529,24 +580,39 @@ class ExactRulesMixedAgent(ExactRulesConditionalAgent):
         )
         self.bid_temperature = bid_temperature
 
-    def _softmax_sample(self, candidates: list, weights: np.ndarray) -> int:
-        """Sample from candidates proportional to softmax(weights / τ)."""
-        if len(candidates) == 1:
-            return candidates[0]
-        w = np.array(
-            [float(weights[a]) if a < len(weights) else 0.0 for a in candidates],
-            dtype=np.float64,
-        )
-        w = np.clip(w, 0.0, None)
-        if self.bid_temperature <= 0.0 or w.sum() <= 0.0:
-            return candidates[int(np.argmax(w))]
-        w = np.exp(w / self.bid_temperature)
-        w /= w.sum()
-        return candidates[int(np.random.choice(len(candidates), p=w))]
-
     def _select_bid(self, candidates: list, adj_exact: np.ndarray, viable: list) -> int:
+        """Structured 4-way mixed strategy over feasible bids.
+
+        Splits probability mass equally across four bid categories to prevent
+        information leakage while staying within the viable bid space:
+          1/4 — highest-probability bid (conditional peak)
+          1/4 — minimum viable bid (smallest index)
+          1/4 — mid-range bid (median of viable set)
+          1/4 — second bid above minimum (slight escalation)
+
+        When viable is empty, falls back to the single best feasible candidate.
+        """
         pool = viable if viable else candidates
-        return self._softmax_sample(pool, adj_exact)
+        if not pool:
+            return candidates[0] if candidates else CALL_ACTION
+        if len(pool) == 1:
+            return pool[0]
+
+        pool_sorted = sorted(pool)
+        best_idx   = max(pool, key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
+        min_bid    = pool_sorted[0]
+        mid_bid    = pool_sorted[len(pool_sorted) // 2]
+        above_min  = pool_sorted[1] if len(pool_sorted) > 1 else pool_sorted[0]
+
+        choice = np.random.randint(4)
+        if choice == 0:
+            return best_idx
+        elif choice == 1:
+            return min_bid
+        elif choice == 2:
+            return mid_bid
+        else:
+            return above_min
 
 
 # ---------------------------------------------------------------------------
