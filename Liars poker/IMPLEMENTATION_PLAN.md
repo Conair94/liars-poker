@@ -1,7 +1,6 @@
-# Implementation Plan (2026-04-23)
+# Implementation Plan (2026-04-24)
 
-Three fixes needed before the next training run is meaningful.
-Priority order: Item 3 (quick check) → Item 2 (bug fix, unlocks real eval) → Item 1 (diagnosis before writing code).
+Status: Item 3 ✓ COMPLETE. Item 2 ✓ COMPLETE. Item 1 IN PROGRESS.
 
 ---
 

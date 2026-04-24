@@ -117,7 +117,14 @@
       "Bash(echo \"R-NaD Stage A PID: $!\")",
       "Bash(ps -p 41329 41946 -o pid,etime,pcpu,comm)",
       "Bash(awk '{print $2, $3, $10, $11, $12, $13}')",
-      "Bash(awk '{print $2, $3\"%\", $10, $11, $12, $13, $14}')"
+      "Bash(awk '{print $2, $3\"%\", $10, $11, $12, $13, $14}')",
+      "Bash(python3 -m agent.rnad.eval --checkpoint agent/checkpoints/rnad_final.pt --exact-rules --episodes 200)",
+      "Bash(timeout 120 python3 -m agent.rnad.eval --checkpoint agent/checkpoints/rnad_final.pt --exact-rules --episodes 100)",
+      "Bash(python3 -m agent.rnad.eval --checkpoint agent/checkpoints/rnad_final.pt --exact-rules --episodes 100)",
+      "Bash(python3 benchmark.py --exact --help)",
+      "Bash(python3 -m agent.benchmark --exact)",
+      "Bash(python3 -m agent.benchmark --games 20 --seed 42)",
+      "Bash(tee /tmp/benchmark_result.txt)"
     ]
   }
 }
