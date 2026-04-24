@@ -14,3 +14,4 @@ Here is a todo list to work on for the next agent, formed by my thoughts on 4/23
     2. When benchmarking agents, not as many tests are needed, it is more important to keep track of the choices made during games so looking at that data can be used to automatically highlight potential errors and room for improvement. This will require new I/O 
     3. The file system needs to be organized for future growth better. 
     4. The current Nash and CFR agents are boderline useless, they will have to be fully redesigned for higher hand sizes from the start so that they are not obsolete. 
+    5. More advanced knowledge from start of the art poker training AI techniques will have to be used, potentially worked on in parts and a literature search will be needed to make sure that the techniques used are state of the art. 
