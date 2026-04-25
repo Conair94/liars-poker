@@ -1,15 +1,14 @@
 """
-Unit tests for agent.game.engine. Pure Python, no pytest dep. Run via:
+Unit tests for game.engine. Pure Python, no pytest dep. Run via:
 
-    cd "papers/Liars poker/"
-    python -m agent.game.tests.test_engine
+    pytest src/game/tests/test_engine.py
 """
 
-from agent.game import (
+from game import (
     new_match, MatchState, Bid, CALL_ACTION, NUM_BIDS,
     bid_to_index, index_to_bid, enumerate_bids,
 )
-from agent.game.bids import (
+from game.bids import (
     HIGH_CARD, PAIR, STRAIGHT_FLUSH, normalize_hand_type, ROYAL_FLUSH,
 )
 from poker_math_exact import _evaluate_ranked

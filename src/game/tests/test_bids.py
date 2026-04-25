@@ -1,11 +1,10 @@
 """
-Unit tests for agent.game.bids — no external deps. Runnable as:
+Unit tests for game.bids — no external deps. Runnable as:
 
-    cd "papers/Liars poker/"
-    python -m agent.game.tests.test_bids
+    pytest src/game/tests/test_bids.py
 """
 
-from agent.game.bids import (
+from game.bids import (
     Bid, NUM_BIDS, CALL_ACTION, NUM_ACTIONS,
     enumerate_bids, bid_to_index, index_to_bid, normalize_hand_type,
     HIGH_CARD, PAIR, TWO_PAIR, THREE_OF_A_KIND, STRAIGHT, FLUSH,
