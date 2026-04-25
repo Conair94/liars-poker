@@ -10,8 +10,8 @@ Metrics (§5.3 of AGENT_DESIGN.md):
                         action (calibration proxy)
   avg_return          — average episode return (expected ≈ 0 for zero-sum self-play)
 
-Run from papers/Liars poker/:
-    python -m agent.rnad.eval --checkpoint agent/checkpoints/rnad_final.pt
+Run from src/:
+    python -m agents.learned.rnad.eval --checkpoint data/checkpoints/rnad_final.pt
 """
 
 from __future__ import annotations

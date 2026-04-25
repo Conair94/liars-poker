@@ -76,6 +76,6 @@ class RNaDConfig:
     # ------------------------------------------------------------------ #
     # Checkpointing & logging
     # ------------------------------------------------------------------ #
-    checkpoint_dir: str  = "agent/checkpoints"
+    checkpoint_dir: str  = "data/checkpoints"
     checkpoint_freq: int = 2_000
     log_freq: int        = 100    # iterations between console log lines
