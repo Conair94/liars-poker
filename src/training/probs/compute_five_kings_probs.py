@@ -45,7 +45,7 @@ if HERE not in sys.path:
 
 from poker_math_exact import _evaluate_ranked, ROYAL_FLUSH, STRAIGHT_FLUSH  # noqa: E402
 
-DATA_DIR    = os.path.join(REPO_ROOT, "Liars poker", "agent", "data")
+DATA_DIR    = os.path.join(REPO_ROOT, "data", "probs")
 OUTPUT_FILE = os.path.join(DATA_DIR, "five_kings_probs.json")
 
 N_VALUES = list(range(5, 26))

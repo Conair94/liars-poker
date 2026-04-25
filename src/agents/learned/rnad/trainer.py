@@ -41,17 +41,17 @@ from torch.distributions import Categorical
 # ---------------------------------------------------------------------------
 # Path setup
 # ---------------------------------------------------------------------------
-_RNAD_DIR  = os.path.dirname(os.path.abspath(__file__))
-_AGENT_DIR = os.path.abspath(os.path.join(_RNAD_DIR, ".."))
-_PAPER_DIR = os.path.abspath(os.path.join(_AGENT_DIR, ".."))
-for _p in (_PAPER_DIR, _AGENT_DIR):
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from agent.game.bids import NUM_ACTIONS, CALL_ACTION          # noqa: E402
-from agent.game.engine import MatchState, new_match           # noqa: E402
-from agent.rnad.config import RNaDConfig                      # noqa: E402
-from agent.rnad.network import LiarsPokerNet, _mask_logits    # noqa: E402
+from game.bids import NUM_ACTIONS, CALL_ACTION                # noqa: E402
+from game.engine import MatchState, new_match                 # noqa: E402
+from agents.learned.rnad.config import RNaDConfig             # noqa: E402
+from agents.learned.rnad.network import LiarsPokerNet, _mask_logits  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -432,7 +432,7 @@ class RNaDTrainer:
 
         # Warm-start lookup (for aux targets during collection)
         if config.use_aux_loss:
-            from agent.rnad.warm_start import WarmStartLookup
+            from agents.learned.rnad.warm_start import WarmStartLookup
             self._warm_start = WarmStartLookup()
         else:
             self._warm_start = None
@@ -490,7 +490,7 @@ class RNaDTrainer:
 
             # 6. Evaluation
             if it % self.config.eval_freq == 0 and it > 0:
-                from agent.rnad.eval import evaluate_policy
+                from agents.learned.rnad.eval import evaluate_policy
                 results = evaluate_policy(
                     self.policy,
                     num_episodes=self.config.eval_episodes,

@@ -1,26 +1,28 @@
 """
 Tests for M3 R-NaD components. Run via:
 
-    cd "papers/Liars poker/"
-    python -m agent.rnad.tests.test_rnad
+    pytest src/agents/learned/rnad/tests/test_rnad.py
 """
 
 import copy
 import os
 import sys
 
-_PAPER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-if _PAPER_DIR not in sys.path:
-    sys.path.insert(0, _PAPER_DIR)
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+for _p in (_PROBS_DIR, _SRC_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 import numpy as np
 import torch
 
-from agent.game.bids import NUM_BIDS, NUM_ACTIONS, CALL_ACTION
-from agent.game.engine import new_match
-from agent.rnad.config import RNaDConfig
-from agent.rnad.network import LiarsPokerNet, _mask_logits
-from agent.rnad.trainer import (
+from game.bids import NUM_BIDS, NUM_ACTIONS, CALL_ACTION
+from game.engine import new_match
+from agents.learned.rnad.config import RNaDConfig
+from agents.learned.rnad.network import LiarsPokerNet, _mask_logits
+from agents.learned.rnad.trainer import (
     Step, collect_round, collect_match, compute_rnad_returns, compute_loss,
     RNaDTrainer,
 )

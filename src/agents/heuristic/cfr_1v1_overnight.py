@@ -5,7 +5,7 @@ Runs CFRSolver.run() in small batches, checkpointing solver state and per-
 batch metrics to disk. Resumes from the last checkpoint on restart. Designed
 to be safe to Ctrl-C or crash at any time without losing progress.
 
-Output files (under agent/data/cfr_1v1_run/<run_name>/):
+Output files (under data/runs/cfr_1v1/<run_name>/):
     checkpoint.json   solver state (regret_sum, strategy_sum, iterations, knobs)
     metrics.jsonl     one JSON object per batch: iter, exp, game_value, t_s
     summary.json      most recent summary (opening_mix, response_mix, etc.)
@@ -31,19 +31,20 @@ import sys
 import time
 from typing import Dict
 
-_BASELINE_DIR = os.path.dirname(os.path.abspath(__file__))
-_AGENT_DIR    = os.path.abspath(os.path.join(_BASELINE_DIR, ".."))
-_PAPER_DIR    = os.path.abspath(os.path.join(_AGENT_DIR,    ".."))
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+_REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
 
-for _p in (_PAPER_DIR, _AGENT_DIR):
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from agent.baseline.cfr_1v1 import (   # noqa: E402
+from agents.heuristic.cfr_1v1 import (   # noqa: E402
     CFRSolver, HC_PAIR_BIDS, _all_bid_indices, _solver_summary, _cache_key,
 )
-from agent.baseline.cfr_1v1_fast import CFRSolverFast  # noqa: E402
-from agent.game.bids import CALL_ACTION, HH_ACTION, bid_to_index, Bid, HIGH_CARD  # noqa: E402
+from agents.heuristic.cfr_1v1_fast import CFRSolverFast  # noqa: E402
+from game.bids import CALL_ACTION, HH_ACTION, bid_to_index, Bid, HIGH_CARD  # noqa: E402
 
 
 def _make_solver(kind: str, **kwargs):
@@ -69,7 +70,7 @@ def _fast_solver_summary(solver: CFRSolverFast) -> dict:
 
 
 def _run_dir(run_name: str) -> str:
-    return os.path.join(_AGENT_DIR, "data", "cfr_1v1_run", run_name)
+    return os.path.join(_REPO_ROOT, "data", "runs", "cfr_1v1", run_name)
 
 
 def _paths(run_name: str) -> Dict[str, str]:

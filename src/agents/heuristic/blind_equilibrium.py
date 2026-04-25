@@ -20,7 +20,7 @@ Game tree structure (N=2):
   - The game tree is finite (bids are strictly increasing; at most NUM_BIDS
     raises before the only legal action is a call).
 
-Equilibrium values and policies are cached to agent/data/blind_equilibrium.json.
+Equilibrium values and policies are cached to data/probs/blind_equilibrium.json.
 
 Usage (from the papers/Liars poker/ root):
     python -m agent.baseline.blind_equilibrium [--exact] [--compare]
@@ -37,23 +37,24 @@ from itertools import combinations
 from typing import Dict, List, Tuple
 
 # ---------------------------------------------------------------------------
-# Path setup: make poker_math_exact importable from the paper root
+# Path setup: src/training/probs/ for poker_math_exact, src/ for game.bids
 # ---------------------------------------------------------------------------
-_BASELINE_DIR = os.path.dirname(os.path.abspath(__file__))
-_AGENT_DIR    = os.path.abspath(os.path.join(_BASELINE_DIR, ".."))
-_PAPER_DIR    = os.path.abspath(os.path.join(_AGENT_DIR,    ".."))
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+_REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
 
-for _p in (_PAPER_DIR, _AGENT_DIR):
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from poker_math_exact import get_hand_rank_counts, _evaluate_ranked  # noqa: E402
-from agent.game.bids import (                                          # noqa: E402
+from game.bids import (                                                # noqa: E402
     Bid, all_bids, NUM_BIDS, CALL_ACTION,
     bid_to_index, index_to_bid, normalize_hand_type,
 )
 
-_DATA_DIR   = os.path.join(_AGENT_DIR, "data")
+_DATA_DIR   = os.path.join(_REPO_ROOT, "data", "probs")
 _CACHE_FILE = os.path.join(_DATA_DIR, "blind_equilibrium.json")
 
 
@@ -396,7 +397,7 @@ if __name__ == "__main__":
     n_range = range(args.n_min, args.n_max + 1)
 
     print(f"Computing N=2 blind equilibria for n={args.n_min}..{args.n_max}...")
-    print("(Results cached to agent/data/blind_equilibrium.json)\n")
+    print("(Results cached to data/probs/blind_equilibrium.json)\n")
 
     for n in n_range:
         eq_al = get_blind_equilibrium(n)

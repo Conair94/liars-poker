@@ -94,7 +94,7 @@ _BID_TO_INDEX = {b: i for i, b in enumerate(_ALL_BIDS)}
 
 DEFAULT_SAMPLES = 10_000
 BASE_SEED       = 4242
-DATA_DIR        = os.path.join(REPO_ROOT, "Liars poker", "agent", "data")
+DATA_DIR        = os.path.join(REPO_ROOT, "data", "probs")
 OUTPUT_FILE     = os.path.join(DATA_DIR, "extended_conditional_exact_probs.json")
 
 

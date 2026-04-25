@@ -60,22 +60,23 @@ import os
 import sys
 from typing import Dict, List, Optional, Tuple
 
-_BASELINE_DIR = os.path.dirname(os.path.abspath(__file__))
-_AGENT_DIR    = os.path.abspath(os.path.join(_BASELINE_DIR, ".."))
-_PAPER_DIR    = os.path.abspath(os.path.join(_AGENT_DIR,    ".."))
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+_REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
 
-for _p in (_PAPER_DIR, _AGENT_DIR):
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from poker_math_exact import _evaluate_ranked          # noqa: E402
-from agent.game.bids import (                          # noqa: E402
+from game.bids import (                                # noqa: E402
     Bid, all_bids, NUM_BIDS, CALL_ACTION, HH_ACTION,
     bid_to_index, index_to_bid, normalize_hand_type,
     HIGH_CARD, PAIR,
 )
 
-_DATA_DIR   = os.path.join(_AGENT_DIR, "data")
+_DATA_DIR   = os.path.join(_REPO_ROOT, "data", "probs")
 _CACHE_FILE = os.path.join(_DATA_DIR, "cfr_1v1.json")
 
 # ---------------------------------------------------------------------------
@@ -602,7 +603,7 @@ def _save_cache(cache: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def _print_opening_mix(mix: dict) -> None:
-    from agent.game.bids import RANK_NAMES
+    from game.bids import RANK_NAMES
     print("\nOpening bid mix by P0's card rank:")
     print(f"  {'Rank':<6}  Top bids (avg strategy)")
     print("  " + "-" * 70)

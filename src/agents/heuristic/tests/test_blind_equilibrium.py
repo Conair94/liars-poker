@@ -1,26 +1,27 @@
 """
-Tests for agent.baseline.blind_equilibrium. Run via:
+Tests for agents.heuristic.blind_equilibrium. Run via:
 
-    cd "papers/Liars poker/"
-    python -m agent.baseline.tests.test_blind_equilibrium
+    pytest src/agents/heuristic/tests/test_blind_equilibrium.py
 """
 
 import sys
 import os
 
-# Ensure paper root is on sys.path
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_PAPER_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
-if _PAPER_DIR not in sys.path:
-    sys.path.insert(0, _PAPER_DIR)
+# Path setup: src/ for game.bids and agents.*, src/training/probs for poker_math_exact.
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+for _p in (_PROBS_DIR, _SRC_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from agent.baseline.blind_equilibrium import (
+from agents.heuristic.blind_equilibrium import (
     _compute_bid_at_least,
     _solve_n2,
     _solve_initial,
     get_blind_equilibrium,
 )
-from agent.game.bids import NUM_BIDS, CALL_ACTION, all_bids, bid_to_index, Bid
+from game.bids import NUM_BIDS, CALL_ACTION, all_bids, bid_to_index, Bid
 
 # Use small sample counts so tests run quickly
 _FAST_SAMPLES = 50_000

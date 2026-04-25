@@ -21,7 +21,7 @@ import sys
 HERE       = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT  = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
-DATA_DIR         = os.path.join(REPO_ROOT, "Liars poker", "agent", "data")
+DATA_DIR         = os.path.join(REPO_ROOT, "data", "probs")
 EXACT_RULES_FILE = os.path.join(DATA_DIR, "exact_rules_probs.json")
 FIVE_KINGS_FILE  = os.path.join(DATA_DIR, "five_kings_probs.json")
 INDEX_HTML       = os.path.join(REPO_ROOT, "docs", "index.html")

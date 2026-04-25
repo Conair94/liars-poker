@@ -45,17 +45,18 @@ import numpy as np
 # ---------------------------------------------------------------------------
 # Path setup
 # ---------------------------------------------------------------------------
-_RNAD_DIR   = os.path.dirname(os.path.abspath(__file__))
-_AGENT_DIR  = os.path.abspath(os.path.join(_RNAD_DIR, ".."))
-_PAPER_DIR  = os.path.abspath(os.path.join(_AGENT_DIR, ".."))
-_DATA_DIR   = os.path.join(_AGENT_DIR, "data")
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+_REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
+_DATA_DIR  = os.path.join(_REPO_ROOT, "data", "probs")
 
-for _p in (_PAPER_DIR, _AGENT_DIR):
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 from poker_math_exact import get_hand_rank_counts, ROYAL_FLUSH, STRAIGHT_FLUSH  # noqa: E402
-from agent.game.bids import all_bids, NUM_BIDS, Bid  # noqa: E402
+from game.bids import all_bids, NUM_BIDS, Bid  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants

@@ -14,17 +14,16 @@ from __future__ import annotations
 import os
 import sys
 
-_TESTS_DIR    = os.path.dirname(os.path.abspath(__file__))
-_BASELINE_DIR = os.path.abspath(os.path.join(_TESTS_DIR, ".."))
-_AGENT_DIR    = os.path.abspath(os.path.join(_BASELINE_DIR, ".."))
-_PAPER_DIR    = os.path.abspath(os.path.join(_AGENT_DIR, ".."))
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
 
-for _p in (_PAPER_DIR, _AGENT_DIR):
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
 import pytest
-from agent.baseline.cfr_1v1 import (
+from agents.heuristic.cfr_1v1 import (
     CFRSolver,
     HC_PAIR_BIDS,
     _card_rank,
@@ -39,7 +38,7 @@ from agent.baseline.cfr_1v1 import (
     _HOLDS_RANK,
     _RANK_DEALS,
 )
-from agent.game.bids import (
+from game.bids import (
     all_bids, NUM_BIDS, CALL_ACTION, HH_ACTION,
     index_to_bid, bid_to_index,
     Bid, HIGH_CARD, PAIR,

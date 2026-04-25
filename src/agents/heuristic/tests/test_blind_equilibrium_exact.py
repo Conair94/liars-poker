@@ -21,19 +21,21 @@ import os
 import sys
 from itertools import combinations
 
-_HERE = os.path.dirname(os.path.abspath(__file__))
-_PAPER_DIR = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
-if _PAPER_DIR not in sys.path:
-    sys.path.insert(0, _PAPER_DIR)
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+for _p in (_PROBS_DIR, _SRC_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from poker_math_exact import _evaluate_ranked
-from agent.game.bids import (
+from game.bids import (
     Bid, all_bids, NUM_BIDS, CALL_ACTION, bid_to_index, index_to_bid,
     normalize_hand_type, HIGH_CARD, PAIR, TWO_PAIR, THREE_OF_A_KIND,
     STRAIGHT, FLUSH, FULL_HOUSE, FOUR_OF_A_KIND, STRAIGHT_FLUSH,
 )
-from agent.game.engine import has_exact_hand, new_match
-from agent.baseline.blind_equilibrium import (
+from game.engine import has_exact_hand, new_match
+from agents.heuristic.blind_equilibrium import (
     _compute_bid_exact,
     _compute_bid_at_least,
     _solve_n2,
@@ -610,7 +612,7 @@ def test_calling_hca_rational_without_ace():
 
 def test_high_hand_available_after_bid():
     """High Hand action must appear in legal_actions after a bid when high_hand=True."""
-    from agent.game.bids import HH_ACTION
+    from game.bids import HH_ACTION
     state = new_match(2, seed=0, exact_rules=True, high_hand=True)
     state.start_next_round()
     # Before any bid: HH should NOT be legal (nothing to declare on)
@@ -628,7 +630,7 @@ def test_high_hand_available_after_bid():
 
 def test_high_hand_not_available_without_flag():
     """High Hand action must NOT appear when high_hand=False."""
-    from agent.game.bids import HH_ACTION
+    from game.bids import HH_ACTION
     state = new_match(2, seed=0, exact_rules=True, high_hand=False)
     state.start_next_round()
     hca_idx = bid_to_index(Bid(HIGH_CARD, 12))
@@ -645,7 +647,7 @@ def test_high_hand_correct_declaration_penalizes_bidder():
     P1 declares High Hand (correct: HC A IS pool best).
     P0 (bidder) should be penalized; P1 (declarer) rewarded.
     """
-    from agent.game.bids import HH_ACTION
+    from game.bids import HH_ACTION
     state = new_match(2, seed=0, exact_rules=True, high_hand=True)
     state.start_next_round()
 
@@ -678,7 +680,7 @@ def test_high_hand_incorrect_declaration_penalizes_declarer():
     P1 declares High Hand (incorrect: HC K is NOT pool best).
     P1 (declarer) should be penalized.
     """
-    from agent.game.bids import HH_ACTION
+    from game.bids import HH_ACTION
     state = new_match(2, seed=0, exact_rules=True, high_hand=True)
     state.start_next_round()
 

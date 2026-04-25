@@ -78,7 +78,7 @@ BASE_SEED = 42
 
 RANK_NAMES = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
 
-DATA_DIR = os.path.join(REPO_ROOT, "Liars poker", "agent", "data")
+DATA_DIR = os.path.join(REPO_ROOT, "data", "probs")
 DATA_CACHE = os.path.join(DATA_DIR, "extended_conditional_probs.json")
 RANKED_CACHE = os.path.join(DATA_DIR, "extended_conditional_probs_ranked.json")
 

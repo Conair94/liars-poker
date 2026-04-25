@@ -27,16 +27,17 @@ from torch.distributions import Categorical
 # ---------------------------------------------------------------------------
 # Path setup
 # ---------------------------------------------------------------------------
-_EVAL_DIR  = os.path.dirname(os.path.abspath(__file__))
-_AGENT_DIR = os.path.abspath(os.path.join(_EVAL_DIR, ".."))
-_PAPER_DIR = os.path.abspath(os.path.join(_AGENT_DIR, ".."))
-for _p in (_PAPER_DIR, _AGENT_DIR):
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+_REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from agent.game.bids import NUM_ACTIONS, CALL_ACTION           # noqa: E402
-from agent.game.engine import new_match                        # noqa: E402
-from agent.rnad.network import LiarsPokerNet, _mask_logits     # noqa: E402
+from game.bids import NUM_ACTIONS, CALL_ACTION                  # noqa: E402
+from game.engine import new_match                               # noqa: E402
+from agents.learned.rnad.network import LiarsPokerNet, _mask_logits  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -111,8 +112,8 @@ def _bid_accuracy_episode(
     blind baseline's optimal action at each decision point.
     Returns fraction of decision points where they agree.
     """
-    from agent.baseline.blind_equilibrium import get_blind_equilibrium
-    from agent.game.bids import bid_to_index, Bid
+    from agents.heuristic.blind_equilibrium import get_blind_equilibrium
+    from game.bids import bid_to_index, Bid
 
     state = new_match(num_players, exact_rules=exact_rules, high_hand=high_hand)
     state.hand_sizes = [hand_size] * num_players
@@ -182,7 +183,7 @@ def play_match(
         "entropy" : average policy entropy across the match's decisions
         "rounds"  : number of rounds played
     """
-    from agent.game.engine import new_match as _new_match
+    from game.engine import new_match as _new_match
 
     state = _new_match(num_players)
     entropies: List[float] = []
@@ -241,9 +242,10 @@ def evaluate_policy(
     """
     policy.eval()
 
-    # Import agents lazily to avoid circular imports
-    import sys, os
-    sys.path.insert(0, os.path.join(_AGENT_DIR, "web", "backend"))
+    # Import agents lazily to avoid circular imports.
+    # NOTE: RandomAgent / BlindBaselineAgent move to src/agents/registry.py
+    # in commit P1.10 (registry extraction). Until then this codepath is
+    # only exercised by full-match eval.py runs, not the rnad test suite.
     from agent.web.backend.agents import RandomAgent, BlindBaselineAgent
 
     random_agent = RandomAgent()
@@ -300,8 +302,8 @@ def print_calibration_report(
     Print a table comparing the policy's action frequencies to the
     blind baseline equilibrium policy for each possible standing bid.
     """
-    from agent.game.bids import all_bids, HAND_NAMES
-    from agent.baseline.blind_equilibrium import get_blind_equilibrium
+    from game.bids import all_bids, HAND_NAMES
+    from agents.heuristic.blind_equilibrium import get_blind_equilibrium
 
     policy.eval()
     bids = all_bids()

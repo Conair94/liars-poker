@@ -40,17 +40,17 @@ from torch.distributions import Categorical
 # ---------------------------------------------------------------------------
 # Path setup
 # ---------------------------------------------------------------------------
-_RNAD_DIR  = os.path.dirname(os.path.abspath(__file__))
-_AGENT_DIR = os.path.abspath(os.path.join(_RNAD_DIR, ".."))
-_PAPER_DIR = os.path.abspath(os.path.join(_AGENT_DIR, ".."))
-for _p in (_PAPER_DIR, _AGENT_DIR):
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from agent.game.bids import (   # noqa: E402
+from game.bids import (   # noqa: E402
     NUM_BIDS, NUM_ACTIONS, CALL_ACTION, Bid, bid_to_index,
 )
-from agent.rnad.config import RNaDConfig   # noqa: E402
+from agents.learned.rnad.config import RNaDConfig   # noqa: E402
 
 # Warm-start lookup is loaded lazily at first use (expensive IO).
 _WARM_START_CACHE = None
@@ -59,7 +59,7 @@ _WARM_START_CACHE = None
 def _get_warm_start():
     global _WARM_START_CACHE
     if _WARM_START_CACHE is None:
-        from agent.rnad.warm_start import WarmStartLookup
+        from agents.learned.rnad.warm_start import WarmStartLookup
         _WARM_START_CACHE = WarmStartLookup()
     return _WARM_START_CACHE
 

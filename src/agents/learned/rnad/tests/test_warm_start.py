@@ -1,18 +1,20 @@
 """
-Tests for agent.rnad.warm_start. Run via:
+Tests for agents.learned.rnad.warm_start. Run via:
 
-    cd "papers/Liars poker/"
-    python -m agent.rnad.tests.test_warm_start
+    pytest src/agents/learned/rnad/tests/test_warm_start.py
 """
 
 import sys, os
-_PAPER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-if _PAPER_DIR not in sys.path:
-    sys.path.insert(0, _PAPER_DIR)
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", "..", ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+for _p in (_PROBS_DIR, _SRC_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 import numpy as np
-from agent.rnad.warm_start import WarmStartLookup, match_condition, _KNOWN_CONDITIONS
-from agent.game.bids import NUM_BIDS
+from agents.learned.rnad.warm_start import WarmStartLookup, match_condition, _KNOWN_CONDITIONS
+from game.bids import NUM_BIDS
 
 # Shared fixture — load once for the whole test module.
 _LOOKUP: WarmStartLookup = None
@@ -152,7 +154,7 @@ def test_condition_shifts_distribution():
     assert key == "pair_9"
     assert not np.allclose(m, c), "conditional must differ from marginal"
 
-    from agent.game.bids import all_bids, PAIR
+    from game.bids import all_bids, PAIR
     bids = all_bids()
     pair_and_above_indices = [i for i, b in enumerate(bids) if b.hand_type >= PAIR]
 
