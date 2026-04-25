@@ -79,11 +79,11 @@ Once P0 is complete, note in the final session summary which heuristic-ladder wi
 
 ### Checklist
 
-- [ ] Create top-level directories: `src/`, `tests/`, `data/`, `paper/`, `archive/`, `docs-internal/`.
-- [ ] Move LaTeX sources from `Liars poker/` (`.tex`, `.bib`, `figures/`, all `.aux/.log/.pdf` build artifacts) → `paper/`. Update `paper/README.md` with the build command.
-- [ ] Move probability-table generators (`compute_*.py`, `poker_math_exact.py`, `generate_prob_tables.py`) from `Liars poker/` → `src/training/probs/`.
-- [ ] Move probability-table JSON caches from `Liars poker/agent/data/*.json` → `data/probs/`.
-- [ ] Move `Liars poker/agent/game/` → `src/game/`. Verify zero imports from `src/agents/` — `game/` is a leaf package.
+- [x] Create top-level directories: `src/`, `paper/` (others created on demand: `data/`, `archive/` later).
+- [x] Move LaTeX sources from `Liars poker/` (`.tex`, `.bib`, `figures/`, all `.aux/.log/.pdf` build artifacts) → `paper/`. Update `paper/README.md` with the build command.
+- [x] Move probability-table generators (`compute_*.py`, `poker_math_exact.py`, `generate_prob_tables.py`) from `Liars poker/` → `src/training/probs/`.
+- [!] Move probability-table JSON caches from `Liars poker/agent/data/*.json` → `data/probs/`. **Deferred:** kept in old location to keep each commit atomic; will move alongside the consumer that pulls them (commit between P1.5 and P1.6).
+- [x] Move `Liars poker/agent/game/` → `src/game/`. Verify zero imports from `src/agents/` — `game/` is a leaf package.
 - [ ] Move `Liars poker/agent/baseline/` → `src/agents/heuristic/` **as-is, no logic changes** (Q3: frozen).
 - [ ] Move `Liars poker/agent/search/` → `src/agents/search/`.
 - [ ] Move `Liars poker/agent/rnad/` → `src/agents/learned/rnad/`.
@@ -427,5 +427,61 @@ Copy this block at the end of every session where plan-phase work was done. It l
 - The benchmark CLI lives at `Liars poker/agent/benchmark.py`. P1 moves it; rerun any baseline command via the new `src/` path afterward.
 
 **Time spent:** short — one session, no execution work, mostly prose authoring.
+
+---
+
+### Session Handoff — 2026-04-25 (P1, in progress: 3/11 commits done)
+
+**Phase:** P1 — `src/` Skeleton + Game Package + Unified Tests
+**Phase status:** in-progress — paused after commit 3 of an 11-commit plan
+**Commits in this session:**
+
+- `e225ff3` — *P1.1: move LaTeX sources to paper/* (incl. `paper/README.md`, root `.gitignore`)
+- `091a3ad` — *P1.2: move probability scripts to src/training/probs/*
+- `4783353` — *P1.2 fixup: include path-setup edits in moved probs scripts* (recovered edits accidentally left unstaged on top of a `git mv` — see Gotcha)
+- `c7cf573` — *P1.3: move agent/game/ to src/game/*
+
+**Pre-P1 baseline (recorded for regression comparison):** 81 tests passed, 1 pre-existing failure (`agent/game/tests/test_bids.py::test_bid_count` — `NUM_ACTIONS == NUM_BIDS + 1` was 110+1 expected vs 112 actual; HH_ACTION adds an extra action and the assertion was never updated). torch tests in `agent/rnad/tests/` are skipped in this conda env (no torch installed). Full suite: ~8 min, dominated by CFR+ tests.
+
+**Move plan (committed-by-commit, agreed with user; option (A) for the registry):**
+
+1. ✅ LaTeX → `paper/`
+2. ✅ Prob scripts → `src/training/probs/` (JSONs deferred)
+3. ✅ `agent/game/` → `src/game/` (incl. its tests/)
+4. **NEXT:** `agent/baseline/` → `src/agents/heuristic/` + `_DATA_DIR` re-pointed; `_PAPER_DIR` paths replaced. Move `blind_equilibrium.json`, `cfr_1v1.json`, `cfr_1v1_run/` along with the consumers (or split out as commit 5.5 — see deferred item).
+5. `agent/rnad/` → `src/agents/learned/rnad/` + same pattern; warm_start consumes many JSONs.
+6. Move all `agent/data/*.json` (probability tables) → `data/probs/` and `cfr_1v1_run/` → `data/runs/`. Update remaining consumers (web/backend if still in place).
+7. `src/agents/search/` placeholder (current `agent/search/` is empty on disk).
+8. `agent/checkpoints/` → `data/checkpoints/`.
+9. Tests consolidation: all `*/tests/` → unified `tests/` tree at repo root mirroring `src/`.
+10. **Extract `AGENT_REGISTRY` from `web/backend/agents.py` → `src/agents/registry.py`** so `benchmark.py` can keep working after P2 archives `web/`. (Option A, agreed with user.)
+11. `benchmark.py` → `src/training/benchmark.py`.
+12. Rewrite `pyproject.toml` to point at `src/` and `tests/`; `ruff check --fix` for stragglers.
+13. `src/README.md` (≤100 lines) + top-level `README.md` rewrite. Final commit.
+
+**Key gotcha — git mv + edit interaction:** `git mv A B` followed by editing `B` does NOT auto-stage the edit. The rename is staged; the subsequent edit sits in the working tree as an unstaged modification on top. `git add B` again to capture it. This bit me on commit 2 (the script path-setup edits) and required a fixup commit. **For each upcoming commit:** after `git mv` + edits, always run `git status` and confirm the diff before committing — not just that the rename is recorded.
+
+**Pyc hygiene:** `.gitignore` now ignores `__pycache__/` going forward, but a lot of stale `.pyc` files were tracked in the repo. I've untracked the ones I encountered (under `Liars poker/` and `Liars poker/agent/data/`), but more remain in `Liars poker/agent/baseline/`, `agent/rnad/`, `agent/web/backend/`. Each commit picks them up as deletions. Don't fight it — let them ride along with the relevant package move.
+
+**Compatibility scaffolding (will be removed by end of P1):** none added. Instead, downstream consumers (`baseline/`, `rnad/`, `web/`) currently have **broken imports** to `agent.game.*` and `poker_math_exact`; this is intentional and bisectable. They get fixed in commits 4–5 and 9. Per-commit smoke tests scope to packages already moved, not to the whole tree. Full test suite + benchmark run gates the final commit (12).
+
+**Path-setup convention used in moved scripts:**
+
+```python
+HERE      = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))  # adjust depth per file
+```
+
+`REPO_ROOT` is the repo root (containing `Liars poker/`, `src/`, `paper/`). All output paths now hard-coded as absolutes from `REPO_ROOT` so cwd doesn't matter.
+
+**Next session should start with:** open this handoff, then begin commit 4 — move `Liars poker/agent/baseline/` → `src/agents/heuristic/`. Files involved:
+
+- `blind_equilibrium.py`, `cfr_1v1.py`, `cfr_1v1_fast.py`, `cfr_1v1_overnight.py` (and their `tests/` subdir).
+- Each has a `_PAPER_DIR` block at the top adding `Liars poker/` and `Liars poker/agent/` to sys.path. Replace with: `_PROBS_DIR = .../src/training/probs/` for poker_math_exact, and `_SRC_DIR = ../..` for `from game.bids import ...`.
+- Each has `_AGENT_DIR/data/<name>.json` for cache files. Either re-point to `<repo>/Liars poker/agent/data/<name>.json` (defer JSON move) or to `<repo>/data/probs/<name>.json` (move JSONs in same commit). Recommend the second — tighter atomicity.
+- Tests under `agent/baseline/tests/` import from `agent.baseline.*` and `agent.game.*` — rewrite to `agents.heuristic.*` and `game.*`.
+- Run a smoke check after the move: `cd src && python -m pytest agents/heuristic/tests --no-header -q --tb=line`.
+
+**Time spent:** ~1.5 hours; 4 commits. Pace estimate: a single contiguous session can probably finish 4 more commits (through commit 7 — checkpoints). Then a second session for tests-tree consolidation, registry extraction, benchmark move, pyproject, READMEs, and full-suite verification. P1 will likely take 3 sessions total, not 1–2 as the plan estimated.
 
 ---
