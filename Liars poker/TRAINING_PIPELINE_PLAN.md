@@ -391,6 +391,41 @@ Copy this block at the end of every session where plan-phase work was done. It l
 
 ---
 
-## Current Phase: **P0 — Preflight**
+## Current Phase: **P1 — `src/` Skeleton + Game Package + Unified Tests**
 
 *(update this pointer as phases complete)*
+
+---
+
+### Session Handoff — 2026-04-24 (P0)
+
+**Phase:** P0 — Preflight
+**Phase status:** complete (with one deferred item, accepted)
+**Commits in this session:** `e9057c0` — *P0: preflight — ADR log, pyproject.toml, CHANGELOG*
+**Checklist items ticked:**
+
+- [x] `pyproject.toml` at repo root with dev + optional `openspiel` extras
+- [x] `docs-internal/design/adr/README.md` — ADR format spec
+- [x] ADR-001 Frontend retirement
+- [x] ADR-002 OpenSpiel adoption
+- [x] ADR-003 Infrastructure-first project posture
+- [x] `CHANGELOG.md` seeded with v0 marker + P0 entry
+- [x] W&B account created (entity `conair92-university-of-maryland`, project `liars-poker` auto-created on first `wandb.init`)
+- [x] Plan-doc P0 checklist updated with status
+
+**Blocked items:** none. The baseline-benchmark snapshot was *deferred*, not blocked — explicit user decision: agents will be re-benchmarked post-refactor anyway, so §12 A1 will be evaluated against whichever benchmark is current at P5 rather than against a frozen P0 snapshot. Recorded as `[!]` in the P0 checklist and as a `### Deferred` block in `CHANGELOG.md`.
+
+**User-side prerequisites for P3 (not P1):** verify `wandb login` works locally before P3 starts. P1 itself does not invoke W&B.
+
+**Next session should start with:** open `TRAINING_PIPELINE_PLAN.md` to the P1 section and execute the directory moves *one logical group at a time*, committing after each so a regression can be bisected to a single move. Suggested first move: LaTeX sources `Liars poker/*.tex,*.bib,figures/` → `paper/` (lowest-risk, no Python imports involved).
+
+**Gotchas discovered:**
+
+- Spell-check warnings on `wandb`, `openspiel`, `pyproject` are pre-existing style throughout the plan doc; ignore.
+- The user's W&B entity contains hyphens (`conair92-university-of-maryland`); use the literal string in `wandb.init(entity=...)` calls. Stored in `memory/reference_wandb_entity.md`.
+- Memory entry `reference_wandb_entity.md` is the single source of truth for the W&B entity/project pair — update it there, not in code, if either changes.
+- The benchmark CLI lives at `Liars poker/agent/benchmark.py`. P1 moves it; rerun any baseline command via the new `src/` path afterward.
+
+**Time spent:** short — one session, no execution work, mostly prose authoring.
+
+---
