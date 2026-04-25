@@ -243,10 +243,7 @@ def evaluate_policy(
     policy.eval()
 
     # Import agents lazily to avoid circular imports.
-    # NOTE: RandomAgent / BlindBaselineAgent move to src/agents/registry.py
-    # in commit P1.10 (registry extraction). Until then this codepath is
-    # only exercised by full-match eval.py runs, not the rnad test suite.
-    from agent.web.backend.agents import RandomAgent, BlindBaselineAgent
+    from agents.registry import RandomAgent, BlindBaselineAgent
 
     random_agent = RandomAgent()
     blind_agent  = BlindBaselineAgent()

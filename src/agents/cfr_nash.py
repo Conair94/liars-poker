@@ -22,15 +22,22 @@ from __future__ import annotations
 import ast
 import json
 import os
+import sys
 import random
 from typing import Dict, List, Optional, Tuple
 
-from agent.game.engine import MatchState
-from agent.game.bids import CALL_ACTION, HH_ACTION
+# Path setup: src/ for game.*
+_HERE    = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR = os.path.abspath(os.path.join(_HERE, ".."))
+if _SRC_DIR not in sys.path:
+    sys.path.insert(0, _SRC_DIR)
 
+from game.engine import MatchState
+from game.bids import CALL_ACTION, HH_ACTION
+
+_REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
 _DEFAULT_CHECKPOINT = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data",
-    "cfr_1v1_run", "mb3_hh_overnight", "checkpoint.json"
+    _REPO_ROOT, "data", "runs", "cfr_1v1", "mb3_hh_overnight", "checkpoint.json"
 )
 
 

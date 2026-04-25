@@ -25,17 +25,18 @@ import sys
 from typing import Optional
 
 # ---------------------------------------------------------------------------
-# Path setup
+# Path setup: src/training/probs/ for poker_math_exact (consumed transitively
+# by helpers like get_blind_equilibrium / WarmStartLookup).
 # ---------------------------------------------------------------------------
-_BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
-_AGENT_DIR   = os.path.abspath(os.path.join(_BACKEND_DIR, "..", ".."))
-_PAPER_DIR   = os.path.abspath(os.path.join(_AGENT_DIR, ".."))
-for _p in (_PAPER_DIR, _AGENT_DIR):
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from agent.game.engine import MatchState                                     # noqa: E402
-from agent.game.bids import (                                                  # noqa: E402
+from game.engine import MatchState                                            # noqa: E402
+from game.bids import (                                                       # noqa: E402
     CALL_ACTION, HH_ACTION, NUM_BIDS, bid_to_index, index_to_bid, all_bids,
     HIGH_CARD, PAIR, TWO_PAIR, THREE_OF_A_KIND, STRAIGHT, FLUSH,
     FULL_HOUSE, FOUR_OF_A_KIND, STRAIGHT_FLUSH,
@@ -120,7 +121,7 @@ class BlindBaselineAgent:
                 pass
         # n < 5 or WarmStart unavailable: exact blind equilibrium
         try:
-            from agent.baseline.blind_equilibrium import get_blind_equilibrium
+            from agents.heuristic.blind_equilibrium import get_blind_equilibrium
             eq = get_blind_equilibrium(n)
             return np.array(eq["p_at_least"], dtype=np.float32)
         except Exception:
@@ -147,7 +148,7 @@ class BlindBaselineAgent:
             # Use equilibrium initial_bid as opening hint (n<=10 only, must not exceed threshold)
             if n <= 10:
                 try:
-                    from agent.baseline.blind_equilibrium import get_blind_equilibrium
+                    from agents.heuristic.blind_equilibrium import get_blind_equilibrium
                     eq = get_blind_equilibrium(n)
                     initial = eq["initial_bid"]
                     if initial <= threshold_idx and initial in legal:
@@ -180,7 +181,7 @@ _WARM_START: Optional[object] = None
 def _get_warm_start():
     global _WARM_START
     if _WARM_START is None:
-        from agent.rnad.warm_start import WarmStartLookup
+        from agents.learned.rnad.warm_start import WarmStartLookup
         _WARM_START = WarmStartLookup()
     return _WARM_START
 
@@ -1050,7 +1051,7 @@ AGENT_REGISTRY: dict = {
 }
 
 def _make_cfr_nash():
-    from agent.web.backend.cfr_nash_agent import CFRNashAgent
+    from agents.cfr_nash import CFRNashAgent
     return CFRNashAgent()
 
 
