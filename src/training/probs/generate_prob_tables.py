@@ -4,9 +4,9 @@ generate_prob_tables.py
 Generates a line-graph figure of poker hand probabilities for n=5..25.
 Replaces the LaTeX table approach with a cleaner matplotlib figure.
 
-Outputs (relative to this directory):
-  figures/hand_probabilities.pdf   — main figure for inclusion in the paper
-  figures/hand_probabilities.json  — raw data for reference
+Outputs (under <repo>/paper/figures/):
+  hand_probabilities.pdf   — main figure for inclusion in the paper
+  hand_probabilities.json  — raw data for reference
 """
 
 import sys
@@ -22,7 +22,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIGURES_DIR = os.path.join(HERE, "figures")
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+FIGURES_DIR = os.path.join(REPO_ROOT, "paper", "figures")
 
 N_VALUES = list(range(5, 26))
 

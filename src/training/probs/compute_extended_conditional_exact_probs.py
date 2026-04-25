@@ -59,14 +59,14 @@ from itertools import combinations
 from typing import Callable, List, Set, Tuple
 
 HERE      = os.path.dirname(os.path.abspath(__file__))
-PAPER_DIR = os.path.abspath(os.path.join(HERE, "..", ".."))
-if PAPER_DIR not in sys.path:
-    sys.path.insert(0, PAPER_DIR)
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 
 from poker_math_exact import _evaluate_ranked, ROYAL_FLUSH, STRAIGHT_FLUSH  # noqa: E402
 
-# Reuse samplers + condition manifest from the at-least script.
-from agent.data.compute_extended_conditional_probs import (  # noqa: E402
+# Reuse samplers + condition manifest from the at-least script (now a sibling module).
+from compute_extended_conditional_probs import (  # noqa: E402
     _build_conditions,
     _materialise_sampler,
     N_VALUES,
@@ -94,7 +94,8 @@ _BID_TO_INDEX = {b: i for i, b in enumerate(_ALL_BIDS)}
 
 DEFAULT_SAMPLES = 10_000
 BASE_SEED       = 4242
-OUTPUT_FILE     = os.path.join(HERE, "extended_conditional_exact_probs.json")
+DATA_DIR        = os.path.join(REPO_ROOT, "Liars poker", "agent", "data")
+OUTPUT_FILE     = os.path.join(DATA_DIR, "extended_conditional_exact_probs.json")
 
 
 def _exact_bids_in_pool(pool: List[int]) -> Set[Tuple[int, int]]:

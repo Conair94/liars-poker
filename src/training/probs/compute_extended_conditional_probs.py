@@ -61,9 +61,9 @@ from typing import Callable
 
 # Make poker_math_exact importable whether this is run as a module or a file.
 HERE = os.path.dirname(os.path.abspath(__file__))
-PAPER_DIR = os.path.abspath(os.path.join(HERE, "..", ".."))
-if PAPER_DIR not in sys.path:
-    sys.path.insert(0, PAPER_DIR)
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 
 from poker_math_exact import _evaluate, _evaluate_ranked, HAND_NAMES  # noqa: E402
 
@@ -78,8 +78,9 @@ BASE_SEED = 42
 
 RANK_NAMES = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
 
-DATA_CACHE = os.path.join(HERE, "extended_conditional_probs.json")
-RANKED_CACHE = os.path.join(HERE, "extended_conditional_probs_ranked.json")
+DATA_DIR = os.path.join(REPO_ROOT, "Liars poker", "agent", "data")
+DATA_CACHE = os.path.join(DATA_DIR, "extended_conditional_probs.json")
+RANKED_CACHE = os.path.join(DATA_DIR, "extended_conditional_probs_ranked.json")
 
 
 # ---------------------------------------------------------------------------

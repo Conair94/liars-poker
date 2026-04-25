@@ -39,7 +39,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 HERE          = os.path.dirname(os.path.abspath(__file__))
-FIGURES       = os.path.join(HERE, "figures")
+REPO_ROOT     = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+FIGURES       = os.path.join(REPO_ROOT, "paper", "figures")
 CACHE         = os.path.join(FIGURES, "conditional_probs_data.json")
 RANKED_CACHE  = os.path.join(FIGURES, "conditional_probs_ranked_data.json")
 BASELINE      = os.path.join(FIGURES, "hand_probabilities.json")

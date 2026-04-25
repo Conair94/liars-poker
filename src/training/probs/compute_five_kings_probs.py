@@ -39,13 +39,13 @@ import time
 from typing import List, Tuple
 
 HERE      = os.path.dirname(os.path.abspath(__file__))
-PAPER_DIR = os.path.abspath(os.path.join(HERE, "..", ".."))
-if PAPER_DIR not in sys.path:
-    sys.path.insert(0, PAPER_DIR)
+REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
 
 from poker_math_exact import _evaluate_ranked, ROYAL_FLUSH, STRAIGHT_FLUSH  # noqa: E402
 
-DATA_DIR    = HERE
+DATA_DIR    = os.path.join(REPO_ROOT, "Liars poker", "agent", "data")
 OUTPUT_FILE = os.path.join(DATA_DIR, "five_kings_probs.json")
 
 N_VALUES = list(range(5, 26))
