@@ -84,11 +84,13 @@ Once P0 is complete, note in the final session summary which heuristic-ladder wi
 - [x] Move probability-table generators (`compute_*.py`, `poker_math_exact.py`, `generate_prob_tables.py`) from `Liars poker/` → `src/training/probs/`.
 - [!] Move probability-table JSON caches from `Liars poker/agent/data/*.json` → `data/probs/`. **Deferred:** kept in old location to keep each commit atomic; will move alongside the consumer that pulls them (commit between P1.5 and P1.6).
 - [x] Move `Liars poker/agent/game/` → `src/game/`. Verify zero imports from `src/agents/` — `game/` is a leaf package.
-- [ ] Move `Liars poker/agent/baseline/` → `src/agents/heuristic/` **as-is, no logic changes** (Q3: frozen).
-- [ ] Move `Liars poker/agent/search/` → `src/agents/search/`.
-- [ ] Move `Liars poker/agent/rnad/` → `src/agents/learned/rnad/`.
-- [ ] Move `Liars poker/agent/checkpoints/` → `data/checkpoints/` (one-shot, Q8).
-- [ ] Consolidate all `tests/` directories into one tree at repo root, mirroring `src/` (Q9). Remove the scattered `__pycache__` and `.pytest_cache` artifacts.
+- [x] Move `Liars poker/agent/baseline/` → `src/agents/heuristic/` **as-is, no logic changes** (Q3: frozen).
+- [x] Move `Liars poker/agent/search/` → `src/agents/search/`. (Was empty on disk — created placeholder package.)
+- [x] Move `Liars poker/agent/rnad/` → `src/agents/learned/rnad/`.
+- [x] Move `Liars poker/agent/checkpoints/` → `data/checkpoints/` (one-shot, Q8).
+- [x] Consolidate all `tests/` directories into one tree at repo root, mirroring `src/` (Q9). Tests/conftest.py replaces per-test sys.path boilerplate. (web/backend/tests/ deferred — gets archived in P2.)
+- [x] Extract `web/backend/agents.py` + `cfr_nash_agent.py` → `src/agents/registry.py` + `src/agents/cfr_nash.py` (option A; pre-decided 2026-04-25). Keeps benchmark working post-P2.
+- [x] Move `Liars poker/agent/benchmark.py` → `src/training/benchmark.py`. Output now writes to `data/runs/benchmark/`.
 - [ ] Rewrite `pyproject.toml` to point at `src/` and `tests/`.
 - [ ] Fix all imports broken by the moves. Use `ruff check --fix` to catch the easy ones.
 - [ ] Run full test suite + baseline benchmark; confirm no regressions.
@@ -483,5 +485,67 @@ REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))  # adjust dept
 - Run a smoke check after the move: `cd src && python -m pytest agents/heuristic/tests --no-header -q --tb=line`.
 
 **Time spent:** ~1.5 hours; 4 commits. Pace estimate: a single contiguous session can probably finish 4 more commits (through commit 7 — checkpoints). Then a second session for tests-tree consolidation, registry extraction, benchmark move, pyproject, READMEs, and full-suite verification. P1 will likely take 3 sessions total, not 1–2 as the plan estimated.
+
+---
+
+### Session Handoff — 2026-04-25 session 2 (P1, in progress: 9/13 commits done)
+
+**Phase:** P1 — `src/` Skeleton + Game Package + Unified Tests
+**Phase status:** in-progress — paused after commit 9 of 13. 4 commits remain (pyproject rewrite + ruff fixups, READMEs, full-suite verification, final commit).
+**Commits in this session (this is the second P1 session):**
+
+- `cf152fe` — *P1.4: move agent/baseline/ to src/agents/heuristic/* (incl. blind_equilibrium.json, cfr_1v1.json → data/probs/; cfr_1v1_run/ → data/runs/cfr_1v1/)
+- `ec56060` — *P1.5: move agent/rnad/ to src/agents/learned/rnad/* (incl. all warm_start probability JSONs → data/probs/; src/training/probs/compute_*.py output paths re-pointed to data/probs/)
+- `a2c461f` — *P1.6: move agent/checkpoints/ → data/checkpoints/, add src/agents/search/ placeholder*
+- `552b9e4` — *P1.7: consolidate tests/ tree mirroring src/* (introduces tests/conftest.py)
+- `5423b9f` — *P1.8: extract AGENT_REGISTRY from web/backend to src/agents/* (option A — pre-decided)
+- `4b3d4dd` — *P1.9: move benchmark.py → src/training/benchmark.py*
+
+**Per-commit smoke-test results (all green except the one pre-existing failure):**
+
+- P1.4 baseline tests: 8 + 28 + 24 = 60 passed (test_blind_equilibrium, test_blind_equilibrium_exact, test_cfr_1v1). cfr_1v1_fast not exercised — it's marked `pytest.mark.slow`.
+- P1.5 rnad: test_warm_start = 16 passed. test_rnad still skipped (no torch in conda env, same as pre-P1).
+- P1.7 unified tree: 73 passed + the 1 pre-existing failure.
+- P1.8 registry: imported cleanly (17 agents); CFRNashAgent loaded its checkpoint from the new data/runs/cfr_1v1/ path.
+- P1.9 benchmark: imports cleanly; full benchmark run deferred to P1.12.
+
+**Still in `Liars poker/` after these commits:**
+
+- `agent/web/backend/{__init__.py, app.py, tests/}` — FastAPI app + its tests. **All P2 territory.** Don't touch in P1; P2 archives the whole web/ dir.
+- `agent/web/{__init__.py, frontend/, run.py}` — same.
+- `agent/data/run.log` — a stale log; can be deleted in P6.
+- `agent/{AGENT_CATALOG.md, README.md, TRAINING_OPTIMIZATION_PLAN.md}` + the top-level `Liars poker/{*.md, CLAUDE.md, *_PLAN.md}` — design docs. P6 moves them to docs-internal/design/legacy/.
+
+**Next session should start with:** open this handoff, then begin commit 10 — pyproject.toml rewrite. Concrete steps:
+
+1. Rewrite [pyproject.toml](pyproject.toml) to declare `src/` as the package root and `tests/` as the test path:
+
+   ```toml
+   [tool.setuptools.packages.find]
+   where = ["src"]
+
+   [tool.pytest.ini_options]
+   testpaths = ["tests"]
+   pythonpath = ["src", "src/training/probs"]
+   ```
+
+   The `pythonpath` line means tests resolve `from agents.heuristic...` and `from poker_math_exact import ...` without conftest.py needing to manipulate sys.path. After verifying it works, simplify or remove tests/conftest.py.
+
+2. `ruff check src/ tests/ --fix` — should be a no-op or close to it; flag anything it changes.
+
+3. `python -m pytest tests/ --no-header -q --tb=line` from repo root. Expect 81 passed + 1 pre-existing fail (test_bid_count, HH_ACTION counts). Anything else is a regression — bisect to the introducing commit.
+
+4. Run the benchmark CLI as a sanity check: `cd src && python -m training.benchmark` (or whatever the new entry point looks like after pyproject is rewritten).
+
+Then proceed to commit 11 (READMEs) and commit 12 (final commit "P1: src/ layout; zero behavior change").
+
+**Gotchas observed:**
+
+- The `git mv` + edit gotcha bit again on commit P1.5: editing source files after `git mv` left the edits unstaged. Caught by `git status` before commit and re-staged with `git add -A`. **Always run `git add -A` after edits, even if you used `git mv` first.** (Updated `feedback_git_mv_then_edit.md` last session captures this.)
+- `src/agents/learned/rnad/eval.py` had a TODO leftover from P1.5 referencing `agent.web.backend.agents`; resolved in P1.8 when the registry moved.
+- `tests/conftest.py` is the new canonical sys.path entry point; per-test sys.path blocks were stripped during P1.7. If pyproject's `pythonpath` setting works in commit 10, conftest.py becomes redundant — but leave it in place until verified.
+- The `data/probs/` JSON paths in `compute_*.py` got rewritten via `sed -i ''` (macOS sed) in P1.5. The IDE flagged this as "user modification" in system reminders — that's expected, not a real change to be aware of.
+
+**Time spent:** ~3 hours; 6 commits. Working pace: ~30 min/commit including smoke tests (CFR tests are slow — ~8 min for the full cfr_1v1.py suite). Next session can probably finish all 4 remaining commits in one sitting (~1.5–2 hours) — pyproject + ruff is small, READMEs are mostly writing, and the full-suite verification just runs in the background.
 
 ---
