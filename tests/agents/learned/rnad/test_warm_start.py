@@ -1,16 +1,8 @@
 """
 Tests for agents.learned.rnad.warm_start. Run via:
 
-    pytest src/agents/learned/rnad/tests/test_warm_start.py
+    pytest tests/agents/learned/rnad/test_warm_start.py
 """
-
-import sys, os
-_HERE      = os.path.dirname(os.path.abspath(__file__))
-_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", "..", ".."))
-_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
-for _p in (_PROBS_DIR, _SRC_DIR):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 import numpy as np
 from agents.learned.rnad.warm_start import WarmStartLookup, match_condition, _KNOWN_CONDITIONS

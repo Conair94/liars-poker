@@ -1,7 +1,7 @@
 """
 Unit tests for game.bids — no external deps. Runnable as:
 
-    pytest src/game/tests/test_bids.py
+    pytest tests/game/test_bids.py
 """
 
 from game.bids import (

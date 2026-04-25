@@ -1,7 +1,7 @@
 """
 Unit tests for game.engine. Pure Python, no pytest dep. Run via:
 
-    pytest src/game/tests/test_engine.py
+    pytest tests/game/test_engine.py
 """
 
 from game import (

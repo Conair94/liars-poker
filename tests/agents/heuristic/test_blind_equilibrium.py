@@ -1,19 +1,8 @@
 """
 Tests for agents.heuristic.blind_equilibrium. Run via:
 
-    pytest src/agents/heuristic/tests/test_blind_equilibrium.py
+    pytest tests/agents/heuristic/test_blind_equilibrium.py
 """
-
-import sys
-import os
-
-# Path setup: src/ for game.bids and agents.*, src/training/probs for poker_math_exact.
-_HERE      = os.path.dirname(os.path.abspath(__file__))
-_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
-_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
-for _p in (_PROBS_DIR, _SRC_DIR):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 from agents.heuristic.blind_equilibrium import (
     _compute_bid_at_least,

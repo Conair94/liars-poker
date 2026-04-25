@@ -147,7 +147,15 @@
       "Bash(python -m pytest src/game/tests --no-header -q --tb=short)",
       "Bash(python -m pytest game/tests --no-header -q --tb=short)",
       "Bash(git reset *)",
-      "Bash(awk '{print $1}')"
+      "Bash(awk '{print $1}')",
+      "Bash(python -m pytest agents/heuristic/tests/test_blind_equilibrium.py --no-header -q --tb=short)",
+      "Bash(python -m pytest agents/heuristic/tests/test_blind_equilibrium_exact.py --no-header -q --tb=short)",
+      "Bash(python -m pytest agents/heuristic/tests/test_cfr_1v1.py --no-header -q --tb=short -x)",
+      "Bash(python -m pytest agents/learned/rnad/tests/test_warm_start.py --no-header -q --tb=short)",
+      "Bash(mkdir -p src/agents/search data/checkpoints)",
+      "Bash(touch src/agents/search/__init__.py)",
+      "Bash(rmdir \"Liars poker/agent/search\" \"Liars poker/agent/checkpoints\")",
+      "Bash(python -m pytest tests/game tests/agents/heuristic/test_blind_equilibrium.py tests/agents/heuristic/test_blind_equilibrium_exact.py tests/agents/learned/rnad/test_warm_start.py --no-header -q --tb=line)"
     ]
   }
 }

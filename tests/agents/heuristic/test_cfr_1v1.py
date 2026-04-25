@@ -1,5 +1,5 @@
 """
-Tests for agent/baseline/cfr_1v1.py (bounded-tree variant).
+Tests for agents.heuristic.cfr_1v1 (bounded-tree variant).
 
 Test categories:
   A — Game structure / holds table correctness
@@ -10,17 +10,6 @@ Test categories:
 """
 
 from __future__ import annotations
-
-import os
-import sys
-
-_HERE      = os.path.dirname(os.path.abspath(__file__))
-_SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
-_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
-
-for _p in (_PROBS_DIR, _SRC_DIR):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 import pytest
 from agents.heuristic.cfr_1v1 import (
