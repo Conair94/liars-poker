@@ -40,10 +40,12 @@ from .bids import (
     bid_to_index, index_to_bid, normalize_hand_type,
 )
 
-# Import the Stage 1 evaluator. Walk up to the paper directory on sys.path.
+# Import the Stage 1 evaluator. Now lives at src/training/probs/ post-P1 move.
 _PAPER_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-if _PAPER_DIR not in sys.path:
-    sys.path.insert(0, _PAPER_DIR)
+_PROBS_DIR = os.path.abspath(os.path.join(_PAPER_DIR, "..", "src", "training", "probs"))
+for _p in (_PROBS_DIR, _PAPER_DIR):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from poker_math_exact import _evaluate_ranked  # noqa: E402
 
