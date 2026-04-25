@@ -127,7 +127,27 @@
       "Bash(tee /tmp/benchmark_result.txt)",
       "Bash(python -m agent.benchmark --games 200 --seed 42)",
       "Bash(python -m agent.benchmark --games 500 --seed 42 --groups exact_ladder)",
-      "Bash(python3 -m agent.benchmark --games 200 --seed 42 --groups exact)"
+      "Bash(python3 -m agent.benchmark --games 200 --seed 42 --groups exact)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, 'Liars poker'\\); import agent.game.engine; import agent.baseline.blind_equilibrium; import agent.rnad.config; print\\('imports OK'\\)\")",
+      "Bash(python -m pytest agent/game/tests -x --no-header -q)",
+      "Bash(python -m pytest agent --no-header -q --tb=no)",
+      "Bash(python -m pytest agent --no-header -q --tb=no --ignore=agent/rnad)",
+      "Bash(python -m pytest agent/rnad/tests/test_rnad.py --collect-only --no-header)",
+      "Bash(jobs -l)",
+      "Bash(timeout 60 python -m pytest agent/game/tests agent/baseline/tests --no-header -q --tb=line --ignore=agent/baseline/tests/test_cfr_1v1_fast.py)",
+      "Bash(python -m pytest agent/game/tests agent/baseline/tests --no-header -q --tb=line --ignore=agent/baseline/tests/test_cfr_1v1_fast.py --timeout=30)",
+      "Bash(python -m pytest agent/game/tests agent/baseline/tests --no-header -q --tb=line --ignore=agent/baseline/tests/test_cfr_1v1_fast.py)",
+      "Bash(git mv *)",
+      "Bash(python -m pytest agent/game/tests --no-header -q --tb=line)",
+      "Bash(python -m pytest agent/game/tests --no-header -q --tb=short)",
+      "Bash(git rm *)",
+      "Bash(git stash *)",
+      "Bash(grep \"\\\\.pyc$\")",
+      "Bash(xargs -I{} git rm --cached \"{}\")",
+      "Bash(python -m pytest src/game/tests --no-header -q --tb=short)",
+      "Bash(python -m pytest game/tests --no-header -q --tb=short)",
+      "Bash(git reset *)",
+      "Bash(awk '{print $1}')"
     ]
   }
 }
