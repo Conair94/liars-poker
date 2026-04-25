@@ -45,22 +45,22 @@ Dependencies: P2 depends only on P0. P3 depends on P1. P4 depends on P1 + P3. P5
 
 ### Checklist
 
-- [ ] **USER:** Create a Weights & Biases account (free academic plan) and a project named `liars-poker`. Save the API key to `~/.netrc`.
-- [ ] Add dev dependencies: `hydra-core`, `wandb`, `pytest`, `pytest-cov`, `ruff`, `mypy` to a new `pyproject.toml` at repo root.
-- [ ] Create `docs-internal/design/adr/` with `README.md` explaining the ADR format (one file per irreversible decision, dated, titled, status, context, decision, consequences).
-- [ ] Write **ADR-001: Frontend retirement** (2026-04-24 — rationale from design doc §8).
-- [ ] Write **ADR-002: OpenSpiel adoption** (rationale from Q10).
-- [ ] Write **ADR-003: Infrastructure-first project posture** (rationale from Q1).
-- [ ] Snapshot current benchmark as the regression baseline: run the full `exact` group at 500 games/pair on `main`, save output under `data/runs/20260424-baseline-premigration/`. This is the yardstick for §12 A1.
-- [ ] Add a `CHANGELOG.md` at repo root, seeded with the baseline snapshot as v0.
-- [ ] Commit: "P0: preflight — ADR log, tracking stack, baseline snapshot."
+- [x] **USER:** Create a Weights & Biases account (free academic plan). Project `liars-poker` will be auto-created on first `wandb.init` call. User to set `WANDB_ENTITY=<username>` env var so the username is not committed to the repo.
+- [x] Add dev dependencies: `hydra-core`, `wandb`, `pytest`, `pytest-cov`, `ruff`, `mypy` to a new `pyproject.toml` at repo root. (Optional `openspiel` extra also added for P4.)
+- [x] Create `docs-internal/design/adr/` with `README.md` explaining the ADR format (one file per irreversible decision, dated, titled, status, context, decision, consequences).
+- [x] Write **ADR-001: Frontend retirement** (2026-04-24 — rationale from design doc §8).
+- [x] Write **ADR-002: OpenSpiel adoption** (rationale from Q10).
+- [x] Write **ADR-003: Infrastructure-first project posture** (rationale from Q1).
+- [!] Snapshot current benchmark as the regression baseline — **deferred** per user direction 2026-04-24. Rationale: most agents will be re-benchmarked post-refactor anyway, so the §12 A1 acceptance check will be evaluated against whichever benchmark is current when P5 lands rather than a frozen P0 snapshot. Not a blocker.
+- [x] Add a `CHANGELOG.md` at repo root, seeded with the baseline snapshot as v0.
+- [ ] Commit: "P0: preflight — ADR log, tracking stack, pyproject.toml."
 
 ### Exit Criteria
 
-- `wandb login` works locally.
-- `hydra-core` importable from a Python REPL in the project env.
-- `docs-internal/design/adr/` contains ADRs 001–003.
-- `data/runs/20260424-baseline-premigration/metrics.json` exists with win-rates for all current agents.
+- [ ] `wandb login` works locally. **USER to verify before P3** (W&B is not actually invoked in P0).
+- [ ] `hydra-core` importable from a Python REPL in the project env. **USER to verify after `pip install -e ".[dev]"`.**
+- [x] `docs-internal/design/adr/` contains ADRs 001–003.
+- [~] `data/runs/20260424-baseline-premigration/metrics.json` — **deferred** (see checklist note above).
 
 ### Session Handoff Notes
 

@@ -1,0 +1,41 @@
+[project]
+name = "liars-poker"
+version = "0.0.0"
+description = "Strategic analysis and reinforcement-learning agents for card-based Liar's Poker."
+requires-python = ">=3.11"
+authors = [{ name = "Connor M. Lockhart" }]
+
+dependencies = [
+    "numpy",
+    "torch",
+    "matplotlib",
+    "pandas",
+]
+
+[project.optional-dependencies]
+dev = [
+    "hydra-core",
+    "wandb",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "mypy",
+]
+openspiel = [
+    "open_spiel",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
