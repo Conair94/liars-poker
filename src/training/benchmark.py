@@ -26,15 +26,17 @@ from datetime import datetime, timezone
 from itertools import combinations
 
 # ---------------------------------------------------------------------------
-# Path setup (mirrors agents.py)
-_AGENT_DIR = os.path.dirname(os.path.abspath(__file__))
-_PAPER_DIR = os.path.abspath(os.path.join(_AGENT_DIR, ".."))
-for _p in (_PAPER_DIR, _AGENT_DIR):
+# Path setup
+_HERE      = os.path.dirname(os.path.abspath(__file__))
+_SRC_DIR   = os.path.abspath(os.path.join(_HERE, ".."))
+_PROBS_DIR = os.path.join(_SRC_DIR, "training", "probs")
+_REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
+for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from agent.game.engine import new_match
-from agent.web.backend.agents import AGENT_REGISTRY, build_agent
+from game.engine import new_match
+from agents.registry import AGENT_REGISTRY, build_agent
 
 # ---------------------------------------------------------------------------
 # Agent lists
@@ -185,7 +187,8 @@ def main():
         "results": results,
     }
 
-    out_path = os.path.join(_AGENT_DIR, "data", "benchmark_results.json")
+    out_path = os.path.join(_REPO_ROOT, "data", "runs", "benchmark", "benchmark_results.json")
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(output, f, indent=2)
     print(f"\nSaved to {out_path}")
