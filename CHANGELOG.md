@@ -8,6 +8,14 @@ Format roughly follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ### Added
 
+- **P3 (2026-04-26)** — Decision logging + reflect v1 + W&B integration.
+  - `src/training/logging.py`: `DecisionRecord` dataclass + `DecisionLogger` JSONL writer (design §6 schema).
+  - `src/training/decision_capture.py`: `LoggingAgentWrapper` — non-invasive per-turn recording for any agent exposing `choose_action(state)`. No agent code touched.
+  - `src/training/reflect.py`: v1 rule engine — infeasible-bid tripwire (0 on clean run ✓), stale-bid-repetition proxy. Three rules deferred to P5 (need per-choice `p`/`eu`): missed-call, low-EU, rank-leak. CLI: `python -m training.reflect <run_id>` → `summary.md`.
+  - `benchmark.py`: `--log-decisions` (writes `data/runs/<run_id>/decisions.jsonl` + `metrics.json`), `--wandb` (pushes win-rate matrix + flaw counts to W&B, tagged with git SHA + config hash), `--run-name`, deterministic `run_id` per design §5.
+  - `Liars poker/TRAINING_PIPELINE_TESTS.md`: test-case scaffold for all new modules.
+  - Pending: full 500-game Exit-Criteria run with `--log-decisions --wandb` (smoke test passed at 5 games/pair; formal closure needs 500).
+
 - **P1 (2026-04-25)** — `src/` skeleton + game package + unified test tree. Pure file moves, zero behavior change. 13 commits; full test suite green (88 passed, 1 pre-existing `test_bid_count` failure, 2 slow tests deselected by default). See `TRAINING_PIPELINE_PLAN.md` P1 handoff for per-commit detail.
 - **P2 foundations (2026-04-25)** — `archive/README.md` (frozen-on-disk policy), ADR-004 (frontend archived on disk). Actual `git mv` of `docs/` and `Liars poker/agent/web/` → `archive/web-2026-04/` is gated on user disabling GitHub Pages.
 - `pyproject.toml` at repo root with dev dependencies (`hydra-core`, `wandb`, `pytest`, `pytest-cov`, `ruff`, `mypy`) and an optional `openspiel` extra.
