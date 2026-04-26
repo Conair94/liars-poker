@@ -155,7 +155,31 @@
       "Bash(mkdir -p src/agents/search data/checkpoints)",
       "Bash(touch src/agents/search/__init__.py)",
       "Bash(rmdir \"Liars poker/agent/search\" \"Liars poker/agent/checkpoints\")",
-      "Bash(python -m pytest tests/game tests/agents/heuristic/test_blind_equilibrium.py tests/agents/heuristic/test_blind_equilibrium_exact.py tests/agents/learned/rnad/test_warm_start.py --no-header -q --tb=line)"
+      "Bash(python -m pytest tests/game tests/agents/heuristic/test_blind_equilibrium.py tests/agents/heuristic/test_blind_equilibrium_exact.py tests/agents/learned/rnad/test_warm_start.py --no-header -q --tb=line)",
+      "Bash(mkdir -p data/runs/benchmark)",
+      "Bash(python -m pytest tests/ --no-header -q --tb=line)",
+      "Bash(python -m pytest tests/ --no-header -q --tb=line --ignore=tests/agents/learned)",
+      "Bash(python -m pytest tests/ --no-header -q --tb=line --ignore=tests/agents/learned -x)",
+      "Bash(timeout 30 python -m pytest tests/game/ --no-header -q --tb=line)",
+      "Bash(python -m pytest tests/game/ --no-header -q --tb=line)",
+      "Bash(ruff check *)",
+      "Bash(python -m ruff check src/ tests/ --fix)",
+      "Bash(conda env *)",
+      "Bash(python -m pytest tests/game/ tests/agents/heuristic/ --no-header -q --tb=line)",
+      "Bash(pip show *)",
+      "Bash(grep -v \"E501\\\\|B905\\\\|  --\\\\>\\\\|   |\\\\|    |\\\\|help:\\\\|^\\\\s*$\")",
+      "Bash(python -m pytest tests/game/ tests/agents/heuristic/ tests/training/ --no-header -q --tb=line)",
+      "Bash(python -m pytest tests/agents/heuristic/test_blind_equilibrium.py --no-header -q --tb=line)",
+      "Bash(python -m pytest tests/agents/heuristic/test_cfr_1v1_fast.py -k \"not slow\" --no-header -q --tb=line)",
+      "Bash(python -m pytest tests/ --ignore=tests/agents/learned --no-header -q --tb=short)",
+      "Bash(python -m pytest tests/agents/heuristic/test_cfr_1v1_fast.py::test_opening_mix_converges_to_reference -v --tb=long)",
+      "Bash(grep -v \"^[-+]#\\\\|^[-+]$\\\\|^[-+] \\\\+#\\\\|typing\\\\|List\\\\|Dict\\\\|Tuple\\\\|Optional\\\\|noqa\\\\|import\")",
+      "Bash(grep -v \"typing\\\\|List\\\\|Dict\\\\|Tuple\\\\|Optional\\\\|: list\\\\|: dict\\\\|: tuple\\\\|| None\\\\|noqa\\\\|import\\\\|^[-+]$\\\\|#\")",
+      "Bash(python -m pytest tests/agents/heuristic/test_cfr_1v1_fast.py::test_opening_mix_converges_to_reference -v --tb=long --no-header)",
+      "Bash(echo \"Started PID $!\")",
+      "Bash(python -m pytest tests/agents/heuristic/test_cfr_1v1_fast.py tests/game/ --no-header -q --tb=line)",
+      "Bash(xxd)",
+      "Bash(python -m pytest tests/ --no-header -q --tb=line --ignore=tests/agents/learned/rnad/test_rnad.py)"
     ]
   }
 }
