@@ -179,7 +179,14 @@
       "Bash(echo \"Started PID $!\")",
       "Bash(python -m pytest tests/agents/heuristic/test_cfr_1v1_fast.py tests/game/ --no-header -q --tb=line)",
       "Bash(xxd)",
-      "Bash(python -m pytest tests/ --no-header -q --tb=line --ignore=tests/agents/learned/rnad/test_rnad.py)"
+      "Bash(python -m pytest tests/ --no-header -q --tb=line --ignore=tests/agents/learned/rnad/test_rnad.py)",
+      "Bash(python -m training.benchmark --games 10 --groups standard --log-decisions --run-name smoketest)",
+      "Bash(python -m training.reflect 20260426-smoketest-962f21)",
+      "Bash(python -c \"import pandas as pd; df = pd.read_json\\('/Users/connorlockhart/Documents/GitHub/liars-poker/data/runs/20260426-smoketest-962f21/decisions.jsonl', lines=True\\); print\\(df.shape\\); print\\(df.columns.tolist\\(\\)\\); print\\(df['chosen'].value_counts\\(\\).head\\(5\\)\\)\")",
+      "Bash(pytest tests/agents tests/game -x -q --no-header)",
+      "Bash(kill 21117)",
+      "Bash(python -m training.benchmark --games 3 --groups standard)",
+      "Bash(git commit *)"
     ]
   }
 }
