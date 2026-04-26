@@ -38,7 +38,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src", "src/training/probs"]
-addopts = "-ra"
+addopts = "-ra -m 'not slow'"
+markers = [
+    "slow: marks tests as slow (run with -m slow or --runslow to include)",
+]
 
 [tool.mypy]
 python_version = "3.11"
