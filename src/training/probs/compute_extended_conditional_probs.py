@@ -57,7 +57,7 @@ import os
 import random
 import sys
 import time
-from typing import Callable
+from collections.abc import Callable
 
 # Make poker_math_exact importable whether this is run as a module or a file.
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -65,7 +65,7 @@ REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from poker_math_exact import _evaluate, _evaluate_ranked, HAND_NAMES  # noqa: E402
+from poker_math_exact import _evaluate, _evaluate_ranked  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Configuration

@@ -58,7 +58,6 @@ import argparse
 import json
 import os
 import sys
-from typing import Dict, List, Optional, Tuple
 
 _HERE      = os.path.dirname(os.path.abspath(__file__))
 _SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -69,11 +68,19 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from poker_math_exact import _evaluate_ranked          # noqa: E402
-from game.bids import (                                # noqa: E402
-    Bid, all_bids, NUM_BIDS, CALL_ACTION, HH_ACTION,
-    bid_to_index, index_to_bid, normalize_hand_type,
-    HIGH_CARD, PAIR,
+from poker_math_exact import _evaluate_ranked  # noqa: E402
+
+from game.bids import (  # noqa: E402
+    CALL_ACTION,
+    HH_ACTION,
+    HIGH_CARD,
+    NUM_BIDS,
+    PAIR,
+    Bid,
+    all_bids,
+    bid_to_index,
+    index_to_bid,
+    normalize_hand_type,
 )
 
 _DATA_DIR   = os.path.join(_REPO_ROOT, "data", "probs")
@@ -83,9 +90,9 @@ _CACHE_FILE = os.path.join(_DATA_DIR, "cfr_1v1.json")
 # Bid-space presets
 # ---------------------------------------------------------------------------
 
-def _hc_pair_bid_indices() -> Tuple[int, ...]:
+def _hc_pair_bid_indices() -> tuple[int, ...]:
     """The 26 bid indices corresponding to HC 2..A and Pair 2..A."""
-    idxs: List[int] = []
+    idxs: list[int] = []
     for r in range(13):
         idxs.append(bid_to_index(Bid(HIGH_CARD, r)))
     for r in range(13):
@@ -93,10 +100,10 @@ def _hc_pair_bid_indices() -> Tuple[int, ...]:
     return tuple(sorted(idxs))
 
 
-HC_PAIR_BIDS: Tuple[int, ...] = _hc_pair_bid_indices()
+HC_PAIR_BIDS: tuple[int, ...] = _hc_pair_bid_indices()
 
 
-def _all_bid_indices() -> Tuple[int, ...]:
+def _all_bid_indices() -> tuple[int, ...]:
     return tuple(range(NUM_BIDS))
 
 
@@ -116,7 +123,7 @@ def _bid_holds_n2(card0: int, card1: int, bid: Bid) -> bool:
     return t == bid.hand_type and p == bid.primary_rank
 
 
-def _build_holds_table() -> List[List[List[bool]]]:
+def _build_holds_table() -> list[list[list[bool]]]:
     """Precompute holds[card0][card1][bid_idx] for all 52*52*NUM_BIDS combos."""
     bids = all_bids()
     return [
@@ -128,7 +135,7 @@ def _build_holds_table() -> List[List[List[bool]]]:
     ]
 
 
-_HOLDS: List[List[List[bool]]] = _build_holds_table()
+_HOLDS: list[list[list[bool]]] = _build_holds_table()
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +154,7 @@ def _rank_pair_weight(r0: int, r1: int) -> int:
 
 _TOTAL_DEAL_COUNT = 52 * 51  # 2652
 
-_RANK_DEALS: List[Tuple[int, int, int]] = [
+_RANK_DEALS: list[tuple[int, int, int]] = [
     (r0, r1, _rank_pair_weight(r0, r1))
     for r0 in range(13) for r1 in range(13)
 ]
@@ -155,10 +162,10 @@ _RANK_DEALS: List[Tuple[int, int, int]] = [
 # Build a rank-level holds table: _HOLDS_RANK[r0][r1][bid_idx].
 # Uses card (r*4) as a canonical representative per rank (suit 0).
 
-def _build_holds_rank_table() -> List[List[List[bool]]]:
-    table: List[List[List[bool]]] = []
+def _build_holds_rank_table() -> list[list[list[bool]]]:
+    table: list[list[list[bool]]] = []
     for r0 in range(13):
-        row: List[List[bool]] = []
+        row: list[list[bool]] = []
         for r1 in range(13):
             c0 = r0 * 4
             c1 = r1 * 4 + (1 if r1 == r0 else 0)  # avoid same card at r0==r1
@@ -167,7 +174,7 @@ def _build_holds_rank_table() -> List[List[List[bool]]]:
     return table
 
 
-_HOLDS_RANK: List[List[List[bool]]] = _build_holds_rank_table()
+_HOLDS_RANK: list[list[list[bool]]] = _build_holds_rank_table()
 
 
 # ---------------------------------------------------------------------------
@@ -178,34 +185,34 @@ _HOLDS_RANK: List[List[List[bool]]] = _build_holds_rank_table()
 #   CALL_ACTION (110)          → the round ends: caller wins if bid doesn't hold
 #   HH_ACTION   (111)          → the round ends: declarer wins if bid holds
 
-_TERMINAL_ACTIONS: Tuple[int, ...] = (CALL_ACTION, HH_ACTION)
+_TERMINAL_ACTIONS: tuple[int, ...] = (CALL_ACTION, HH_ACTION)
 
 
-def _current_player(history: Tuple[int, ...]) -> int:
+def _current_player(history: tuple[int, ...]) -> int:
     return len(history) % 2
 
 
-def _standing_bid_index(history: Tuple[int, ...]) -> Optional[int]:
+def _standing_bid_index(history: tuple[int, ...]) -> int | None:
     for a in reversed(history):
         if a not in _TERMINAL_ACTIONS:
             return a
     return None
 
 
-def _num_bids_placed(history: Tuple[int, ...]) -> int:
+def _num_bids_placed(history: tuple[int, ...]) -> int:
     return sum(1 for a in history if a not in _TERMINAL_ACTIONS)
 
 
-def _is_terminal(history: Tuple[int, ...]) -> bool:
+def _is_terminal(history: tuple[int, ...]) -> bool:
     return len(history) > 0 and history[-1] in _TERMINAL_ACTIONS
 
 
 def _legal_actions(
-    history: Tuple[int, ...],
-    bid_space: Tuple[int, ...],
+    history: tuple[int, ...],
+    bid_space: tuple[int, ...],
     max_bids: int,
     include_hh: bool,
-) -> List[int]:
+) -> list[int]:
     """Legal actions at `history` given tree constraints."""
     standing = _standing_bid_index(history)
     bids_placed = _num_bids_placed(history)
@@ -218,19 +225,19 @@ def _legal_actions(
     raise_legal = bids_placed < max_bids
     raises = [b for b in bid_space if b > standing] if raise_legal else []
 
-    actions: List[int] = [CALL_ACTION]
+    actions: list[int] = [CALL_ACTION]
     if include_hh:
         actions.append(HH_ACTION)
     actions.extend(raises)
     return actions
 
 
-def _terminal_utility_p0(history: Tuple[int, ...], card0: int, card1: int) -> float:
+def _terminal_utility_p0(history: tuple[int, ...], card0: int, card1: int) -> float:
     """P0 utility at a terminal node (by card indices). `history` ends in CALL or HH."""
     return _terminal_utility_p0_rank(history, _card_rank(card0), _card_rank(card1))
 
 
-def _terminal_utility_p0_rank(history: Tuple[int, ...], r0: int, r1: int) -> float:
+def _terminal_utility_p0_rank(history: tuple[int, ...], r0: int, r1: int) -> float:
     """P0 utility at a terminal node, keyed by card ranks."""
     last = history[-1]
     resolver = (len(history) - 1) % 2
@@ -249,7 +256,7 @@ def _terminal_utility_p0_rank(history: Tuple[int, ...], r0: int, r1: int) -> flo
 # ---------------------------------------------------------------------------
 
 # key = (player, card_rank, history_tuple)
-InfoKey = Tuple[int, int, Tuple[int, ...]]
+InfoKey = tuple[int, int, tuple[int, ...]]
 
 
 class CFRSolver:
@@ -271,20 +278,20 @@ class CFRSolver:
     def __init__(
         self,
         max_bids: int = 6,
-        bid_space: Tuple[int, ...] = HC_PAIR_BIDS,
+        bid_space: tuple[int, ...] = HC_PAIR_BIDS,
         include_hh: bool = True,
     ) -> None:
         self.max_bids   = int(max_bids)
         self.bid_space  = tuple(sorted(bid_space))
         self.include_hh = bool(include_hh)
 
-        self._regret_sum:   Dict[InfoKey, List[float]] = {}
-        self._strategy_sum: Dict[InfoKey, List[float]] = {}
+        self._regret_sum:   dict[InfoKey, list[float]] = {}
+        self._strategy_sum: dict[InfoKey, list[float]] = {}
         self._iterations   = 0
 
     # ------------------------------------------------------------------
 
-    def _get_strategy(self, key: InfoKey, legal: List[int]) -> List[float]:
+    def _get_strategy(self, key: InfoKey, legal: list[int]) -> list[float]:
         n = len(legal)
         if key not in self._regret_sum:
             self._regret_sum[key]   = [0.0] * n
@@ -300,7 +307,7 @@ class CFRSolver:
 
     def _cfr(
         self,
-        history: Tuple[int, ...],
+        history: tuple[int, ...],
         r0: int,
         r1: int,
         reach0: float,
@@ -374,7 +381,7 @@ class CFRSolver:
 
     # ------------------------------------------------------------------
 
-    def average_strategy(self, key: InfoKey, legal: List[int]) -> List[float]:
+    def average_strategy(self, key: InfoKey, legal: list[int]) -> list[float]:
         if key not in self._strategy_sum:
             n = len(legal)
             return [1.0 / n] * n
@@ -389,7 +396,7 @@ class CFRSolver:
 
     def _best_response_value(
         self,
-        history: Tuple[int, ...],
+        history: tuple[int, ...],
         r0: int,
         r1: int,
         br_player: int,
@@ -431,14 +438,14 @@ class CFRSolver:
 
     # ------------------------------------------------------------------
 
-    def opening_mix_by_rank(self) -> Dict[int, Dict[str, float]]:
+    def opening_mix_by_rank(self) -> dict[int, dict[str, float]]:
         """P0's root opening-bid distribution, keyed by card rank."""
         legal = _legal_actions((), self.bid_space, self.max_bids, self.include_hh)
-        result: Dict[int, Dict[str, float]] = {}
+        result: dict[int, dict[str, float]] = {}
         for rank in range(13):
             key: InfoKey = (0, rank, ())
             strat = self.average_strategy(key, legal)
-            dist: Dict[str, float] = {}
+            dist: dict[str, float] = {}
             for i, a in enumerate(legal):
                 if strat[i] >= 0.001:
                     dist[str(index_to_bid(a))] = round(strat[i], 5)
@@ -448,15 +455,15 @@ class CFRSolver:
     def response_mix_by_rank(
         self,
         opening_bid_idx: int,
-    ) -> Dict[int, Dict[str, float]]:
+    ) -> dict[int, dict[str, float]]:
         """P1's response distribution after a given opening bid, keyed by P1 rank."""
         history = (opening_bid_idx,)
         legal = _legal_actions(history, self.bid_space, self.max_bids, self.include_hh)
-        result: Dict[int, Dict[str, float]] = {}
+        result: dict[int, dict[str, float]] = {}
         for rank in range(13):
             key: InfoKey = (1, rank, history)
             strat = self.average_strategy(key, legal)
-            dist: Dict[str, float] = {}
+            dist: dict[str, float] = {}
             for i, a in enumerate(legal):
                 if strat[i] < 0.001:
                     continue
@@ -474,7 +481,7 @@ class CFRSolver:
 
     def _avg_value_traverse(
         self,
-        history: Tuple[int, ...],
+        history: tuple[int, ...],
         r0: int,
         r1: int,
     ) -> float:
@@ -514,7 +521,7 @@ class CFRSolver:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "CFRSolver":
+    def from_dict(cls, d: dict) -> CFRSolver:
         import ast
         solver = cls(
             max_bids=int(d.get("max_bids", 6)),
@@ -538,7 +545,7 @@ class CFRSolver:
 def get_cfr_nash(
     n_iterations: int = 1000,
     max_bids: int = 6,
-    bid_space: Tuple[int, ...] = HC_PAIR_BIDS,
+    bid_space: tuple[int, ...] = HC_PAIR_BIDS,
     include_hh: bool = True,
     verbose: bool = False,
     force_recompute: bool = False,
@@ -579,7 +586,7 @@ def _solver_summary(solver: CFRSolver) -> dict:
 
 
 def _cache_key(n_iterations: int, max_bids: int,
-               bid_space: Tuple[int, ...], include_hh: bool) -> str:
+               bid_space: tuple[int, ...], include_hh: bool) -> str:
     bid_tag = "hcpair" if tuple(bid_space) == HC_PAIR_BIDS else f"bs{len(bid_space)}"
     hh_tag  = "hh" if include_hh else "nohh"
     return f"iters{n_iterations}_mb{max_bids}_{bid_tag}_{hh_tag}"
@@ -640,7 +647,7 @@ if __name__ == "__main__":
         force_recompute= args.force,
     )
 
-    print(f"\n=== CFR 1v1 Nash (n=2, exact rules, bounded) ===")
+    print("\n=== CFR 1v1 Nash (n=2, exact rules, bounded) ===")
     print(f"  Iterations:     {result['iterations']:,}")
     print(f"  max_bids:       {result['max_bids']}")
     print(f"  |bid_space|:    {result['bid_space_size']}")

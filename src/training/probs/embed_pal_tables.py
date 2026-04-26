@@ -54,7 +54,7 @@ def embed(dry_run: bool = False) -> None:
     if not os.path.exists(FIVE_KINGS_FILE):
         missing.append(FIVE_KINGS_FILE)
     if missing:
-        print(f"[embed_pal_tables] Missing files — run the compute scripts first:")
+        print("[embed_pal_tables] Missing files — run the compute scripts first:")
         for f in missing:
             print(f"  {f}")
         sys.exit(1)

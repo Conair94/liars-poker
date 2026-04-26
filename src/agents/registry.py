@@ -22,7 +22,6 @@ from __future__ import annotations
 import os
 import random
 import sys
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Path setup: src/training/probs/ for poker_math_exact (consumed transitively
@@ -35,13 +34,26 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from game.engine import MatchState                                            # noqa: E402
-from game.bids import (                                                       # noqa: E402
-    CALL_ACTION, HH_ACTION, NUM_BIDS, bid_to_index, index_to_bid, all_bids,
-    HIGH_CARD, PAIR, TWO_PAIR, THREE_OF_A_KIND, STRAIGHT, FLUSH,
-    FULL_HOUSE, FOUR_OF_A_KIND, STRAIGHT_FLUSH,
+import numpy as np  # noqa: E402
+
+from game.bids import (  # noqa: E402
+    CALL_ACTION,
+    FLUSH,
+    FOUR_OF_A_KIND,
+    FULL_HOUSE,
+    HH_ACTION,
+    HIGH_CARD,
+    NUM_BIDS,
+    PAIR,
+    STRAIGHT,
+    STRAIGHT_FLUSH,
+    THREE_OF_A_KIND,
+    TWO_PAIR,
+    all_bids,
+    bid_to_index,
+    index_to_bid,
 )
-import numpy as np                                                             # noqa: E402
+from game.engine import MatchState  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Minimum pool cards required for each hand type to be achievable.
@@ -99,7 +111,7 @@ class BlindBaselineAgent:
     def __init__(self) -> None:
         self._rng = random.Random()
 
-    def _get_p_at_least(self, n: int, state: MatchState) -> Optional[np.ndarray]:
+    def _get_p_at_least(self, n: int, state: MatchState) -> np.ndarray | None:
         """Return (NUM_BIDS,) P(pool >= bid_i | n) appropriate to game mode."""
         if n >= 5:
             try:
@@ -175,7 +187,7 @@ class BlindBaselineAgent:
 
 # ---------------------------------------------------------------------------
 # Module-level WarmStartLookup cache (loaded once on first use).
-_WARM_START: Optional[object] = None
+_WARM_START: object | None = None
 
 
 def _get_warm_start():
@@ -293,7 +305,7 @@ class ExactRulesBlindAgent:
         rs    = state.round_state
         legal = state.legal_actions()
 
-        exact_prob: Optional[np.ndarray] = None
+        exact_prob: np.ndarray | None = None
         if n >= 5:
             try:
                 lookup = _get_warm_start()
@@ -1100,7 +1112,7 @@ class FiveKingsBlindAgent:
         rs    = state.round_state
         legal = state.legal_actions()
 
-        p_at_least: Optional[np.ndarray] = None
+        p_at_least: np.ndarray | None = None
         if n >= 5:
             try:
                 lookup = _get_warm_start()

@@ -30,8 +30,7 @@ import copy
 import os
 import sys
 import time
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -48,11 +47,9 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from game.bids import NUM_ACTIONS, CALL_ACTION                # noqa: E402
-from game.engine import MatchState, new_match                 # noqa: E402
-from agents.learned.rnad.config import RNaDConfig             # noqa: E402
+from agents.learned.rnad.config import RNaDConfig  # noqa: E402
 from agents.learned.rnad.network import LiarsPokerNet, _mask_logits  # noqa: E402
-
+from game.engine import new_match  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Trajectory step
@@ -67,14 +64,14 @@ class Step:
     log_prob_reg:   float         # log π_reg(a|s) at collection time (no grad)
     value_old:      float         # V_θ(s) at collection time (no grad)
     seat:           int           # which player took this step
-    legal_actions:  List[int]     # legal actions at this step
+    legal_actions:  list[int]     # legal actions at this step
 
     # Filled in after the episode ends
     reward: float          = 0.0
     transformed_return: float = 0.0   # G̃_t (R-NaD transformed, per-seat)
 
     # Optional: warm-start aux target for the auxiliary prediction head
-    aux_target: Optional[np.ndarray] = None
+    aux_target: np.ndarray | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +86,7 @@ def collect_round(
     warm_start=None,
     exact_rules: bool = False,
     high_hand:   bool = True,
-) -> List[Step]:
+) -> list[Step]:
     """
     Play one round of Liar's Poker with both seats using `policy`.
 
@@ -111,7 +108,7 @@ def collect_round(
     state.hand_sizes = [hand_size] * num_players
     state.start_next_round()
 
-    steps: List[Step] = []
+    steps: list[Step] = []
 
     while state.round_state is not None:
         cp    = state.round_state.current_player
@@ -184,7 +181,7 @@ def collect_match(
     max_rounds:  int = 200,
     exact_rules: bool = False,
     high_hand:   bool = True,
-) -> List[Step]:
+) -> list[Step]:
     """
     Play one full match of Liar's Poker until a winner emerges (or max_rounds
     is hit as a safety cap).  Hand sizes start at 1 and grow naturally as
@@ -205,7 +202,7 @@ def collect_match(
     high_hand   : enable High Hand declaration action
     """
     state = new_match(num_players, exact_rules=exact_rules, high_hand=high_hand)
-    all_steps: List[Step] = []
+    all_steps: list[Step] = []
 
     for _ in range(max_rounds):
         if state.terminal:
@@ -272,7 +269,7 @@ def collect_match(
 # ---------------------------------------------------------------------------
 
 def compute_rnad_returns(
-    steps:   List[Step],
+    steps:   list[Step],
     eta:     float,
     gamma:   float = 1.0,
 ) -> None:
@@ -309,10 +306,10 @@ def compute_rnad_returns(
 
 def compute_loss(
     policy:   LiarsPokerNet,
-    steps:    List[Step],
+    steps:    list[Step],
     config:   RNaDConfig,
     device:   torch.device,
-) -> Tuple[torch.Tensor, dict]:
+) -> tuple[torch.Tensor, dict]:
     """
     Compute the combined R-NaD loss for a batch of Steps.
 
@@ -337,10 +334,10 @@ def compute_loss(
         aux_batch = None
 
     # --- per-step loss terms (masking differs per step) ---
-    policy_losses: List[torch.Tensor] = []
-    value_losses:  List[torch.Tensor] = []
-    entropy_terms: List[torch.Tensor] = []
-    aux_losses:    List[torch.Tensor] = []
+    policy_losses: list[torch.Tensor] = []
+    value_losses:  list[torch.Tensor] = []
+    entropy_terms: list[torch.Tensor] = []
+    aux_losses:    list[torch.Tensor] = []
 
     for i, step in enumerate(steps):
         logits = logits_batch[i]
@@ -405,7 +402,7 @@ class RNaDTrainer:
     trainer.train()
     """
 
-    def __init__(self, config: RNaDConfig, device: Optional[str] = None) -> None:
+    def __init__(self, config: RNaDConfig, device: str | None = None) -> None:
         self.config = config
 
         if device is None:
@@ -443,7 +440,7 @@ class RNaDTrainer:
         # Training state
         self.iteration   = 0
         self.total_steps = 0
-        self._metrics_buf: List[dict] = []
+        self._metrics_buf: list[dict] = []
 
         print(f"[RNaD] Network: {self.policy.num_parameters():,} parameters")
         print(f"[RNaD] Device: {self.device}")
@@ -514,11 +511,11 @@ class RNaDTrainer:
 
     # ------------------------------------------------------------------
 
-    def _collect_batch(self) -> List[Step]:
+    def _collect_batch(self) -> list[Step]:
         """Collect config.episodes_per_update episodes (rounds for Stage A,
         full matches for Stage B)."""
         self.policy.eval()
-        all_steps: List[Step] = []
+        all_steps: list[Step] = []
 
         for _ in range(self.config.episodes_per_update):
             if self.config.stage == "B":
@@ -607,8 +604,8 @@ class RNaDTrainer:
     def load_checkpoint(
         cls,
         path:   str,
-        device: Optional[str] = None,
-    ) -> "RNaDTrainer":
+        device: str | None = None,
+    ) -> RNaDTrainer:
         ckpt    = torch.load(path, map_location="cpu")
         config  = ckpt["config"]
         trainer = cls(config, device=device)

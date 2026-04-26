@@ -22,9 +22,8 @@ from __future__ import annotations
 import ast
 import json
 import os
-import sys
 import random
-from typing import Dict, List, Optional, Tuple
+import sys
 
 # Path setup: src/ for game.*
 _HERE    = os.path.dirname(os.path.abspath(__file__))
@@ -32,8 +31,8 @@ _SRC_DIR = os.path.abspath(os.path.join(_HERE, ".."))
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-from game.engine import MatchState
-from game.bids import CALL_ACTION, HH_ACTION
+from game.bids import CALL_ACTION, HH_ACTION  # noqa: E402
+from game.engine import MatchState  # noqa: E402
 
 _REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
 _DEFAULT_CHECKPOINT = os.path.join(
@@ -49,8 +48,8 @@ class CFRNashAgent:
 
     def __init__(self, checkpoint_path: str = _DEFAULT_CHECKPOINT) -> None:
         self._rng = random.Random()
-        self._strategy_sum: Dict[tuple, List[float]] = {}
-        self._bid_space: Tuple[int, ...] = ()
+        self._strategy_sum: dict[tuple, list[float]] = {}
+        self._bid_space: tuple[int, ...] = ()
         self._max_bids: int = 6
         self._include_hh: bool = True
         self._loaded = False
@@ -73,14 +72,14 @@ class CFRNashAgent:
 
     # ------------------------------------------------------------------
 
-    def _history_from_state(self, state: MatchState) -> Tuple[int, ...]:
+    def _history_from_state(self, state: MatchState) -> tuple[int, ...]:
         """Convert engine round history to the CFR (action,) tuple."""
         rs = state.round_state
         if rs is None:
             return ()
         return tuple(action for _seat, action in rs.history)
 
-    def _legal_cfr(self, history: Tuple[int, ...]) -> List[int]:
+    def _legal_cfr(self, history: tuple[int, ...]) -> list[int]:
         """Legal actions in the CFR action space at this history."""
         bid_space   = self._bid_space
         max_bids    = self._max_bids
@@ -106,8 +105,8 @@ class CFRNashAgent:
         return actions
 
     def _average_strategy(
-        self, key: tuple, legal: List[int]
-    ) -> List[float]:
+        self, key: tuple, legal: list[int]
+    ) -> list[float]:
         ss = self._strategy_sum.get(key)
         if ss is None:
             n = len(legal)
@@ -118,7 +117,7 @@ class CFRNashAgent:
         n = len(legal)
         return [1.0 / n] * n
 
-    def _sample(self, probs: List[float], actions: List[int]) -> int:
+    def _sample(self, probs: list[float], actions: list[int]) -> int:
         r = self._rng.random()
         cumulative = 0.0
         for p, a in zip(probs, actions):

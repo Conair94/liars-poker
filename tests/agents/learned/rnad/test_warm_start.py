@@ -4,8 +4,11 @@ Tests for agents.learned.rnad.warm_start. Run via:
     pytest tests/agents/learned/rnad/test_warm_start.py
 """
 
+import sys
+
 import numpy as np
-from agents.learned.rnad.warm_start import WarmStartLookup, match_condition, _KNOWN_CONDITIONS
+
+from agents.learned.rnad.warm_start import WarmStartLookup, match_condition
 from game.bids import NUM_BIDS
 
 # Shared fixture — load once for the whole test module.
@@ -146,7 +149,7 @@ def test_condition_shifts_distribution():
     assert key == "pair_9"
     assert not np.allclose(m, c), "conditional must differ from marginal"
 
-    from game.bids import all_bids, PAIR
+    from game.bids import PAIR, all_bids
     bids = all_bids()
     pair_and_above_indices = [i for i, b in enumerate(bids) if b.hand_type >= PAIR]
 

@@ -26,15 +26,15 @@ Outputs (relative to this directory):
   figures/conditional_probs_data.json   — cache; new conditions are appended on rerun
 """
 
-import sys
+import json
 import os
 import random
-import json
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from poker_math_exact import _evaluate, _evaluate_ranked, HAND_NAMES
-
 import matplotlib
+from poker_math_exact import HAND_NAMES, _evaluate, _evaluate_ranked
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
@@ -652,7 +652,6 @@ def _render_threshold_figure(scenarios, thresholds, out_path):
 
             col_l   = cx(s_idx + 1)
             col_mid = col_l + HALF_W
-            col_r   = col_l + DATA_W
             row_top = cy(r)
             row_bot = row_top - DATA_H
             y_ctr   = (row_top + row_bot) / 2
@@ -667,7 +666,7 @@ def _render_threshold_figure(scenarios, thresholds, out_path):
             ax.plot([col_mid, col_mid], [row_bot, row_top],
                     color=DIV, linewidth=0.8, transform=ax.transAxes, clip_on=True)
 
-            def _draw_subcell(entry, x_center, name_color, pct_color):
+            def _draw_subcell(entry, x_center, name_color, pct_color):  # noqa: B023
                 if entry is None:
                     ax.text(x_center, y_ctr, "—",
                             ha="center", va="center", fontsize=7,

@@ -29,12 +29,9 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import List, Optional, Tuple
 
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.distributions import Categorical
 
 # ---------------------------------------------------------------------------
@@ -47,10 +44,14 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from game.bids import (   # noqa: E402
-    NUM_BIDS, NUM_ACTIONS, CALL_ACTION, Bid, bid_to_index,
+from agents.learned.rnad.config import RNaDConfig  # noqa: E402
+from game.bids import (  # noqa: E402
+    CALL_ACTION,
+    NUM_ACTIONS,
+    NUM_BIDS,
+    Bid,
+    bid_to_index,
 )
-from agents.learned.rnad.config import RNaDConfig   # noqa: E402
 
 # Warm-start lookup is loaded lazily at first use (expensive IO).
 _WARM_START_CACHE = None
@@ -82,7 +83,7 @@ _SCALAR_DIM = 6
 # Observation encoding helpers (pure functions)
 # ---------------------------------------------------------------------------
 
-def _scalar_features(info: dict) -> List[float]:
+def _scalar_features(info: dict) -> list[float]:
     """
     Six normalised scalar features extracted from an info_state dict.
 
@@ -120,7 +121,7 @@ def _current_bid_token(info: dict) -> int:
     return bid_to_index(Bid(cb[0], cb[1]))
 
 
-def _bid_history_tokens(info: dict, hist_len: int) -> List[int]:
+def _bid_history_tokens(info: dict, hist_len: int) -> list[int]:
     """Last `hist_len` actions in this round, padded on the left with _PAD_TOKEN."""
     history = info["bid_history"]   # [(seat, action_idx), ...]
     tokens = []
@@ -170,7 +171,7 @@ class LiarsPokerNet(nn.Module):
         self._trunk_in_dim = trunk_in_dim
 
         # --- trunk MLP --------------------------------------------------
-        layers: List[nn.Module] = []
+        layers: list[nn.Module] = []
         in_d = trunk_in_dim
         for _ in range(config.num_trunk_layers):
             layers += [
@@ -192,7 +193,7 @@ class LiarsPokerNet(nn.Module):
         )
 
         if config.use_aux_loss:
-            self.aux_head: Optional[nn.Module] = nn.Linear(
+            self.aux_head: nn.Module | None = nn.Linear(
                 config.hidden_dim, NUM_BIDS
             )
         else:
@@ -270,7 +271,7 @@ class LiarsPokerNet(nn.Module):
     def forward(
         self,
         obs: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args
         ----
@@ -290,7 +291,7 @@ class LiarsPokerNet(nn.Module):
     def forward_with_aux(
         self,
         obs: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
         """
         Like forward() but also returns aux_logits when aux_head is present.
 
@@ -310,9 +311,9 @@ class LiarsPokerNet(nn.Module):
     def act(
         self,
         info: dict,
-        legal_actions: List[int],
+        legal_actions: list[int],
         greedy: bool = False,
-    ) -> Tuple[int, float, float]:
+    ) -> tuple[int, float, float]:
         """
         Sample (or greedily select) an action given an info_state dict.
 
@@ -361,7 +362,7 @@ class LiarsPokerNet(nn.Module):
 
 def _mask_logits(
     logits: torch.Tensor,
-    legal_actions: List[int],
+    legal_actions: list[int],
 ) -> torch.Tensor:
     """
     Set logits for illegal actions to −∞ so they get zero probability.

@@ -34,7 +34,6 @@ import os
 import random
 import sys
 from itertools import combinations
-from typing import Dict, List, Tuple
 
 # ---------------------------------------------------------------------------
 # Path setup: src/training/probs/ for poker_math_exact, src/ for game.bids
@@ -48,10 +47,14 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from poker_math_exact import get_hand_rank_counts, _evaluate_ranked  # noqa: E402
-from game.bids import (                                                # noqa: E402
-    Bid, all_bids, NUM_BIDS, CALL_ACTION,
-    bid_to_index, index_to_bid, normalize_hand_type,
+from poker_math_exact import _evaluate_ranked, get_hand_rank_counts  # noqa: E402
+
+from game.bids import (  # noqa: E402
+    CALL_ACTION,
+    NUM_BIDS,
+    all_bids,
+    index_to_bid,
+    normalize_hand_type,
 )
 
 _DATA_DIR   = os.path.join(_REPO_ROOT, "data", "probs")
@@ -62,7 +65,7 @@ _CACHE_FILE = os.path.join(_DATA_DIR, "blind_equilibrium.json")
 # Per-bid P(pool_best >= bid) for pool size n  [at-least rules]
 # ---------------------------------------------------------------------------
 
-def _compute_bid_at_least(rank_counts: Dict[Tuple[int, int], int], total: int) -> List[float]:
+def _compute_bid_at_least(rank_counts: dict[tuple[int, int], int], total: int) -> list[float]:
     """
     From rank-level MC counts, compute P(pool_best >= bid) for every bid in
     the canonical bid ordering (index 0 = weakest, NUM_BIDS-1 = strongest).
@@ -74,7 +77,7 @@ def _compute_bid_at_least(rank_counts: Dict[Tuple[int, int], int], total: int) -
 
     # Precompute cumulative "at-least" count from the top of the bid order.
     # We iterate bids from strongest to weakest, accumulating.
-    p_at_least: List[float] = [0.0] * NUM_BIDS
+    p_at_least: list[float] = [0.0] * NUM_BIDS
 
     cumulative = 0
     for idx in range(NUM_BIDS - 1, -1, -1):
@@ -90,7 +93,7 @@ def _compute_bid_at_least(rank_counts: Dict[Tuple[int, int], int], total: int) -
 # Per-bid P(pool contains exact 5-card subset for bid)  [exact rules]
 # ---------------------------------------------------------------------------
 
-def _compute_bid_exact(n: int, n_samples: int = 500_000, seed: int = 42) -> List[float]:
+def _compute_bid_exact(n: int, n_samples: int = 500_000, seed: int = 42) -> list[float]:
     """
     Monte Carlo estimate of P(pool of n cards contains a 5-card subset whose
     best hand evaluates to exactly bid b) for every bid b.
@@ -109,7 +112,6 @@ def _compute_bid_exact(n: int, n_samples: int = 500_000, seed: int = 42) -> List
 
     counts = [0] * NUM_BIDS
 
-    combo_size = min(5, n)
     use_combos = n >= 5
 
     for _ in range(n_samples):
@@ -138,7 +140,7 @@ def _compute_bid_exact(n: int, n_samples: int = 500_000, seed: int = 42) -> List
 # Backward-induction solver for N=2 blind game
 # ---------------------------------------------------------------------------
 
-def _solve_n2(bid_holds_prob: List[float]) -> Tuple[List[List[float]], List[List[int]]]:
+def _solve_n2(bid_holds_prob: list[float]) -> tuple[list[list[float]], list[list[int]]]:
     """
     Backward induction for the N=2 blind game.
 
@@ -163,8 +165,8 @@ def _solve_n2(bid_holds_prob: List[float]) -> Tuple[List[List[float]], List[List
 
     Tie-breaking: call preferred over raise when EVs are equal (conservative).
     """
-    values: List[List[float]] = [[0.0, 0.0] for _ in range(NUM_BIDS)]
-    policy: List[List[int]]   = [[CALL_ACTION, CALL_ACTION] for _ in range(NUM_BIDS)]
+    values: list[list[float]] = [[0.0, 0.0] for _ in range(NUM_BIDS)]
+    policy: list[list[int]]   = [[CALL_ACTION, CALL_ACTION] for _ in range(NUM_BIDS)]
 
     for bid_idx in range(NUM_BIDS - 1, -1, -1):
         for actor in range(2):
@@ -185,7 +187,7 @@ def _solve_n2(bid_holds_prob: List[float]) -> Tuple[List[List[float]], List[List
     return values, policy
 
 
-def _solve_initial(values: List[List[float]]) -> Tuple[int, float]:
+def _solve_initial(values: list[list[float]]) -> tuple[int, float]:
     """
     Optimal first bid for player 0 (who must bid; calling is illegal before any bid).
 
@@ -331,7 +333,6 @@ def print_equilibrium_summary(eq: dict, rule_label: str = "at-least") -> None:
     n           = eq["n"]
     prob_key    = "p_exact" if "p_exact" in eq else "p_at_least"
     probs       = eq[prob_key]
-    values      = eq["values"]
     policy      = eq["policy"]
     init_bid    = eq["initial_bid"]
     init_val    = eq["initial_value"]
@@ -341,7 +342,7 @@ def print_equilibrium_summary(eq: dict, rule_label: str = "at-least") -> None:
     print(f"\n=== N=2 Blind Equilibrium [{rule_label}]  (pool n={n}) ===")
     print(f"  Player 0 first bid: {bids[init_bid]}  (EV={init_val:+.4f})")
 
-    print(f"\n  Standing bid threshold analysis:")
+    print("\n  Standing bid threshold analysis:")
     print(f"  {'Bid':<26} {'P(bid holds)':>13}  {'call EV':>8}  "
           f"{'P0 action':<22}  {'P1 action':<22}")
     print("  " + "-" * 97)

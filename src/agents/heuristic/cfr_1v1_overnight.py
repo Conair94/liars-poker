@@ -29,7 +29,6 @@ import json
 import os
 import sys
 import time
-from typing import Dict
 
 _HERE      = os.path.dirname(os.path.abspath(__file__))
 _SRC_DIR   = os.path.abspath(os.path.join(_HERE, "..", ".."))
@@ -40,11 +39,14 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from agents.heuristic.cfr_1v1 import (   # noqa: E402
-    CFRSolver, HC_PAIR_BIDS, _all_bid_indices, _solver_summary, _cache_key,
+from agents.heuristic.cfr_1v1 import (  # noqa: E402
+    HC_PAIR_BIDS,
+    CFRSolver,
+    _all_bid_indices,
+    _solver_summary,
 )
 from agents.heuristic.cfr_1v1_fast import CFRSolverFast  # noqa: E402
-from game.bids import CALL_ACTION, HH_ACTION, bid_to_index, Bid, HIGH_CARD  # noqa: E402
+from game.bids import HIGH_CARD, Bid, bid_to_index  # noqa: E402
 
 
 def _make_solver(kind: str, **kwargs):
@@ -73,7 +75,7 @@ def _run_dir(run_name: str) -> str:
     return os.path.join(_REPO_ROOT, "data", "runs", "cfr_1v1", run_name)
 
 
-def _paths(run_name: str) -> Dict[str, str]:
+def _paths(run_name: str) -> dict[str, str]:
     d = _run_dir(run_name)
     return {
         "dir":        d,
@@ -85,7 +87,7 @@ def _paths(run_name: str) -> Dict[str, str]:
     }
 
 
-def _save_checkpoint(solver: CFRSolver, paths: Dict[str, str]) -> None:
+def _save_checkpoint(solver: CFRSolver, paths: dict[str, str]) -> None:
     """Atomic-write the solver state via tmp+rename so a crash can't corrupt it."""
     os.makedirs(paths["dir"], exist_ok=True)
     with open(paths["checkpoint_tmp"], "w") as f:
@@ -93,12 +95,12 @@ def _save_checkpoint(solver: CFRSolver, paths: Dict[str, str]) -> None:
     os.replace(paths["checkpoint_tmp"], paths["checkpoint"])
 
 
-def _append_metrics(paths: Dict[str, str], row: dict) -> None:
+def _append_metrics(paths: dict[str, str], row: dict) -> None:
     with open(paths["metrics"], "a") as f:
         f.write(json.dumps(row) + "\n")
 
 
-def _save_summary(paths: Dict[str, str], summary: dict, solver) -> None:
+def _save_summary(paths: dict[str, str], summary: dict, solver) -> None:
     # Include response mixes for HC openings at each rank (most informative).
     response_mixes = {}
     for r in range(13):
@@ -112,7 +114,7 @@ def _save_summary(paths: Dict[str, str], summary: dict, solver) -> None:
         json.dump(payload, f, indent=2)
 
 
-def _load_or_create_solver(args, paths: Dict[str, str]):
+def _load_or_create_solver(args, paths: dict[str, str]):
     solver_cls = CFRSolverFast if args.solver == "fast" else CFRSolver
     if os.path.exists(paths["checkpoint"]):
         with open(paths["checkpoint"]) as f:

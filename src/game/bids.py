@@ -37,8 +37,6 @@ Action space for the game engine:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Tuple
-
 
 # ---------------------------------------------------------------------------
 # Hand type constants (mirror poker_math_exact, avoiding a hard import to keep
@@ -100,9 +98,9 @@ class Bid:
         return f"{HAND_ABBREV[self.hand_type]} {RANK_NAMES[self.primary_rank]}"
 
 
-def enumerate_bids() -> List[Bid]:
+def enumerate_bids() -> list[Bid]:
     """All legal bids in ascending total order (weakest first)."""
-    out: List[Bid] = []
+    out: list[Bid] = []
     for ht in range(STRAIGHT_FLUSH + 1):     # HC .. SF inclusive; no RF
         lo, hi = _PRIMARY_RANGES[ht]
         for pr in range(lo, hi + 1):
@@ -110,7 +108,7 @@ def enumerate_bids() -> List[Bid]:
     return out
 
 
-def normalize_hand_type(hand_type: int, primary_rank: int) -> Tuple[int, int]:
+def normalize_hand_type(hand_type: int, primary_rank: int) -> tuple[int, int]:
     """
     Collapse the evaluator's ROYAL_FLUSH output onto STRAIGHT_FLUSH+A.
     Call this before constructing a Bid from an evaluator's (type, rank) pair.
@@ -120,7 +118,7 @@ def normalize_hand_type(hand_type: int, primary_rank: int) -> Tuple[int, int]:
     return (hand_type, primary_rank)
 
 
-_ALL_BIDS: List[Bid] = enumerate_bids()
+_ALL_BIDS: list[Bid] = enumerate_bids()
 _BID_TO_INDEX = {b: i for i, b in enumerate(_ALL_BIDS)}
 
 NUM_BIDS     = len(_ALL_BIDS)
@@ -139,6 +137,6 @@ def index_to_bid(idx: int) -> Bid:
     return _ALL_BIDS[idx]
 
 
-def all_bids() -> List[Bid]:
+def all_bids() -> list[Bid]:
     """Return a fresh copy of the full ordered bid list."""
     return list(_ALL_BIDS)

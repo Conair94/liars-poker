@@ -15,9 +15,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from agents.heuristic.cfr_1v1      import CFRSolver, HC_PAIR_BIDS
+from agents.heuristic.cfr_1v1 import CFRSolver
 from agents.heuristic.cfr_1v1_fast import CFRSolverFast
-
 
 # ---------------------------------------------------------------------------
 # Tree construction tests

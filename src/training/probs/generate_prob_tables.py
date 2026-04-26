@@ -9,14 +9,14 @@ Outputs (under <repo>/paper/figures/):
   hand_probabilities.json  — raw data for reference
 """
 
-import sys
-import os
 import json
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from poker_math_exact import get_hand_probabilities, HAND_NAMES
-
 import matplotlib
+from poker_math_exact import HAND_NAMES, get_hand_probabilities
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np

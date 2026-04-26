@@ -5,7 +5,8 @@ All defaults are for Stage A (N=2, fixed hand size, round-level episodes).
 """
 
 from __future__ import annotations
-from dataclasses import dataclass, field
+
+from dataclasses import dataclass
 
 
 @dataclass

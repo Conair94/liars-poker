@@ -17,24 +17,30 @@ Run via:
 
 from __future__ import annotations
 
+import sys
 from itertools import combinations
 
-from poker_math_exact import _evaluate_ranked
-from game.bids import (
-    Bid, all_bids, NUM_BIDS, CALL_ACTION, bid_to_index, index_to_bid,
-    normalize_hand_type, HIGH_CARD, PAIR, TWO_PAIR, THREE_OF_A_KIND,
-    STRAIGHT, FLUSH, FULL_HOUSE, FOUR_OF_A_KIND, STRAIGHT_FLUSH,
-)
-from game.engine import has_exact_hand, new_match
+from poker_math_exact import _evaluate_ranked, get_hand_rank_counts
+
 from agents.heuristic.blind_equilibrium import (
     _compute_bid_exact,
-    _compute_bid_at_least,
-    _solve_n2,
-    _solve_initial,
     get_blind_equilibrium,
     get_blind_equilibrium_exact,
 )
-from poker_math_exact import get_hand_rank_counts
+from game.bids import (
+    CALL_ACTION,
+    FLUSH,
+    HIGH_CARD,
+    NUM_BIDS,
+    PAIR,
+    STRAIGHT_FLUSH,
+    TWO_PAIR,
+    Bid,
+    all_bids,
+    bid_to_index,
+    normalize_hand_type,
+)
+from game.engine import has_exact_hand, new_match
 
 _FAST_SAMPLES = 100_000
 
@@ -136,7 +142,7 @@ def test_p_exact_n5_matches_rank_counts():
             f"exact_mc={actual:.5f} rank_counts={expected:.5f}"
         )
 
-    print(f"  test_p_exact_n5_matches_rank_counts: PASS")
+    print("  test_p_exact_n5_matches_rank_counts: PASS")
 
 
 def test_p_exact_ngt5_sums_above_one():
@@ -158,7 +164,6 @@ def test_p_exact_hca_increases_with_n():
     P_exact(HC A) should increase monotonically with pool size n,
     since more cards = more chances to contain an HC-A 5-card subset.
     """
-    bids = all_bids()
     hca_idx = bid_to_index(Bid(HIGH_CARD, 12))
     prev = -1.0
     for n in [2, 4, 6, 8, 10]:
@@ -168,7 +173,7 @@ def test_p_exact_hca_increases_with_n():
             f"P_exact(HC A) should increase with n: n={n} p={p:.4f} <= prev={prev:.4f}"
         )
         prev = p
-    print(f"  test_p_exact_hca_increases_with_n: PASS")
+    print("  test_p_exact_hca_increases_with_n: PASS")
 
 
 # ===========================================================================
@@ -185,10 +190,9 @@ def test_nash_p1_cannot_improve_at_n2():
     optimally. This must be ≤ 0.71 for the equilibrium to be valid.
     """
     eq = get_blind_equilibrium_exact(2)
-    bids = all_bids()
+    bids    = all_bids()
     p_exact = eq["p_exact"]
     values  = eq["values"]
-    policy  = eq["policy"]
 
     hca_idx = bid_to_index(Bid(HIGH_CARD, 12))
     p1_call_ev = 1.0 - 2.0 * p_exact[hca_idx]
@@ -248,8 +252,8 @@ def test_equilibrium_ev_negative_small_n():
         assert ev > -0.05, (
             f"n={n}: expected first-bidder EV ≥ 0 under exact rules at large n, got {ev:+.4f}"
         )
-    print(f"  test_equilibrium_ev_negative_small_n: PASS  "
-          f"(first-mover disadvantage confirmed for n≤8, inverts at n≥9)")
+    print("  test_equilibrium_ev_negative_small_n: PASS  "
+          "(first-mover disadvantage confirmed for n≤8, inverts at n≥9)")
 
 
 def test_exact_first_bid_is_hca_for_small_n():
@@ -266,7 +270,7 @@ def test_exact_first_bid_is_hca_for_small_n():
             f"n={n}: expected first bid HC A (idx={hca_idx}), "
             f"got {bids[ib]} (idx={ib})"
         )
-    print(f"  test_exact_first_bid_is_hca_for_small_n: PASS")
+    print("  test_exact_first_bid_is_hca_for_small_n: PASS")
 
 
 def test_at_least_first_bid_tracks_threshold():
@@ -281,7 +285,7 @@ def test_at_least_first_bid_tracks_threshold():
             f"n={n}: at-least first bid should be near 50% threshold, "
             f"got P={p:.4f}"
         )
-    print(f"  test_at_least_first_bid_tracks_threshold: PASS")
+    print("  test_at_least_first_bid_tracks_threshold: PASS")
 
 
 def test_exact_vs_atleast_ev_diverge():
@@ -299,8 +303,8 @@ def test_exact_vs_atleast_ev_diverge():
             f"n={n}: EV difference (at-least minus exact) = {diff:.4f}; "
             f"expected > 0.5 EV units for small n"
         )
-    print(f"  test_exact_vs_atleast_ev_diverge: PASS  "
-          f"(exact rules penalize first bidder heavily at small n)")
+    print("  test_exact_vs_atleast_ev_diverge: PASS  "
+          "(exact rules penalize first bidder heavily at small n)")
 
 
 # ===========================================================================
@@ -426,12 +430,12 @@ def test_engine_exact_rules_resolution():
     if expected_holds:
         # Bid held: caller (P1, seat 1) loses
         assert result.loser_seat == 1, (
-            f"HC A held in pool [A, K]: caller P1 should lose"
+            "HC A held in pool [A, K]: caller P1 should lose"
         )
     else:
         # Bid didn't hold: bidder (P0, seat 0) loses
         assert result.loser_seat == 0, (
-            f"HC A didn't hold in pool [A, K]: bidder P0 should lose"
+            "HC A didn't hold in pool [A, K]: bidder P0 should lose"
         )
 
     print(f"  test_engine_exact_rules_resolution: PASS  "
@@ -662,7 +666,7 @@ def test_high_hand_correct_declaration_penalizes_bidder():
         "Correct HH declaration: declarer (P1) is rewarded"
     )
     print("  test_high_hand_correct_declaration_penalizes_bidder: PASS  "
-          f"(pool [A,K]: HC A is pool best; bidder P0 penalized)")
+          "(pool [A,K]: HC A is pool best; bidder P0 penalized)")
 
 
 def test_high_hand_incorrect_declaration_penalizes_declarer():
@@ -692,7 +696,7 @@ def test_high_hand_incorrect_declaration_penalizes_declarer():
         "Incorrect HH declaration: declarer (P1) is penalized"
     )
     print("  test_high_hand_incorrect_declaration_penalizes_declarer: PASS  "
-          f"(pool [A,K]: HC K is NOT pool best; declarer P1 penalized)")
+          "(pool [A,K]: HC K is NOT pool best; declarer P1 penalized)")
 
 
 def test_high_hand_ace_scenario_user_insight():

@@ -36,14 +36,13 @@ import os
 import random
 import sys
 import time
-from typing import List, Tuple
 
 HERE      = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from poker_math_exact import _evaluate_ranked, ROYAL_FLUSH, STRAIGHT_FLUSH  # noqa: E402
+from poker_math_exact import ROYAL_FLUSH, STRAIGHT_FLUSH, _evaluate_ranked  # noqa: E402
 
 DATA_DIR    = os.path.join(REPO_ROOT, "data", "probs")
 OUTPUT_FILE = os.path.join(DATA_DIR, "five_kings_probs.json")
@@ -60,7 +59,7 @@ _PRIMARY_RANGES = {
     0: (0, 12), 1: (0, 12), 2: (1, 12), 3: (0, 12),
     4: (3, 12), 5: (0, 12), 6: (0, 12), 7: (0, 12), 8: (3, 12),
 }
-_ALL_BIDS: List[Tuple[int, int]] = []
+_ALL_BIDS: list[tuple[int, int]] = []
 for _ht in range(9):
     lo, hi = _PRIMARY_RANGES[_ht]
     for _pr in range(lo, hi + 1):
@@ -72,7 +71,7 @@ NUM_BIDS_5K = len(_ALL_BIDS)   # 111
 FIVE_KINGS_CARD = 52
 
 
-def _evaluate_five_kings(pool: List[int]) -> Tuple[int, int]:
+def _evaluate_five_kings(pool: list[int]) -> tuple[int, int]:
     """Evaluate best hand, treating card 52 as an extra King (rank=11)."""
     # Count rank 11 (King) including card 52
     king_count = sum(1 for c in pool if (c != FIVE_KINGS_CARD and c >> 2 == 11)) + \
@@ -88,7 +87,7 @@ def _evaluate_five_kings(pool: List[int]) -> Tuple[int, int]:
     return (raw_t, raw_p)
 
 
-def _simulate_n(args: Tuple) -> dict:
+def _simulate_n(args: tuple) -> dict:
     n, n_samples, seed = args
     rng = random.Random(seed)
     deck = list(range(52)) + [FIVE_KINGS_CARD]  # 53-card deck

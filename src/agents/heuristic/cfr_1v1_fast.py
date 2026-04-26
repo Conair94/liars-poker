@@ -25,11 +25,8 @@ both solvers must produce (a) identical opening_mix_by_rank to 1e-3, and
 
 from __future__ import annotations
 
-import ast
-import json
 import os
 import sys
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -41,15 +38,20 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from game.bids import (                                # noqa: E402
-    CALL_ACTION, HH_ACTION, index_to_bid,
+from agents.heuristic.cfr_1v1 import (  # noqa: E402
+    _TOTAL_DEAL_COUNT,
+    HC_PAIR_BIDS,
+    _current_player,
+    _is_terminal,
+    _legal_actions,
+    _rank_pair_weight,
+    _terminal_utility_p0_rank,
 )
-from agents.heuristic.cfr_1v1 import (                 # noqa: E402
-    HC_PAIR_BIDS, _legal_actions, _is_terminal,
-    _current_player, _terminal_utility_p0_rank,
-    _rank_pair_weight, _TOTAL_DEAL_COUNT,
+from game.bids import (  # noqa: E402
+    CALL_ACTION,
+    HH_ACTION,
+    index_to_bid,
 )
-
 
 # ---------------------------------------------------------------------------
 # Solver
@@ -64,7 +66,7 @@ class CFRSolverFast:
     def __init__(
         self,
         max_bids: int = 6,
-        bid_space: Tuple[int, ...] = HC_PAIR_BIDS,
+        bid_space: tuple[int, ...] = HC_PAIR_BIDS,
         include_hh: bool = True,
     ) -> None:
         self.max_bids   = int(max_bids)
@@ -82,11 +84,11 @@ class CFRSolverFast:
     def _build_tree(self) -> None:
         """BFS-enumerate every internal history, assign integer node ids, and
         precompute terminal utility matrices for every resolver action."""
-        internal_histories: List[Tuple[int, ...]] = []
-        internal_id: Dict[Tuple[int, ...], int] = {}
+        internal_histories: list[tuple[int, ...]] = []
+        internal_id: dict[tuple[int, ...], int] = {}
 
         # BFS so parent nodes get lower ids than children.
-        frontier: List[Tuple[int, ...]] = [()]
+        frontier: list[tuple[int, ...]] = [()]
         visited: set = set()
         while frontier:
             h = frontier.pop(0)
@@ -103,12 +105,12 @@ class CFRSolverFast:
         num_internal = len(internal_histories)
         node_player = np.zeros(num_internal, dtype=np.int8)
         node_depth  = np.zeros(num_internal, dtype=np.int16)
-        node_legal: List[List[int]] = [[] for _ in range(num_internal)]
-        node_children: List[List[Tuple[bool, int]]] = [[] for _ in range(num_internal)]
+        node_legal: list[list[int]] = [[] for _ in range(num_internal)]
+        node_children: list[list[tuple[bool, int]]] = [[] for _ in range(num_internal)]
 
-        term_u_list: List[np.ndarray] = []
+        term_u_list: list[np.ndarray] = []
 
-        def _term_matrix(h: Tuple[int, ...]) -> np.ndarray:
+        def _term_matrix(h: tuple[int, ...]) -> np.ndarray:
             m = np.empty((13, 13), dtype=np.float64)
             for r0 in range(13):
                 for r1 in range(13):
@@ -148,8 +150,8 @@ class CFRSolverFast:
 
     def _init_state(self) -> None:
         """Allocate regret_sum and strategy_sum per node."""
-        self._regret_sum:   List[np.ndarray] = []
-        self._strategy_sum: List[np.ndarray] = []
+        self._regret_sum:   list[np.ndarray] = []
+        self._strategy_sum: list[np.ndarray] = []
         for node_id in range(self._num_internal):
             n_legal = len(self._node_legal[node_id])
             self._regret_sum.append(np.zeros((13, n_legal), dtype=np.float64))
@@ -182,7 +184,7 @@ class CFRSolverFast:
         current (instantaneous, not average) strategy."""
         num_internal = self._num_internal
         node_value = np.zeros((num_internal, 13, 13), dtype=np.float64)
-        strategies: List[Optional[np.ndarray]] = [None] * num_internal
+        strategies: list[np.ndarray | None] = [None] * num_internal
 
         # 1. Bottom-up: compute node values.
         for node_id in reversed(self._topo_order.tolist()):
@@ -265,7 +267,7 @@ class CFRSolverFast:
         safe = np.where(row_sum > 0, row_sum, 1.0)
         return np.where(row_sum > 0, ss / safe, uniform)
 
-    def average_strategy(self, history: Tuple[int, ...]) -> Dict[int, np.ndarray]:
+    def average_strategy(self, history: tuple[int, ...]) -> dict[int, np.ndarray]:
         """Return a dict rank -> (n_legal,) average-strategy distribution."""
         node_id = self._history_to_nodeid(history)
         if node_id is None:
@@ -275,22 +277,19 @@ class CFRSolverFast:
         avg = self._avg_strategy_for(node_id)  # (13, n_legal)
         return {r: avg[r] for r in range(13)}
 
-    def _history_to_nodeid(self, history: Tuple[int, ...]) -> Optional[int]:
+    def _history_to_nodeid(self, history: tuple[int, ...]) -> int | None:
         # Linear search — only called at reporting time.
         for nid in range(self._num_internal):
             if self._reconstruct_history(nid) == history:
                 return nid
         return None
 
-    def _reconstruct_history(self, node_id: int) -> Tuple[int, ...]:
+    def _reconstruct_history(self, node_id: int) -> tuple[int, ...]:
         # Expensive; used only for average-strategy queries. The solver caches
         # node -> history if needed. For now, walk the id back via BFS metadata.
         # Simpler: we'll build an id->history cache lazily.
         if not hasattr(self, "_id_to_history"):
             self._id_to_history = [None] * self._num_internal
-            # Re-run BFS to map node_id -> history.
-            stack: List[Tuple[Tuple[int, ...], int]] = [((), self._topo_order[0].item())]
-            # Walk BFS using children
             from collections import deque
             queue = deque()
             queue.append(((), int(self._topo_order[0])))
@@ -306,14 +305,14 @@ class CFRSolverFast:
                         queue.append((new_h, child_idx))
         return self._id_to_history[node_id]
 
-    def opening_mix_by_rank(self) -> Dict[int, Dict[str, float]]:
+    def opening_mix_by_rank(self) -> dict[int, dict[str, float]]:
         """P0's root opening-bid distribution keyed by P0's rank."""
         root_id = int(self._topo_order[0])
         legal   = self._node_legal[root_id]
         avg     = self._avg_strategy_for(root_id)  # (13, n_legal)
-        out: Dict[int, Dict[str, float]] = {}
+        out: dict[int, dict[str, float]] = {}
         for rank in range(13):
-            d: Dict[str, float] = {}
+            d: dict[str, float] = {}
             for i, a in enumerate(legal):
                 p = float(avg[rank, i])
                 if p >= 0.001:
@@ -321,17 +320,17 @@ class CFRSolverFast:
             out[rank] = d
         return out
 
-    def response_mix_by_rank(self, opening_bid_idx: int) -> Dict[int, Dict[str, float]]:
+    def response_mix_by_rank(self, opening_bid_idx: int) -> dict[int, dict[str, float]]:
         """P1's response distribution after a given opening bid."""
         history = (opening_bid_idx,)
         node_id = self._history_to_nodeid(history)
-        out: Dict[int, Dict[str, float]] = {}
+        out: dict[int, dict[str, float]] = {}
         if node_id is None:
             return {r: {} for r in range(13)}
         legal = self._node_legal[node_id]
         avg   = self._avg_strategy_for(node_id)
         for rank in range(13):
-            d: Dict[str, float] = {}
+            d: dict[str, float] = {}
             for i, a in enumerate(legal):
                 p = float(avg[rank, i])
                 if p < 0.001:
@@ -415,7 +414,7 @@ class CFRSolverFast:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "CFRSolverFast":
+    def from_dict(cls, d: dict) -> CFRSolverFast:
         solver = cls(
             max_bids=int(d.get("max_bids", 6)),
             bid_space=tuple(d.get("bid_space", HC_PAIR_BIDS)),

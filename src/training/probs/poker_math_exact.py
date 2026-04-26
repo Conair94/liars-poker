@@ -31,8 +31,8 @@ Card encoding: card index = rank * 4 + suit
   suit: 0=C, 1=D, 2=H, 3=S
 """
 
-from math import comb
 import random
+from math import comb
 
 # ---------------------------------------------------------------------------
 # Hand type constants (matches liars_poker_engine.py HandEvaluator ordering)

@@ -33,11 +33,15 @@ import random
 import sys
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
 from .bids import (
-    Bid, CALL_ACTION, HH_ACTION, NUM_ACTIONS, NUM_BIDS,
-    bid_to_index, index_to_bid, normalize_hand_type,
+    CALL_ACTION,
+    HH_ACTION,
+    NUM_BIDS,
+    Bid,
+    bid_to_index,
+    index_to_bid,
+    normalize_hand_type,
 )
 
 # Import the Stage 1 evaluator from src/training/probs/.
@@ -48,7 +52,6 @@ if _PROBS_DIR not in sys.path:
 
 from poker_math_exact import _evaluate_ranked  # noqa: E402
 
-
 MAX_HAND_SIZE = 5
 MIN_PLAYERS = 2
 MAX_PLAYERS = 5
@@ -58,7 +61,7 @@ MAX_PLAYERS = 5
 # Exact-rules hand check
 # ---------------------------------------------------------------------------
 
-def has_exact_hand(pool: List[int], bid: Bid) -> bool:
+def has_exact_hand(pool: list[int], bid: Bid) -> bool:
     """Return True if some 5-card subset of pool evaluates to EXACTLY bid.
 
     Used in exact-rules mode: a bid of 'Pair A' only holds if the pool contains
@@ -88,16 +91,16 @@ class RoundState:
     """State of the currently-active round (None between rounds / at terminal)."""
     # Private hands, indexed by ORIGINAL seat index. Eliminated / inactive seats
     # hold an empty list. Active seats hold exactly hand_sizes[seat] cards.
-    hands: List[List[int]]
+    hands: list[list[int]]
     # Bid history for this round, in turn order: (seat, action_idx)
     # action_idx ∈ {0..NUM_BIDS-1 (a bid), CALL_ACTION}
-    history: List[Tuple[int, int]] = field(default_factory=list)
+    history: list[tuple[int, int]] = field(default_factory=list)
     # Current seat to act (original seat index).
     current_player: int = 0
     # Seat that made the most recent bid (for resolution). -1 before any bid.
     last_bidder: int = -1
     # The most recent bid made this round, None if no bid yet.
-    current_bid: Optional[Bid] = None
+    current_bid: Bid | None = None
 
 
 @dataclass
@@ -106,7 +109,7 @@ class RoundResult:
     winner_seat: int            # the player who won the call (bidder or caller)
     bid: Bid
     caller_seat: int
-    pool: List[int]
+    pool: list[int]
     pool_best: Bid              # (hand_type, primary_rank) of the pool's best 5-card hand
     call_succeeded: bool        # True if the caller won (bid was a lie)
     is_high_hand: bool = False  # True if resolved by High Hand declaration
@@ -121,13 +124,13 @@ class RoundResult:
 @dataclass
 class MatchState:
     num_players: int                   # original seat count (2..5)
-    hand_sizes: List[int]              # per-seat; 0 means eliminated
-    active: List[bool]                 # per-seat; True if still in the match
+    hand_sizes: list[int]              # per-seat; 0 means eliminated
+    active: list[bool]                 # per-seat; True if still in the match
     first_bidder_next: int             # seat to lead off the next round
-    round_state: Optional[RoundState]  # None between rounds / at terminal
-    round_history: List[RoundResult] = field(default_factory=list)
+    round_state: RoundState | None  # None between rounds / at terminal
+    round_history: list[RoundResult] = field(default_factory=list)
     terminal: bool = False
-    winner: Optional[int] = None
+    winner: int | None = None
     rng: random.Random = field(default_factory=random.Random)
     # Game mode options
     mode: str = 'countup'              # 'countup' | 'countdown'
@@ -137,7 +140,7 @@ class MatchState:
 
     # --- public API -------------------------------------------------------
 
-    def active_seats(self) -> List[int]:
+    def active_seats(self) -> list[int]:
         return [i for i, a in enumerate(self.active) if a]
 
     def num_active(self) -> int:
@@ -159,7 +162,7 @@ class MatchState:
             raise RuntimeError("between rounds; call start_next_round() first")
         return self.round_state.current_player
 
-    def legal_actions(self) -> List[int]:
+    def legal_actions(self) -> list[int]:
         """Legal action indices for the current player in the current round."""
         if self.terminal:
             return []
@@ -177,7 +180,7 @@ class MatchState:
             actions.append(HH_ACTION)
         return actions
 
-    def apply_action(self, action: int) -> Optional[RoundResult]:
+    def apply_action(self, action: int) -> RoundResult | None:
         """
         Apply `action` for the current player. On a terminal round (CALL),
         resolves the round and advances match state. Returns the RoundResult
@@ -224,7 +227,7 @@ class MatchState:
         if self.five_kings:
             deck.append(52)  # card 52 = King of Beers
         self.rng.shuffle(deck)
-        hands: List[List[int]] = [[] for _ in range(self.num_players)]
+        hands: list[list[int]] = [[] for _ in range(self.num_players)]
         idx = 0
         for seat in range(self.num_players):
             if self.active[seat]:
@@ -255,7 +258,7 @@ class MatchState:
         is trivially serializable.
         """
         rs = self.round_state
-        own_hand: List[int] = list(rs.hands[seat]) if (rs is not None) else []
+        own_hand: list[int] = list(rs.hands[seat]) if (rs is not None) else []
         own_hand.sort()
 
         return {
@@ -278,7 +281,7 @@ class MatchState:
             "winner":            self.winner,
         }
 
-    def returns(self) -> List[float]:
+    def returns(self) -> list[float]:
         """
         Per-seat zero-sum returns. +1 to match winner, −1 to eliminated
         players, 0 to active non-winners (only present in non-terminal states).
@@ -295,7 +298,7 @@ class MatchState:
                 out[s] = 0.0  # shouldn't happen at terminal
         return out
 
-    def clone(self) -> "MatchState":
+    def clone(self) -> MatchState:
         """Deep clone, including RNG state (so simulated rollouts are reproducible)."""
         new = MatchState(
             num_players=self.num_players,
@@ -362,7 +365,7 @@ class MatchState:
         bid = rs.current_bid
         bidder = rs.last_bidder
 
-        pool: List[int] = []
+        pool: list[int] = []
         for s in range(self.num_players):
             if self.active[s]:
                 pool.extend(rs.hands[s])
@@ -440,7 +443,7 @@ class MatchState:
         bidder = rs.last_bidder
 
         # Build the pool from all active seats' hands.
-        pool: List[int] = []
+        pool: list[int] = []
         for s in range(self.num_players):
             if self.active[s]:
                 pool.extend(rs.hands[s])
@@ -497,7 +500,7 @@ class MatchState:
 
 def new_match(
     num_players: int,
-    seed: Optional[int] = None,
+    seed: int | None = None,
     mode: str = 'countup',
     exact_rules: bool = False,
     high_hand: bool = False,

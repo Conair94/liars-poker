@@ -4,13 +4,14 @@ Tests for agents.heuristic.blind_equilibrium. Run via:
     pytest tests/agents/heuristic/test_blind_equilibrium.py
 """
 
+import sys
+
 from agents.heuristic.blind_equilibrium import (
     _compute_bid_at_least,
     _solve_n2,
-    _solve_initial,
     get_blind_equilibrium,
 )
-from game.bids import NUM_BIDS, CALL_ACTION, all_bids, bid_to_index, Bid
+from game.bids import CALL_ACTION, NUM_BIDS, all_bids
 
 # Use small sample counts so tests run quickly
 _FAST_SAMPLES = 50_000

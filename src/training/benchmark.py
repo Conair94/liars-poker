@@ -22,7 +22,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from itertools import combinations
 
 # ---------------------------------------------------------------------------
@@ -35,8 +35,8 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from game.engine import new_match
 from agents.registry import AGENT_REGISTRY, build_agent
+from game.engine import new_match
 
 # ---------------------------------------------------------------------------
 # Agent lists
@@ -180,7 +180,7 @@ def main():
     results = run_benchmark(n_games=args.games, base_seed=args.seed, group_names=active)
 
     output = {
-        "generated": datetime.now(timezone.utc).isoformat(),
+        "generated": datetime.now(UTC).isoformat(),
         "games_per_pair": args.games,
         "seed": args.seed,
         "groups": active,

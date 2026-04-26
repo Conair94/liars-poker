@@ -52,14 +52,13 @@ import random
 import sys
 import time
 from itertools import combinations
-from typing import List, Set, Tuple
 
 HERE      = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from poker_math_exact import _evaluate_ranked, ROYAL_FLUSH, STRAIGHT_FLUSH  # noqa: E402
+from poker_math_exact import ROYAL_FLUSH, STRAIGHT_FLUSH, _evaluate_ranked  # noqa: E402
 
 DATA_DIR    = os.path.join(REPO_ROOT, "data", "probs")
 OUTPUT_FILE = os.path.join(DATA_DIR, "exact_rules_probs.json")
@@ -77,7 +76,7 @@ _PRIMARY_RANGES = {
     0: (0, 12), 1: (0, 12), 2: (1, 12), 3: (0, 12),
     4: (3, 12), 5: (0, 12), 6: (0, 12), 7: (0, 12), 8: (3, 12),
 }
-_ALL_BIDS: List[Tuple[int, int]] = []
+_ALL_BIDS: list[tuple[int, int]] = []
 for _ht in range(9):
     lo, hi = _PRIMARY_RANGES[_ht]
     for _pr in range(lo, hi + 1):
@@ -87,7 +86,7 @@ NUM_BIDS = len(_ALL_BIDS)  # 110
 _BID_TO_INDEX = {b: i for i, b in enumerate(_ALL_BIDS)}
 
 
-def _exact_bids_in_pool(pool: List[int]) -> Set[Tuple[int, int]]:
+def _exact_bids_in_pool(pool: list[int]) -> set[tuple[int, int]]:
     """
     Return the set of (ht, pr) bids that are EXACTLY present in the pool
     (i.e. there exists a 5-card subset whose best hand is exactly (ht, pr)).
@@ -96,7 +95,7 @@ def _exact_bids_in_pool(pool: List[int]) -> Set[Tuple[int, int]]:
     independently (which would be O(NUM_BIDS × C(n,5))).
     """
     n = len(pool)
-    present: Set[Tuple[int, int]] = set()
+    present: set[tuple[int, int]] = set()
     if n < 5:
         raw_t, raw_p = _evaluate_ranked(pool)
         if raw_t == ROYAL_FLUSH:
@@ -111,7 +110,7 @@ def _exact_bids_in_pool(pool: List[int]) -> Set[Tuple[int, int]]:
     return present
 
 
-def _simulate_n(args: Tuple) -> dict:
+def _simulate_n(args: tuple) -> dict:
     """Worker: simulate exact-hand probabilities for one pool size n."""
     n, n_samples, seed = args
     rng = random.Random(seed)

@@ -5,18 +5,23 @@ Tests for M3 R-NaD components. Run via:
 """
 
 import copy
+import sys
 
 import numpy as np
 import torch
 
-from game.bids import NUM_BIDS, NUM_ACTIONS, CALL_ACTION
-from game.engine import new_match
 from agents.learned.rnad.config import RNaDConfig
 from agents.learned.rnad.network import LiarsPokerNet, _mask_logits
 from agents.learned.rnad.trainer import (
-    Step, collect_round, collect_match, compute_rnad_returns, compute_loss,
     RNaDTrainer,
+    collect_match,
+    collect_round,
+    compute_loss,
+    compute_rnad_returns,
 )
+from game.bids import NUM_ACTIONS
+from game.engine import new_match
+
 
 # Shared tiny config for fast tests
 def _fast_cfg(**kwargs) -> RNaDConfig:

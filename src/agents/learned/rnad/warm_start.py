@@ -38,7 +38,6 @@ from __future__ import annotations
 import json
 import os
 import sys
-from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -55,8 +54,9 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from poker_math_exact import get_hand_rank_counts, ROYAL_FLUSH, STRAIGHT_FLUSH  # noqa: E402
-from game.bids import all_bids, NUM_BIDS, Bid  # noqa: E402
+from poker_math_exact import ROYAL_FLUSH, STRAIGHT_FLUSH, get_hand_rank_counts  # noqa: E402
+
+from game.bids import NUM_BIDS, all_bids  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -104,7 +104,7 @@ def _build_marginal_cache(n_samples: int = 3_000_000, seed: int = 42) -> None:
     print(f"[warm_start] Saved marginal cache → {_MARGINAL_CACHE}")
 
 
-def _load_or_build_marginal() -> Dict[int, List[List[int]]]:
+def _load_or_build_marginal() -> dict[int, list[list[int]]]:
     """Return {n: 10×13 count matrix} for n=5..25, building the cache if needed."""
     if not os.path.exists(_MARGINAL_CACHE):
         _build_marginal_cache()
@@ -119,7 +119,7 @@ def _load_or_build_marginal() -> Dict[int, List[List[int]]]:
 # Helper: convert a 10×13 count matrix to a NUM_BIDS probability vector
 # ---------------------------------------------------------------------------
 
-def _matrix_to_prob_vec(matrix: List[List[int]]) -> np.ndarray:
+def _matrix_to_prob_vec(matrix: list[list[int]]) -> np.ndarray:
     """
     Flatten a 10×13 count matrix into a (NUM_BIDS,) float32 probability vector
     aligned with all_bids() ordering.
@@ -142,7 +142,7 @@ def _matrix_to_prob_vec(matrix: List[List[int]]) -> np.ndarray:
 # Condition matching
 # ---------------------------------------------------------------------------
 
-def match_condition(hand: List[int]) -> Optional[str]:
+def match_condition(hand: list[int]) -> str | None:
     """
     Return the most specific condition key for the given private hand
     (list of card indices 0-51), or None if no condition matches.
@@ -250,7 +250,7 @@ class WarmStartLookup:
 
         # --- marginal: {n: (NUM_BIDS,) float32 array} ---
         marginal_matrices = _load_or_build_marginal()
-        self._marginal: Dict[int, np.ndarray] = {
+        self._marginal: dict[int, np.ndarray] = {
             n: _matrix_to_prob_vec(mat) for n, mat in marginal_matrices.items()
         }
 
@@ -265,7 +265,7 @@ class WarmStartLookup:
             raw = json.load(f)
 
         conds_raw = raw["conditions"]
-        self._conditional: Dict[str, Dict[int, np.ndarray]] = {}
+        self._conditional: dict[str, dict[int, np.ndarray]] = {}
 
         for cond_key, n_dict in conds_raw.items():
             self._conditional[cond_key] = {}
@@ -283,15 +283,15 @@ class WarmStartLookup:
         _KNOWN_CONDITIONS = set(self._conditional.keys())
 
         # LRU feature cache: keyed by (tuple(sorted(own_hand)), n)
-        self._feature_cache: Dict[tuple, Tuple] = {}
+        self._feature_cache: dict[tuple, tuple] = {}
 
     # ------------------------------------------------------------------
 
     def get_features(
         self,
-        own_hand: List[int],
+        own_hand: list[int],
         n: int,
-    ) -> Tuple[np.ndarray, np.ndarray, Optional[str]]:
+    ) -> tuple[np.ndarray, np.ndarray, str | None]:
         """
         Return warm-start features for one player at one decision point.
 
@@ -333,9 +333,9 @@ class WarmStartLookup:
 
     def get_aux_target(
         self,
-        condition_key: Optional[str],
+        condition_key: str | None,
         n: int,
-    ) -> Optional[np.ndarray]:
+    ) -> np.ndarray | None:
         """
         Return the supervised target for the auxiliary prediction head (§5.4).
 
@@ -373,8 +373,8 @@ class WarmStartLookup:
         if hasattr(self, '_exact_rules_exact'):
             return
         if not os.path.exists(_EXACT_RULES_CACHE):
-            self._exact_rules_exact: Dict[int, np.ndarray] = {}
-            self._exact_rules_at_least: Dict[int, np.ndarray] = {}
+            self._exact_rules_exact: dict[int, np.ndarray] = {}
+            self._exact_rules_at_least: dict[int, np.ndarray] = {}
             return
         with open(_EXACT_RULES_CACHE) as f:
             raw = json.load(f)
@@ -387,7 +387,7 @@ class WarmStartLookup:
             for k, v in raw.items() if k not in ("n_samples",)
         }
 
-    def get_exact_rules_exact(self, n: int) -> Optional[np.ndarray]:
+    def get_exact_rules_exact(self, n: int) -> np.ndarray | None:
         """
         Return P(pool contains 5-card subset with best hand exactly == bid_i | n).
         This is a per-bid probability, NOT a cumulative at-least table.
@@ -396,7 +396,7 @@ class WarmStartLookup:
         self._load_exact_rules_cache()
         return self._exact_rules_exact.get(n)
 
-    def get_exact_rules_at_least(self, n: int) -> Optional[np.ndarray]:
+    def get_exact_rules_at_least(self, n: int) -> np.ndarray | None:
         """
         Return P(pool contains 5-card exact match >= bid_i | n) for exact-rules mode.
         NOTE: This is the cumulative union sum — use get_exact_rules_exact() for
@@ -409,7 +409,7 @@ class WarmStartLookup:
     def _load_exact_cond_cache(self) -> None:
         if hasattr(self, "_exact_cond"):
             return
-        self._exact_cond: Dict[str, Dict[int, np.ndarray]] = {}
+        self._exact_cond: dict[str, dict[int, np.ndarray]] = {}
         if not os.path.exists(_EXACT_COND_CACHE):
             return
         with open(_EXACT_COND_CACHE) as f:
@@ -423,8 +423,8 @@ class WarmStartLookup:
     def get_exact_rules_conditional(
         self,
         n: int,
-        cond_key: Optional[str],
-    ) -> Optional[np.ndarray]:
+        cond_key: str | None,
+    ) -> np.ndarray | None:
         """
         Return P(pool contains 5-card subset with best hand == bid_i | n, condition).
         None if cache missing or no matching entry.
@@ -437,7 +437,7 @@ class WarmStartLookup:
             return None
         return n_dict.get(n)
 
-    def get_five_kings_at_least(self, n: int) -> Optional[np.ndarray]:
+    def get_five_kings_at_least(self, n: int) -> np.ndarray | None:
         """
         Return P(pool_best >= bid_i | n, 53-card deck) for five-kings mode.
         Index 110 = Five of a Kind Kings.
@@ -449,7 +449,7 @@ class WarmStartLookup:
                 return None
             with open(_FIVE_KINGS_CACHE) as f:
                 raw = json.load(f)
-            self._five_kings: Dict[int, np.ndarray] = {
+            self._five_kings: dict[int, np.ndarray] = {
                 int(k): np.array(v["at_least"], dtype=np.float32)
                 for k, v in raw.items() if k not in ("n_samples", "deck_size")
             }
@@ -457,7 +457,7 @@ class WarmStartLookup:
 
     def coverage_report(self) -> None:
         """Print a summary of condition coverage and marginal availability."""
-        print(f"WarmStartLookup coverage:")
+        print("WarmStartLookup coverage:")
         print(f"  NUM_BIDS              : {NUM_BIDS}")
         print(f"  Feature dim (2×bids)  : {self.num_features}")
         print(f"  Conditions loaded     : {len(_KNOWN_CONDITIONS)}")

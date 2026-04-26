@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Dict, List, Optional
 
 import numpy as np
 import torch
@@ -35,10 +34,9 @@ for _p in (_PROBS_DIR, _SRC_DIR):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from game.bids import NUM_ACTIONS, CALL_ACTION                  # noqa: E402
-from game.engine import new_match                               # noqa: E402
 from agents.learned.rnad.network import LiarsPokerNet, _mask_logits  # noqa: E402
-
+from game.bids import CALL_ACTION  # noqa: E402
+from game.engine import new_match  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Single-game evaluation helper
@@ -52,7 +50,7 @@ def play_round(
     num_players: int = 2,
     exact_rules: bool = False,
     high_hand:   bool = True,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Play one round.  policy occupies `policy_seat`; opponent occupies all others.
 
@@ -65,7 +63,7 @@ def play_round(
     state.hand_sizes = [hand_size] * num_players
     state.start_next_round()
 
-    entropies: List[float] = []
+    entropies: list[float] = []
 
     while state.round_state is not None:
         cp    = state.round_state.current_player
@@ -113,7 +111,7 @@ def _bid_accuracy_episode(
     Returns fraction of decision points where they agree.
     """
     from agents.heuristic.blind_equilibrium import get_blind_equilibrium
-    from game.bids import bid_to_index, Bid
+    from game.bids import Bid, bid_to_index
 
     state = new_match(num_players, exact_rules=exact_rules, high_hand=high_hand)
     state.hand_sizes = [hand_size] * num_players
@@ -173,7 +171,7 @@ def play_match(
     opponent,
     policy_seat: int,
     num_players: int = 2,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Play one full match.  policy occupies `policy_seat`; opponent fills all
     other seats.
@@ -186,7 +184,7 @@ def play_match(
     from game.engine import new_match as _new_match
 
     state = _new_match(num_players)
-    entropies: List[float] = []
+    entropies: list[float] = []
 
     while not state.terminal:
         state.start_next_round()
@@ -227,10 +225,10 @@ def evaluate_policy(
     hand_size:    int   = 1,
     num_players:  int   = 2,
     stage:        str   = "A",
-    device:       Optional[torch.device] = None,
+    device:       torch.device | None = None,
     exact_rules:  bool  = False,
     high_hand:    bool  = True,
-) -> Dict[str, float]:
+) -> dict[str, float]:
     """
     Run the full evaluation suite and return a metrics dict.
 
@@ -243,7 +241,7 @@ def evaluate_policy(
     policy.eval()
 
     # Import agents lazily to avoid circular imports.
-    from agents.registry import RandomAgent, BlindBaselineAgent
+    from agents.registry import BlindBaselineAgent, RandomAgent
 
     random_agent = RandomAgent()
     blind_agent  = BlindBaselineAgent()
@@ -299,8 +297,8 @@ def print_calibration_report(
     Print a table comparing the policy's action frequencies to the
     blind baseline equilibrium policy for each possible standing bid.
     """
-    from game.bids import all_bids, HAND_NAMES
     from agents.heuristic.blind_equilibrium import get_blind_equilibrium
+    from game.bids import all_bids
 
     policy.eval()
     bids = all_bids()

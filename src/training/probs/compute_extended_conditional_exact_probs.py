@@ -55,25 +55,22 @@ import os
 import random
 import sys
 import time
+from collections.abc import Callable
 from itertools import combinations
-from typing import Callable, List, Set, Tuple
 
 HERE      = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from poker_math_exact import _evaluate_ranked, ROYAL_FLUSH, STRAIGHT_FLUSH  # noqa: E402
-
 # Reuse samplers + condition manifest from the at-least script (now a sibling module).
 from compute_extended_conditional_probs import (  # noqa: E402
+    MAX_N,
+    N_VALUES,
     _build_conditions,
     _materialise_sampler,
-    N_VALUES,
-    MAX_N,
-    RANK_NAMES,
 )
-
+from poker_math_exact import ROYAL_FLUSH, STRAIGHT_FLUSH, _evaluate_ranked  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Bid table (same layout as compute_exact_rules_probs.py)
@@ -83,7 +80,7 @@ _PRIMARY_RANGES = {
     0: (0, 12), 1: (0, 12), 2: (1, 12), 3: (0, 12),
     4: (3, 12), 5: (0, 12), 6: (0, 12), 7: (0, 12), 8: (3, 12),
 }
-_ALL_BIDS: List[Tuple[int, int]] = []
+_ALL_BIDS: list[tuple[int, int]] = []
 for _ht in range(9):
     lo, hi = _PRIMARY_RANGES[_ht]
     for _pr in range(lo, hi + 1):
@@ -98,10 +95,10 @@ DATA_DIR        = os.path.join(REPO_ROOT, "data", "probs")
 OUTPUT_FILE     = os.path.join(DATA_DIR, "extended_conditional_exact_probs.json")
 
 
-def _exact_bids_in_pool(pool: List[int]) -> Set[Tuple[int, int]]:
+def _exact_bids_in_pool(pool: list[int]) -> set[tuple[int, int]]:
     """Set of (ht, pr) bids that appear as the best hand of SOME 5-card subset."""
     n = len(pool)
-    present: Set[Tuple[int, int]] = set()
+    present: set[tuple[int, int]] = set()
     if n < 5:
         t, p = _evaluate_ranked(pool)
         if t == ROYAL_FLUSH:
