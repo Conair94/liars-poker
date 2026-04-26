@@ -8,6 +8,8 @@ Format roughly follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ### Added
 
+- **P1 (2026-04-25)** — `src/` skeleton + game package + unified test tree. Pure file moves, zero behavior change. 13 commits; full test suite green (88 passed, 1 pre-existing `test_bid_count` failure, 2 slow tests deselected by default). See `TRAINING_PIPELINE_PLAN.md` P1 handoff for per-commit detail.
+- **P2 foundations (2026-04-25)** — `archive/README.md` (frozen-on-disk policy), ADR-004 (frontend archived on disk). Actual `git mv` of `docs/` and `Liars poker/agent/web/` → `archive/web-2026-04/` is gated on user disabling GitHub Pages.
 - `pyproject.toml` at repo root with dev dependencies (`hydra-core`, `wandb`, `pytest`, `pytest-cov`, `ruff`, `mypy`) and an optional `openspiel` extra.
 - W&B integration prep: entity `conair92-university-of-maryland`, project `liars-poker` (auto-created on first `wandb.init` call). Account verified 2026-04-24.
 - `docs-internal/design/adr/` — Architecture Decision Records.

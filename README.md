@@ -26,7 +26,7 @@ liars-poker/
 │   ├── probs/           — probability JSON caches
 │   ├── runs/            — training run outputs + checkpoints
 │   └── checkpoints/     — trained model checkpoints (gitignored)
-├── docs/                — GitHub Pages JS client (local-dev only)
+├── archive/             — retired code, frozen read-only (web demo archived 2026-04-25)
 ├── docs-internal/       — design docs, ADRs, milestone tracking
 │   └── design/
 ├── paper/               — LaTeX source for Stage 1 paper
