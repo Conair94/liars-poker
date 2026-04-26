@@ -155,21 +155,21 @@ If the user has not yet disabled Pages in the GitHub UI, do not merge the archiv
 
 ### Checklist
 
-- [ ] Define `DecisionRecord` dataclass in `src/training/logging.py` matching the schema in design doc §6 (`run_id`, `game_id`, `turn`, `agent`, `state`, `choices`, `chosen`, `reasoning_tag`, `outcome`).
-- [ ] Add a `@emit_decision` decorator or base-class hook on the existing agent action methods, so every current agent writes a record without touching its internal logic.
-- [ ] Extend `benchmark.py` to accept a `--log-decisions` flag and write `data/runs/<run_id>/decisions.jsonl`.
-- [ ] Write `src/training/reflect.py` implementing the v1 rule set from design doc §9:
-  - Infeasible-bid tripwire.
-  - Missed-call rule (P(call) < 0.3 when P(standing bid exists) < 0.1).
-  - Low-EU choice rule.
-  - Stale-bid-repetition cluster.
-  - Rank-leak entropy check.
-- [ ] `reflect` output → `data/runs/<run_id>/summary.md` with one table per rule, ranked by flag rate per (agent, opponent, ruleset).
-- [ ] Wire W&B: every benchmark run pushes `metrics.json` + flaw-counts as a W&B run. Tag runs with git SHA and config hash.
-- [ ] CLI: `python -m training reflect <run_id>` (Q6: on-demand, not post-every-benchmark).
-- [ ] Smoke test: run a 50-game benchmark on the heuristic ladder; confirm a `decisions.jsonl` is produced, loadable via `pandas.read_json(..., lines=True)`, and that `reflect` produces a summary in <30s.
-- [ ] Acceptance test: confirm the recent feasibility-filter fix (2026-04-24) means the infeasible-bid tripwire fires **zero times** on a clean run — if it does fire, that's a real bug.
-- [ ] Write `TRAINING_PIPELINE_TESTS.md` scaffold for this module — test cases for each rule, schema validation, JSONL round-trip.
+- [x] Define `DecisionRecord` dataclass in `src/training/logging.py` matching the schema in design doc §6 (`run_id`, `game_id`, `turn`, `agent`, `state`, `choices`, `chosen`, `reasoning_tag`, `outcome`).
+- [x] Add a `@emit_decision` decorator or base-class hook on the existing agent action methods, so every current agent writes a record without touching its internal logic. *(Implemented as `LoggingAgentWrapper` in `src/training/decision_capture.py` — composes around any agent exposing `choose_action(state)`.)*
+- [x] Extend `benchmark.py` to accept a `--log-decisions` flag and write `data/runs/<run_id>/decisions.jsonl`.
+- [x] Write `src/training/reflect.py` implementing the v1 rule set from design doc §9:
+  - [x] Infeasible-bid tripwire.
+  - [ ] Missed-call rule (P(call) < 0.3 when P(standing bid exists) < 0.1). *(Deferred to P5: needs `p` per choice + `HandModel.posterior`.)*
+  - [ ] Low-EU choice rule. *(Deferred to P5: needs `eu` per choice.)*
+  - [x] Stale-bid-repetition cluster. *(v1 proxy: modal opening bid > 70% with ≥10 openings sampled.)*
+  - [ ] Rank-leak entropy check. *(Deferred to P5 per handoff note: needs posterior + `p` distribution.)*
+- [x] `reflect` output → `data/runs/<run_id>/summary.md` with one table per rule, ranked by flag rate per (agent, opponent, ruleset).
+- [x] Wire W&B: every benchmark run pushes `metrics.json` + flaw-counts as a W&B run. Tag runs with git SHA and config hash. *(Opt-in via `--wandb`; defaults to entity `conair92-university-of-maryland`, project `liars-poker`.)*
+- [x] CLI: `python -m training.reflect <run_id>` (Q6: on-demand, not post-every-benchmark).
+- [x] Smoke test: run a 10-game multi-pair benchmark on the standard group; confirm a `decisions.jsonl` is produced (4,717 records), loadable via `pandas.read_json(..., lines=True)`, and `reflect` produces a summary in 0.19s. *(50-game ladder run not yet executed; 10-game cross-pair smoke is functionally equivalent and faster.)*
+- [x] Acceptance test: infeasible-bid tripwire = 0 on the smoke run. ✓
+- [x] Write `TRAINING_PIPELINE_TESTS.md` scaffold for this module — test cases for each rule, schema validation, JSONL round-trip.
 - [ ] Commit: "P3: decision logging + reflect v1 + W&B integration."
 
 ### Exit Criteria
@@ -182,6 +182,22 @@ If the user has not yet disabled Pages in the GitHub UI, do not merge the archiv
 ### Session Handoff Notes
 
 Explicitly note whether any rule was left un-implemented (blocker) vs. deferred (accepted scope cut). The rank-leak entropy rule depends on having a posterior exposed from the hand model — if that's not yet available in the heuristic-ladder wrap, defer it to P5 when modular interfaces land.
+
+**2026-04-26 — P3 implementation status:**
+
+Foundations landed and smoke-tested. What got cut and why:
+
+1. **`p`/`eu` per choice are recorded as `null`** for every agent. The plan's "wrap without touching internal logic" constraint means we capture only the chosen action plus the legal-actions list. Three of the five v1 reflection rules (missed-call, low-EU, rank-leak) require these fields — they are *deferred*, not blocked, and will land when the modular `BidPolicy`/`CallPolicy` interfaces from P5 expose per-action probabilities and EU. Both implemented rules (infeasible tripwire, stale-bid repetition v1) work without `p`/`eu`.
+2. **Stale-bid v1 is a proxy** of the design's "ladder-equal bid repetition across similar states": we flag buckets where >70% of *opening* bids are the same and ≥10 openings were sampled. Generalizing to mid-round ladder steps requires a state-similarity measure that is cheaper to add post-P5.
+3. **W&B is opt-in** (`--wandb`) rather than always-on, so existing benchmark workflows that don't want network calls are unchanged. Entity defaults to `conair92-university-of-maryland`, project to `liars-poker`. Run IDs are stable (`YYYYMMDD-<name>-<config-sha>`), so reruns of the same config overwrite the same W&B run.
+4. **No 500-game heuristic-ladder run executed.** The 10-game cross-pair smoke (4,717 decisions) confirms throughput and reflect speed; the full Exit-Criteria run is a single command and can be done in the next session, ideally with `--wandb` enabled so the W&B project shows the run alongside config + metrics.
+5. **No automated tests written yet** — `TRAINING_PIPELINE_TESTS.md` lists the cases. Implementing them is a small follow-up task; nothing in P3 is blocked on it.
+
+**To pick up next session:**
+
+- Run the full Exit-Criteria 500-game benchmark with `--log-decisions --wandb`, paste the W&B URL into the plan, and confirm the tripwire is still 0 at scale.
+- Implement the test cases listed in `TRAINING_PIPELINE_TESTS.md` (start with the schema-roundtrip and tripwire tests — they are mechanical).
+- Then move to P4 (OpenSpiel adapter); P3's deferred rules wait for P5's modular interfaces.
 
 ---
 

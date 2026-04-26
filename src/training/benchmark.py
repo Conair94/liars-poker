@@ -18,6 +18,7 @@ Cross-ruleset matchups are always skipped.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -37,6 +38,8 @@ for _p in (_PROBS_DIR, _SRC_DIR):
 
 from agents.registry import AGENT_REGISTRY, build_agent
 from game.engine import new_match
+from training.decision_capture import LoggingAgentWrapper
+from training.logging import DecisionLogger
 
 # ---------------------------------------------------------------------------
 # Agent lists
@@ -81,11 +84,35 @@ GROUPS = {
 ALL_GROUP_NAMES = list(GROUPS.keys())
 
 
-def run_match(key_a: str, key_b: str, match_kwargs: dict, seed: int) -> int:
-    """Run a single 2-player match; return the winning seat (0=a, 1=b)."""
+def run_match(key_a: str, key_b: str, match_kwargs: dict, seed: int,
+              log_ctx: dict | None = None) -> int:
+    """Run a single 2-player match; return the winning seat (0=a, 1=b).
+
+    If ``log_ctx`` is provided, agent decisions are recorded to the
+    supplied DecisionLogger. Required keys: ``logger`` (DecisionLogger),
+    ``run_id`` (str), ``game_id`` (int).
+    """
     agent_a = build_agent(key_a)
     agent_b = build_agent(key_b)
     agents = [agent_a, agent_b]
+
+    if log_ctx is not None:
+        ruleset = {k: match_kwargs.get(k, False) for k in ("exact_rules", "high_hand", "five_kings")}
+        ruleset["mode"] = match_kwargs.get("mode", "countup")
+        game_id_ref = [log_ctx["game_id"]]
+        turn_ref = [0]
+        agents = [
+            LoggingAgentWrapper(
+                agent_a, logger=log_ctx["logger"], run_id=log_ctx["run_id"],
+                agent_name=key_a, agent_seat=0, opponent_name=key_b,
+                ruleset=ruleset, game_id_ref=game_id_ref, turn_counter_ref=turn_ref,
+            ),
+            LoggingAgentWrapper(
+                agent_b, logger=log_ctx["logger"], run_id=log_ctx["run_id"],
+                agent_name=key_b, agent_seat=1, opponent_name=key_a,
+                ruleset=ruleset, game_id_ref=game_id_ref, turn_counter_ref=turn_ref,
+            ),
+        ]
 
     st = new_match(num_players=2, seed=seed, **match_kwargs)
     st.start_next_round()
@@ -105,19 +132,31 @@ def run_match(key_a: str, key_b: str, match_kwargs: dict, seed: int) -> int:
 
 
 def benchmark_pair(key_a: str, key_b: str, match_kwargs: dict,
-                   n_games: int, base_seed: int) -> dict:
+                   n_games: int, base_seed: int,
+                   logger: DecisionLogger | None = None,
+                   run_id: str | None = None,
+                   game_id_start: int = 0) -> dict:
     wins_a = 0
     wins_b = 0
+
+    def _ctx(gid: int) -> dict | None:
+        if logger is None:
+            return None
+        return {"logger": logger, "run_id": run_id or "", "game_id": gid}
+
     for g in range(n_games):
+        gid = game_id_start + g
         # Alternate who opens to remove first-bidder advantage.
         if g % 2 == 0:
-            winner_seat = run_match(key_a, key_b, match_kwargs, seed=base_seed + g)
+            winner_seat = run_match(key_a, key_b, match_kwargs,
+                                    seed=base_seed + g, log_ctx=_ctx(gid))
             if winner_seat == 0:
                 wins_a += 1
             else:
                 wins_b += 1
         else:
-            winner_seat = run_match(key_b, key_a, match_kwargs, seed=base_seed + g)
+            winner_seat = run_match(key_b, key_a, match_kwargs,
+                                    seed=base_seed + g, log_ctx=_ctx(gid))
             if winner_seat == 0:
                 wins_b += 1
             else:
@@ -134,7 +173,9 @@ def benchmark_pair(key_a: str, key_b: str, match_kwargs: dict,
 
 
 def run_benchmark(n_games: int = 100, base_seed: int = 0,
-                  group_names: list | None = None) -> dict:
+                  group_names: list | None = None,
+                  logger: DecisionLogger | None = None,
+                  run_id: str | None = None) -> dict:
     active_groups = {
         k: v for k, v in GROUPS.items()
         if group_names is None or k in group_names
@@ -145,6 +186,7 @@ def run_benchmark(n_games: int = 100, base_seed: int = 0,
     )
     results: dict = {}
     done = 0
+    game_id_cursor = 0
 
     for group_name, group in active_groups.items():
         keys = [k for k in group["keys"] if k in AGENT_REGISTRY]
@@ -155,13 +197,24 @@ def run_benchmark(n_games: int = 100, base_seed: int = 0,
             done += 1
             print(f"[{done}/{total_pairs}] {key_a} vs {key_b} ({n_games} games)...", flush=True)
             t0 = time.time()
-            results[pair_key] = benchmark_pair(key_a, key_b, match_kwargs, n_games, base_seed)
+            results[pair_key] = benchmark_pair(
+                key_a, key_b, match_kwargs, n_games, base_seed,
+                logger=logger, run_id=run_id, game_id_start=game_id_cursor,
+            )
             results[pair_key]["group"] = group_name
+            game_id_cursor += n_games
             elapsed = time.time() - t0
             r = results[pair_key]
             print(f"  → {key_a}: {r['wins_a']}/{n_games}  {key_b}: {r['wins_b']}/{n_games}  ({elapsed:.1f}s)")
 
     return results
+
+
+def _make_run_id(name: str, config: dict) -> str:
+    """`YYYYMMDD-<name>-<short_hash>` per design §5."""
+    blob = json.dumps(config, sort_keys=True, default=str).encode()
+    short = hashlib.sha1(blob).hexdigest()[:6]
+    return f"{datetime.now(UTC).strftime('%Y%m%d')}-{name}-{short}"
 
 
 def main():
@@ -173,25 +226,141 @@ def main():
         metavar="GROUP",
         help=f"Which groups to run (default: all). Choices: {ALL_GROUP_NAMES}",
     )
+    parser.add_argument(
+        "--log-decisions", action="store_true",
+        help="Write per-turn decision records to data/runs/<run_id>/decisions.jsonl.",
+    )
+    parser.add_argument(
+        "--run-name", default="benchmark",
+        help="Short name embedded in run_id (default: benchmark).",
+    )
+    parser.add_argument(
+        "--wandb", action="store_true",
+        help="Log run config + win-rate matrix + flaw counts to W&B.",
+    )
+    parser.add_argument(
+        "--wandb-entity", default="conair92-university-of-maryland",
+        help="W&B entity (default: conair92-university-of-maryland).",
+    )
+    parser.add_argument(
+        "--wandb-project", default="liars-poker",
+        help="W&B project (default: liars-poker).",
+    )
     args = parser.parse_args()
 
     active = args.groups or ALL_GROUP_NAMES
+    config = {"games": args.games, "seed": args.seed, "groups": active}
+    run_id = _make_run_id(args.run_name, config)
+
     print(f"Running benchmark: {args.games} games/pair, seed={args.seed}, groups={active}")
-    results = run_benchmark(n_games=args.games, base_seed=args.seed, group_names=active)
+    if args.log_decisions:
+        print(f"run_id = {run_id}  (decision log enabled)")
+
+    logger: DecisionLogger | None = None
+    decisions_path: str | None = None
+    if args.log_decisions:
+        decisions_path = os.path.join(
+            _REPO_ROOT, "data", "runs", run_id, "decisions.jsonl"
+        )
+        logger = DecisionLogger(decisions_path)
+
+    try:
+        results = run_benchmark(
+            n_games=args.games, base_seed=args.seed, group_names=active,
+            logger=logger, run_id=run_id,
+        )
+    finally:
+        if logger is not None:
+            logger.close()
 
     output = {
         "generated": datetime.now(UTC).isoformat(),
+        "run_id": run_id,
         "games_per_pair": args.games,
         "seed": args.seed,
         "groups": active,
         "results": results,
     }
 
-    out_path = os.path.join(_REPO_ROOT, "data", "runs", "benchmark", "benchmark_results.json")
+    if args.log_decisions:
+        out_path = os.path.join(_REPO_ROOT, "data", "runs", run_id, "metrics.json")
+    else:
+        out_path = os.path.join(_REPO_ROOT, "data", "runs", "benchmark", "benchmark_results.json")
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w") as f:
         json.dump(output, f, indent=2)
     print(f"\nSaved to {out_path}")
+    if decisions_path:
+        print(f"Decisions: {decisions_path}")
+
+    if args.wandb:
+        _push_to_wandb(args, run_id, config, output, decisions_path)
+
+
+def _push_to_wandb(args, run_id: str, config: dict, output: dict,
+                   decisions_path: str | None) -> None:
+    """Optional: log run summary to W&B. Imports lazily so wandb is not a
+    hard dependency for non-tracked runs."""
+    import subprocess
+
+    import wandb
+
+    git_sha = "unknown"
+    try:
+        git_sha = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=_REPO_ROOT
+        ).decode().strip()
+    except Exception:
+        pass
+
+    config_hash = hashlib.sha1(
+        json.dumps(config, sort_keys=True, default=str).encode()
+    ).hexdigest()[:12]
+
+    run = wandb.init(
+        entity=args.wandb_entity,
+        project=args.wandb_project,
+        name=run_id,
+        id=run_id,
+        config={**config, "git_sha": git_sha, "config_hash": config_hash},
+        tags=[f"git:{git_sha}", f"cfg:{config_hash}", "benchmark"],
+        reinit=True,
+    )
+
+    win_rate_rows = []
+    for pair_key, r in output["results"].items():
+        win_rate_rows.append([
+            r["agent_a"], r["agent_b"], r.get("group", ""),
+            r["games"], r["wins_a"], r["wins_b"],
+            r["win_rate_a"], r["win_rate_b"],
+        ])
+    table = wandb.Table(
+        columns=["agent_a", "agent_b", "group", "games", "wins_a", "wins_b",
+                 "win_rate_a", "win_rate_b"],
+        data=win_rate_rows,
+    )
+    run.log({"win_rate_matrix": table})
+
+    if decisions_path and os.path.exists(decisions_path):
+        from training.reflect import (
+            _bucket_totals,
+            _iter_records,
+            rule_infeasible_bid,
+            rule_stale_bid_repetition,
+        )
+        records = list(_iter_records(decisions_path))
+        totals = _bucket_totals(records)
+        flaws = {
+            "infeasible_bid": sum(rule_infeasible_bid(records).values()),
+            "stale_bid_repetition": sum(rule_stale_bid_repetition(records).values()),
+            "total_decisions": len(records),
+            "total_buckets": len(totals),
+        }
+        run.log(flaws)
+        run.summary.update(flaws)
+
+    run.finish()
+    print(f"Logged to W&B: {args.wandb_entity}/{args.wandb_project}/{run_id}")
 
 
 if __name__ == "__main__":
