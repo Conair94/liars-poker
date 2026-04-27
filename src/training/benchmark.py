@@ -246,6 +246,16 @@ def main():
         "--wandb-project", default="liars-poker",
         help="W&B project (default: liars-poker).",
     )
+    parser.add_argument(
+        "--exploitability", action="store_true",
+        help="Compute Kuhn-oracle exploitability (CFR on the small-game variant) "
+             "and emit it under output['oracle_exploitability']. Per-agent "
+             "exploitability is deferred to P5 (modular agent interfaces).",
+    )
+    parser.add_argument(
+        "--exploitability-iters", type=int, default=2000,
+        help="CFR iterations on the Kuhn-sized oracle (default 2000).",
+    )
     args = parser.parse_args()
 
     active = args.groups or ALL_GROUP_NAMES
@@ -273,6 +283,24 @@ def main():
         if logger is not None:
             logger.close()
 
+    # Per-agent exploitability slot — populated in P5 once agents implement the
+    # modular policy interface. For now, emit `null` so the metrics.json schema
+    # is stable and downstream readers can handle absence uniformly.
+    for r in results.values():
+        r.setdefault("exploitability_a", None)
+        r.setdefault("exploitability_b", None)
+
+    oracle_expl: float | None = None
+    if args.exploitability:
+        from training.metrics.exploitability import (
+            compute_exploitability,
+            kuhn_cfr_plus_solve,
+        )
+        print(f"Computing Kuhn-oracle exploitability ({args.exploitability_iters} CFR iters)...")
+        g, pol = kuhn_cfr_plus_solve(iterations=args.exploitability_iters)
+        oracle_expl = compute_exploitability(g, pol)
+        print(f"  oracle_exploitability = {oracle_expl:.6f}")
+
     output = {
         "generated": datetime.now(UTC).isoformat(),
         "run_id": run_id,
@@ -280,6 +308,8 @@ def main():
         "seed": args.seed,
         "groups": active,
         "results": results,
+        "oracle_exploitability": oracle_expl,
+        "oracle_exploitability_iters": args.exploitability_iters if args.exploitability else None,
     }
 
     if args.log_decisions:

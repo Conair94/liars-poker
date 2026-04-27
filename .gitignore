@@ -28,3 +28,12 @@ venv/
 # Editors
 .vscode/
 .idea/
+
+# Large run artifacts — decisions.jsonl files can be hundreds of GB.
+# Commit only metrics.json and summary.md; keep raw decision logs local.
+data/runs/**/*.jsonl
+data/runs/**/*.jsonl.gz
+
+# W&B local run cache (synced to wandb.ai, not needed in git)
+src/wandb/
+wandb/

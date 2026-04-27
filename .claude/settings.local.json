@@ -186,7 +186,18 @@
       "Bash(pytest tests/agents tests/game -x -q --no-header)",
       "Bash(kill 21117)",
       "Bash(python -m training.benchmark --games 3 --groups standard)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(python -c \"import pyspiel; print\\(pyspiel.__file__\\)\")",
+      "Bash(pip install *)",
+      "Bash(python -c \"import open_spiel; print\\(open_spiel.__file__\\)\")",
+      "Bash(python -c \"from open_spiel.python import games; print\\(games.__file__\\)\")",
+      "Bash(pip3 show *)",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c \"import pyspiel; print\\('OK', pyspiel.__file__\\)\")",
+      "Bash(python3 -c \"import sys; sys.path.insert\\(0, 'src'\\); from game.bids import NUM_BIDS, NUM_ACTIONS; print\\(NUM_BIDS, NUM_ACTIONS\\)\")",
+      "Bash(python3 -m pytest tests/interop/ -x -q)",
+      "Bash(python3 -m training.metrics.build_kuhn_oracle --iterations 5000)",
+      "Bash(python3 -m pytest tests/oracles/ tests/interop/ -x -q)",
+      "Bash(python3 -m pytest tests/oracles/ tests/interop/ -q)"
     ]
   }
 }

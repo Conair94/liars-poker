@@ -1,0 +1,461 @@
+{
+  "generated": "2026-04-26T21:58:41.570795+00:00",
+  "run_id": "20260426-p3_exit-4cc034",
+  "games_per_pair": 500,
+  "seed": 0,
+  "groups": [
+    "exact"
+  ],
+  "results": {
+    "exactconditional_vs_exact_mixed": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_mixed",
+      "games": 500,
+      "wins_a": 225,
+      "wins_b": 275,
+      "win_rate_a": 0.45,
+      "win_rate_b": 0.55,
+      "group": "exact"
+    },
+    "exactconditional_vs_exact_opp_model": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_opp_model",
+      "games": 500,
+      "wins_a": 229,
+      "wins_b": 271,
+      "win_rate_a": 0.458,
+      "win_rate_b": 0.542,
+      "group": "exact"
+    },
+    "exactconditional_vs_exact_adaptive": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_adaptive",
+      "games": 500,
+      "wins_a": 226,
+      "wins_b": 274,
+      "win_rate_a": 0.452,
+      "win_rate_b": 0.548,
+      "group": "exact"
+    },
+    "exactconditional_vs_cfr_nash_mb3": {
+      "agent_a": "exactconditional",
+      "agent_b": "cfr_nash_mb3",
+      "games": 500,
+      "wins_a": 324,
+      "wins_b": 176,
+      "win_rate_a": 0.648,
+      "win_rate_b": 0.352,
+      "group": "exact"
+    },
+    "exactconditional_vs_exact_biased70": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_biased70",
+      "games": 500,
+      "wins_a": 482,
+      "wins_b": 18,
+      "win_rate_a": 0.964,
+      "win_rate_b": 0.036,
+      "group": "exact"
+    },
+    "exactconditional_vs_exact_biased60": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_biased60",
+      "games": 500,
+      "wins_a": 477,
+      "wins_b": 23,
+      "win_rate_a": 0.954,
+      "win_rate_b": 0.046,
+      "group": "exact"
+    },
+    "exactconditional_vs_exact_biased40": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_biased40",
+      "games": 500,
+      "wins_a": 459,
+      "wins_b": 41,
+      "win_rate_a": 0.918,
+      "win_rate_b": 0.082,
+      "group": "exact"
+    },
+    "exactconditional_vs_exact_biased30": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_biased30",
+      "games": 500,
+      "wins_a": 452,
+      "wins_b": 48,
+      "win_rate_a": 0.904,
+      "win_rate_b": 0.096,
+      "group": "exact"
+    },
+    "exactconditional_vs_exact_random": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 500,
+      "wins_b": 0,
+      "win_rate_a": 1.0,
+      "win_rate_b": 0.0,
+      "group": "exact"
+    },
+    "exact_mixed_vs_exact_opp_model": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_opp_model",
+      "games": 500,
+      "wins_a": 259,
+      "wins_b": 241,
+      "win_rate_a": 0.518,
+      "win_rate_b": 0.482,
+      "group": "exact"
+    },
+    "exact_mixed_vs_exact_adaptive": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_adaptive",
+      "games": 500,
+      "wins_a": 255,
+      "wins_b": 245,
+      "win_rate_a": 0.51,
+      "win_rate_b": 0.49,
+      "group": "exact"
+    },
+    "exact_mixed_vs_cfr_nash_mb3": {
+      "agent_a": "exact_mixed",
+      "agent_b": "cfr_nash_mb3",
+      "games": 500,
+      "wins_a": 327,
+      "wins_b": 173,
+      "win_rate_a": 0.654,
+      "win_rate_b": 0.346,
+      "group": "exact"
+    },
+    "exact_mixed_vs_exact_biased70": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_biased70",
+      "games": 500,
+      "wins_a": 493,
+      "wins_b": 7,
+      "win_rate_a": 0.986,
+      "win_rate_b": 0.014,
+      "group": "exact"
+    },
+    "exact_mixed_vs_exact_biased60": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_biased60",
+      "games": 500,
+      "wins_a": 480,
+      "wins_b": 20,
+      "win_rate_a": 0.96,
+      "win_rate_b": 0.04,
+      "group": "exact"
+    },
+    "exact_mixed_vs_exact_biased40": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_biased40",
+      "games": 500,
+      "wins_a": 471,
+      "wins_b": 29,
+      "win_rate_a": 0.942,
+      "win_rate_b": 0.058,
+      "group": "exact"
+    },
+    "exact_mixed_vs_exact_biased30": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_biased30",
+      "games": 500,
+      "wins_a": 470,
+      "wins_b": 30,
+      "win_rate_a": 0.94,
+      "win_rate_b": 0.06,
+      "group": "exact"
+    },
+    "exact_mixed_vs_exact_random": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 500,
+      "wins_b": 0,
+      "win_rate_a": 1.0,
+      "win_rate_b": 0.0,
+      "group": "exact"
+    },
+    "exact_opp_model_vs_exact_adaptive": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_adaptive",
+      "games": 500,
+      "wins_a": 255,
+      "wins_b": 245,
+      "win_rate_a": 0.51,
+      "win_rate_b": 0.49,
+      "group": "exact"
+    },
+    "exact_opp_model_vs_cfr_nash_mb3": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "cfr_nash_mb3",
+      "games": 500,
+      "wins_a": 314,
+      "wins_b": 186,
+      "win_rate_a": 0.628,
+      "win_rate_b": 0.372,
+      "group": "exact"
+    },
+    "exact_opp_model_vs_exact_biased70": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_biased70",
+      "games": 500,
+      "wins_a": 491,
+      "wins_b": 9,
+      "win_rate_a": 0.982,
+      "win_rate_b": 0.018,
+      "group": "exact"
+    },
+    "exact_opp_model_vs_exact_biased60": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_biased60",
+      "games": 500,
+      "wins_a": 489,
+      "wins_b": 11,
+      "win_rate_a": 0.978,
+      "win_rate_b": 0.022,
+      "group": "exact"
+    },
+    "exact_opp_model_vs_exact_biased40": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_biased40",
+      "games": 500,
+      "wins_a": 467,
+      "wins_b": 33,
+      "win_rate_a": 0.934,
+      "win_rate_b": 0.066,
+      "group": "exact"
+    },
+    "exact_opp_model_vs_exact_biased30": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_biased30",
+      "games": 500,
+      "wins_a": 468,
+      "wins_b": 32,
+      "win_rate_a": 0.936,
+      "win_rate_b": 0.064,
+      "group": "exact"
+    },
+    "exact_opp_model_vs_exact_random": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 500,
+      "wins_b": 0,
+      "win_rate_a": 1.0,
+      "win_rate_b": 0.0,
+      "group": "exact"
+    },
+    "exact_adaptive_vs_cfr_nash_mb3": {
+      "agent_a": "exact_adaptive",
+      "agent_b": "cfr_nash_mb3",
+      "games": 500,
+      "wins_a": 289,
+      "wins_b": 211,
+      "win_rate_a": 0.578,
+      "win_rate_b": 0.422,
+      "group": "exact"
+    },
+    "exact_adaptive_vs_exact_biased70": {
+      "agent_a": "exact_adaptive",
+      "agent_b": "exact_biased70",
+      "games": 500,
+      "wins_a": 458,
+      "wins_b": 42,
+      "win_rate_a": 0.916,
+      "win_rate_b": 0.084,
+      "group": "exact"
+    },
+    "exact_adaptive_vs_exact_biased60": {
+      "agent_a": "exact_adaptive",
+      "agent_b": "exact_biased60",
+      "games": 500,
+      "wins_a": 447,
+      "wins_b": 53,
+      "win_rate_a": 0.894,
+      "win_rate_b": 0.106,
+      "group": "exact"
+    },
+    "exact_adaptive_vs_exact_biased40": {
+      "agent_a": "exact_adaptive",
+      "agent_b": "exact_biased40",
+      "games": 500,
+      "wins_a": 430,
+      "wins_b": 70,
+      "win_rate_a": 0.86,
+      "win_rate_b": 0.14,
+      "group": "exact"
+    },
+    "exact_adaptive_vs_exact_biased30": {
+      "agent_a": "exact_adaptive",
+      "agent_b": "exact_biased30",
+      "games": 500,
+      "wins_a": 438,
+      "wins_b": 62,
+      "win_rate_a": 0.876,
+      "win_rate_b": 0.124,
+      "group": "exact"
+    },
+    "exact_adaptive_vs_exact_random": {
+      "agent_a": "exact_adaptive",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 498,
+      "wins_b": 2,
+      "win_rate_a": 0.996,
+      "win_rate_b": 0.004,
+      "group": "exact"
+    },
+    "cfr_nash_mb3_vs_exact_biased70": {
+      "agent_a": "cfr_nash_mb3",
+      "agent_b": "exact_biased70",
+      "games": 500,
+      "wins_a": 327,
+      "wins_b": 173,
+      "win_rate_a": 0.654,
+      "win_rate_b": 0.346,
+      "group": "exact"
+    },
+    "cfr_nash_mb3_vs_exact_biased60": {
+      "agent_a": "cfr_nash_mb3",
+      "agent_b": "exact_biased60",
+      "games": 500,
+      "wins_a": 328,
+      "wins_b": 172,
+      "win_rate_a": 0.656,
+      "win_rate_b": 0.344,
+      "group": "exact"
+    },
+    "cfr_nash_mb3_vs_exact_biased40": {
+      "agent_a": "cfr_nash_mb3",
+      "agent_b": "exact_biased40",
+      "games": 500,
+      "wins_a": 294,
+      "wins_b": 206,
+      "win_rate_a": 0.588,
+      "win_rate_b": 0.412,
+      "group": "exact"
+    },
+    "cfr_nash_mb3_vs_exact_biased30": {
+      "agent_a": "cfr_nash_mb3",
+      "agent_b": "exact_biased30",
+      "games": 500,
+      "wins_a": 264,
+      "wins_b": 236,
+      "win_rate_a": 0.528,
+      "win_rate_b": 0.472,
+      "group": "exact"
+    },
+    "cfr_nash_mb3_vs_exact_random": {
+      "agent_a": "cfr_nash_mb3",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 153,
+      "wins_b": 347,
+      "win_rate_a": 0.306,
+      "win_rate_b": 0.694,
+      "group": "exact"
+    },
+    "exact_biased70_vs_exact_biased60": {
+      "agent_a": "exact_biased70",
+      "agent_b": "exact_biased60",
+      "games": 500,
+      "wins_a": 175,
+      "wins_b": 325,
+      "win_rate_a": 0.35,
+      "win_rate_b": 0.65,
+      "group": "exact"
+    },
+    "exact_biased70_vs_exact_biased40": {
+      "agent_a": "exact_biased70",
+      "agent_b": "exact_biased40",
+      "games": 500,
+      "wins_a": 60,
+      "wins_b": 440,
+      "win_rate_a": 0.12,
+      "win_rate_b": 0.88,
+      "group": "exact"
+    },
+    "exact_biased70_vs_exact_biased30": {
+      "agent_a": "exact_biased70",
+      "agent_b": "exact_biased30",
+      "games": 500,
+      "wins_a": 27,
+      "wins_b": 473,
+      "win_rate_a": 0.054,
+      "win_rate_b": 0.946,
+      "group": "exact"
+    },
+    "exact_biased70_vs_exact_random": {
+      "agent_a": "exact_biased70",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 492,
+      "wins_b": 8,
+      "win_rate_a": 0.984,
+      "win_rate_b": 0.016,
+      "group": "exact"
+    },
+    "exact_biased60_vs_exact_biased40": {
+      "agent_a": "exact_biased60",
+      "agent_b": "exact_biased40",
+      "games": 500,
+      "wins_a": 112,
+      "wins_b": 388,
+      "win_rate_a": 0.224,
+      "win_rate_b": 0.776,
+      "group": "exact"
+    },
+    "exact_biased60_vs_exact_biased30": {
+      "agent_a": "exact_biased60",
+      "agent_b": "exact_biased30",
+      "games": 500,
+      "wins_a": 56,
+      "wins_b": 444,
+      "win_rate_a": 0.112,
+      "win_rate_b": 0.888,
+      "group": "exact"
+    },
+    "exact_biased60_vs_exact_random": {
+      "agent_a": "exact_biased60",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 500,
+      "wins_b": 0,
+      "win_rate_a": 1.0,
+      "win_rate_b": 0.0,
+      "group": "exact"
+    },
+    "exact_biased40_vs_exact_biased30": {
+      "agent_a": "exact_biased40",
+      "agent_b": "exact_biased30",
+      "games": 500,
+      "wins_a": 165,
+      "wins_b": 335,
+      "win_rate_a": 0.33,
+      "win_rate_b": 0.67,
+      "group": "exact"
+    },
+    "exact_biased40_vs_exact_random": {
+      "agent_a": "exact_biased40",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 500,
+      "wins_b": 0,
+      "win_rate_a": 1.0,
+      "win_rate_b": 0.0,
+      "group": "exact"
+    },
+    "exact_biased30_vs_exact_random": {
+      "agent_a": "exact_biased30",
+      "agent_b": "exact_random",
+      "games": 500,
+      "wins_a": 500,
+      "wins_b": 0,
+      "win_rate_a": 1.0,
+      "win_rate_b": 0.0,
+      "group": "exact"
+    }
+  }
+}

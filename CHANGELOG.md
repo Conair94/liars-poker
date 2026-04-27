@@ -8,6 +8,19 @@ Format roughly follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ### Added
 
+- **P4 (2026-04-26)** — OpenSpiel adapter + exploitability metric + small-game oracle.
+  - `src/interop/openspiel_adapter.py`: registers two games via `pyspiel.register_game`.
+    - `python_liars_poker_kuhn` — 2-player × 1-card × 3-rank Kuhn-sized variant; tractable for tabular CFR.
+    - `python_liars_poker_exact` — single-round, 52-card, exact-rules adapter (configurable `num_players`, `hand_size`). HH **disabled** in this iteration; tagged TODO(P5) since all future games use HH.
+  - `src/training/metrics/exploitability.py`: wraps OpenSpiel's tabular exploitability; `kuhn_cfr_plus_solve()` + `callable_to_tabular()` helpers.
+  - `src/training/metrics/build_kuhn_oracle.py`: persists the Kuhn reference policy to `data/oracles/liars_poker_kuhn_policy.npz` (24 infosets, exploitability 6.7e-5 at 5k iters).
+  - `tests/interop/test_openspiel_roundtrip.py`: 1000 random games of legal-action + terminal-return parity vs. `game.engine`; Kuhn truth/lie behavior tests.
+  - `tests/oracles/test_kuhn_convergence.py`: solver regression guard (CFR on Kuhn → <1e-3 in 1000 iters; monotone improvement).
+  - `benchmark.py`: `--exploitability [--exploitability-iters N]` populates `output["oracle_exploitability"]` in metrics.json; per-pair `exploitability_a`/`exploitability_b` slots present (null until P5 supplies projection layer).
+  - ADR-005 (OpenSpiel game ID and state encoding) + `docs-internal/design/small_games.md` (small-game variant catalog).
+  - Plan + tests doc updated (`Liars poker/TRAINING_PIPELINE_PLAN.md`, `Liars poker/TRAINING_PIPELINE_TESTS.md`).
+  - **Known follow-ups:** (1) wire HH into adapter before P5 training runs; (2) the adapter is single-round, so OpenSpiel exploitability is per-round, not per-match — full-match exploitability deferred to P6 if needed.
+
 - **P3 (2026-04-26)** — Decision logging + reflect v1 + W&B integration.
   - `src/training/logging.py`: `DecisionRecord` dataclass + `DecisionLogger` JSONL writer (design §6 schema).
   - `src/training/decision_capture.py`: `LoggingAgentWrapper` — non-invasive per-turn recording for any agent exposing `choose_action(state)`. No agent code touched.

@@ -212,20 +212,25 @@ Foundations landed and smoke-tested. What got cut and why:
 
 ### Checklist
 
-- [ ] Write `src/interop/openspiel_adapter.py` implementing the OpenSpiel `Game` and `State` interfaces for exact-rules Liar's Poker at hand size 5 (Q2 target).
-- [ ] Tests: round-trip 100 random games through both engines; assert identical legal-action sets and terminal rewards at every step.
-- [ ] Register the game with `pyspiel.register_game(...)` so `pyspiel.load_game("liars_poker_exact")` works.
-- [ ] Write `src/training/metrics/exploitability.py` wrapping OpenSpiel's `exploitability.exploitability()`. Works on any policy expressible as `tabular_policy` or via a callable adapter for neural policies.
-- [ ] Extend `benchmark.py` to emit `exploitability` alongside win-rate in `metrics.json`. Every report card now shows both.
-- [ ] Small-game oracle:
-  - Define a reduced variant (e.g. 2-player × 2-card Liar's Poker, limited deck) as `liars_poker_kuhn`.
-  - Solve it exactly using OpenSpiel's CFR+ to convergence.
-  - Save the reference policy to `data/oracles/liars_poker_kuhn_policy.npz`.
-  - Add a pytest `tests/oracles/test_kuhn_convergence.py` that runs CFR+ for N iterations and asserts exploitability → 0 (regression guard on the solver itself).
-- [ ] Document the small-game variants in `docs-internal/design/small_games.md` with their exact rules and the reference policies' key behaviors.
-- [ ] Write **ADR-005: OpenSpiel game ID and state encoding** — records the canonical ID and information-state encoding so future agents don't re-litigate it.
-- [ ] Update `TRAINING_PIPELINE_TESTS.md` with: adapter round-trip tests, exploitability correctness test (CFR+ on Kuhn should converge to 0 exploitability).
-- [ ] Commit: "P4: OpenSpiel adapter + exploitability metric + small-game oracle."
+- [x] Write `src/interop/openspiel_adapter.py` implementing the OpenSpiel `Game` and `State` interfaces for exact-rules Liar's Poker at hand size 5 (Q2 target).
+- [x] Tests: round-trip 1000 random games through both engines; assert identical legal-action sets and terminal rewards at every step.
+- [x] Register the game with `pyspiel.register_game(...)` so `pyspiel.load_game("python_liars_poker_exact")` works.
+- [x] Write `src/training/metrics/exploitability.py` wrapping OpenSpiel's `exploitability.exploitability()`. Works on any policy expressible as `tabular_policy` or via a callable adapter for neural policies.
+- [x] Extend `benchmark.py` to emit `exploitability` alongside win-rate in `metrics.json`. Every report card now shows both (per-agent slots `null`-filled until P5).
+- [x] Small-game oracle:
+  - [x] Define a reduced variant (2-player × 1-card × 3-rank Liar's Poker) as `python_liars_poker_kuhn`.
+  - [x] Solve it exactly using OpenSpiel's CFR to <1e-3 exploitability.
+  - [x] Save the reference policy to `data/oracles/liars_poker_kuhn_policy.npz`.
+  - [x] Add a pytest `tests/oracles/test_kuhn_convergence.py` that runs CFR for N iterations and asserts exploitability → 0 (regression guard on the solver itself).
+- [x] Document the small-game variants in `docs-internal/design/small_games.md` with their exact rules and the reference policies' key behaviors.
+- [x] Write **ADR-005: OpenSpiel game ID and state encoding** — records the canonical ID and information-state encoding so future agents don't re-litigate it.
+- [x] Update `TRAINING_PIPELINE_TESTS.md` with: adapter round-trip tests, exploitability correctness test (CFR on Kuhn converges to 0 exploitability).
+- [x] Commit: "P4: OpenSpiel adapter + exploitability metric + small-game oracle."
+
+### P4 follow-ups (do before P5 training runs)
+
+- [ ] **Wire HH into the OpenSpiel adapter.** P4 ships the adapter with HH disabled (action space = NUM_BIDS + 1). All future games use HH as a standard rule, so the adapter must be extended to NUM_BIDS + 2 actions with HH at index 111 and a single-round mirror of `MatchState._resolve_high_hand`. Re-run the round-trip tests with `high_hand=True` and amend ADR-005.
+- [ ] **Multi-round adapter (deferred).** P4 adapter is single-round; OpenSpiel exploitability is therefore per-round, not per-match. If P6 needs match-level exploitability, design a multi-round adapter or a project-side league trainer that wraps single-round OpenSpiel policies.
 
 ### Exit Criteria
 

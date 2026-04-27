@@ -66,6 +66,41 @@ modules land.
 - [ ] `flaws` dict (infeasible_bid, stale_bid_repetition, total_decisions,
       total_buckets) is logged and reflected in `run.summary`.
 
-## Future Phases
+## P4 — OpenSpiel Adapter + Exploitability + Small-Game Oracle
 
-Test scaffolds for P4–P6 will be appended here as those phases land.
+Specifies the test scaffold landed in [tests/interop/](../tests/interop/) and
+[tests/oracles/](../tests/oracles/).
+
+### Adapter round-trip ([tests/interop/test_openspiel_roundtrip.py](../tests/interop/test_openspiel_roundtrip.py))
+
+- [x] `pyspiel.load_game("python_liars_poker_kuhn")` loads, `num_distinct_actions == 4`.
+- [x] `pyspiel.load_game("python_liars_poker_exact", {hand_size: 5})` loads,
+      action space == `NUM_BIDS + 1 = 111`.
+- [x] **1000 random rollouts** through the project engine
+      (`game.engine.MatchState`, single round, hand_size 5, 2 players, exact
+      rules) and the OpenSpiel adapter must agree at every step on:
+  - the current player,
+  - the set of legal action indices,
+  - the terminal returns.
+- [x] Kuhn-variant truth bid (HC A held by a player whose card *is* A,
+      followed by an opponent call) yields ±1 in the bidder's favor.
+- [x] Kuhn-variant lie bid (HC A bid by Q-holder, opponent calls) yields ±1
+      in the caller's favor.
+
+### Solver oracle ([tests/oracles/test_kuhn_convergence.py](../tests/oracles/test_kuhn_convergence.py))
+
+- [x] CFR on `python_liars_poker_kuhn` converges to **< 1e-3 exploitability**
+      within 1000 iterations (exit criterion).
+- [x] More iterations ⇒ strictly lower exploitability on Kuhn (regression
+      guard on the solver itself).
+
+### Benchmark integration
+
+- [x] `benchmark.py --exploitability` populates
+      `output["oracle_exploitability"]` in `metrics.json`.
+- [x] Per-pair `exploitability_a` / `exploitability_b` slots are present
+      (set to `null` until P5 supplies the projection layer).
+
+### Future Phases
+
+Test scaffolds for P5–P6 will be appended here as those phases land.
