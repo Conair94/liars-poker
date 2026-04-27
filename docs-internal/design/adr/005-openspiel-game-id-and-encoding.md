@@ -1,7 +1,7 @@
 # ADR-005: OpenSpiel game ID and state encoding
 
 - **Status:** Accepted
-- **Date:** 2026-04-26
+- **Date:** 2026-04-26 (amended 2026-04-26 — P5: HH wired into adapter)
 - **Supersedes:** —
 - **Implements:** P4 of [TRAINING_PIPELINE_PLAN.md](../../../Liars%20poker/TRAINING_PIPELINE_PLAN.md)
 
@@ -52,8 +52,8 @@ is solvable exactly to <1e-3 exploitability in ~1k CFR iterations on CPU.
 | Deck | 52 cards, project `card_index = rank * 4 + suit` |
 | Hand size | configurable via `hand_size` param (default 5; range [1, 5]) |
 | Bid space | full project bid space (`NUM_BIDS = 110`) |
-| Action layout | `0..109 = bids in ascending order (game.bids.index_to_bid)`, `110 = CALL` |
-| HH action | **disabled** in the adapter (the project engine's HH=111 is excluded). **TODO(P5):** all future games use HH as a standard rule (project decision 2026-04-26) — extend `_FULL_NUM_ACTIONS` to `NUM_BIDS + 2`, mirror `MatchState._resolve_high_hand` in a single-round resolver, and amend this ADR. |
+| Action layout | `0..109 = bids in ascending order (game.bids.index_to_bid)`, `110 = CALL`, `111 = HH` |
+| HH action | **enabled** (P5 amendment, 2026-04-26). `_FULL_NUM_ACTIONS = NUM_BIDS + 2 = 112`, `_FULL_HH = 111` matches engine `HH_ACTION`. Resolution: declarer wins iff pool's normalized best `(hand_type, primary_rank)` exactly equals the standing bid; otherwise bidder wins. ±1 zero-sum reward (no card-count penalty in the single-round projection). |
 | Resolution | **Exact rules**: some 5-card subset of the pool evaluates exactly to the standing bid |
 | Reward | ±1 (zero-sum) on terminal call |
 | `max_game_length` | `NUM_BIDS + 1 = 111` (worst case: every bid in order, then CALL) |
@@ -90,8 +90,11 @@ neural agents already use the project's encoder.
   exploitability tracking) without further design questions.
 - Single round of 52-card play is tractable to expose, side-stepping the
   multi-round match progression that would explode action history.
-- Disabling HH in the adapter keeps the action space small and means the same
-  adapter works whether or not the project engine has HH enabled.
+- HH is now part of the adapter action space (P5 amendment), matching the
+  project-wide decision that all future training/eval uses HH as a standard
+  rule. Adapter ⇄ engine parity holds for both `high_hand=True` (full
+  parity) and `high_hand=False` (parity modulo dropping HH from the
+  adapter's legal set, since the engine omits HH entirely in that mode).
 
 **Negative:**
 

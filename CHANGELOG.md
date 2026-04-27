@@ -8,6 +8,13 @@ Format roughly follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ### Added
 
+- **P5-1 (2026-04-26)** — High Hand wired into the OpenSpiel adapter.
+  - `src/interop/openspiel_adapter.py`: `python_liars_poker_exact` now exposes HH at action index 111 (matching engine `HH_ACTION`); `_FULL_NUM_ACTIONS = NUM_BIDS + 2 = 112`. New `_resolve_high_hand` mirrors `MatchState._resolve_high_hand` for the single-round projection: declarer wins iff pool's normalized best hand exactly equals the standing bid; ±1 zero-sum reward.
+  - `tests/interop/test_openspiel_roundtrip.py`: added `test_full_adapter_roundtrip_1000_games_high_hand` (parity against engine with `high_hand=True`) and two hand-crafted HH resolution tests. Existing no-HH parity test now filters HH from the adapter's legal set.
+  - ADR-005 amended: HH-enabled action layout and parity statement.
+  - `docs-internal/design/p5_design.md`: P5 design doc + checklist (#1 done; #2 modular agent interface and #3 reflect rules scoped for follow-up sessions).
+  - Closes the P4 follow-up #1; unblocks P5-#2 (per-agent exploitability projection).
+
 - **P4 (2026-04-26)** — OpenSpiel adapter + exploitability metric + small-game oracle.
   - `src/interop/openspiel_adapter.py`: registers two games via `pyspiel.register_game`.
     - `python_liars_poker_kuhn` — 2-player × 1-card × 3-rank Kuhn-sized variant; tractable for tabular CFR.

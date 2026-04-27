@@ -13,7 +13,7 @@ Two games are registered:
   ``python_liars_poker_exact`` — single-round adapter for the canonical game.
     * Configurable ``num_players`` (default 2) and ``hand_size`` (default 5).
     * Full 52-card deck, exact-rules call resolution.
-    * Action space = NUM_ACTIONS = 112 (110 bids + CALL + HH); HH disabled.
+    * Action space = NUM_ACTIONS = 112 (110 bids + CALL + HH).
     * Used for round-trip parity tests with the project engine and for
       OpenSpiel ecosystem interop. NOT tractable for tabular exploitability.
 
@@ -263,12 +263,9 @@ class LiarsPokerKuhnObserver:
 _FULL_DECK = 52
 _FULL_NUM_PLAYERS_DEFAULT = 2
 _FULL_HAND_SIZE_DEFAULT = 5
-_FULL_NUM_ACTIONS = NUM_BIDS + 1   # bids 0..109, CALL = 110. HH disabled in adapter.
+_FULL_NUM_ACTIONS = NUM_BIDS + 2   # bids 0..109, CALL = 110, HH = 111.
 _FULL_CALL = NUM_BIDS              # = 110
-# TODO(P5): wire HH into the adapter. All future games use HH as a standard
-# rule (project decision 2026-04-26); the adapter must add HH at index 111
-# and mirror MatchState._resolve_high_hand before any agent is exploitability-
-# evaluated through the adapter. See ADR-005 for the encoding to amend.
+_FULL_HH = NUM_BIDS + 1            # = 111  (matches engine HH_ACTION)
 
 _FULL_GAME_TYPE = pyspiel.GameType(
     short_name="python_liars_poker_exact",
@@ -376,7 +373,7 @@ class LiarsPokerExactState(pyspiel.State):
         if self._current_bid is None:
             return list(range(NUM_BIDS))
         cur_idx = bid_to_index(self._current_bid)
-        return list(range(cur_idx + 1, NUM_BIDS)) + [_FULL_CALL]
+        return list(range(cur_idx + 1, NUM_BIDS)) + [_FULL_CALL, _FULL_HH]
 
     def chance_outcomes(self):
         assert self.is_chance_node()
@@ -391,6 +388,8 @@ class LiarsPokerExactState(pyspiel.State):
         self._bets.append(action)
         if action == _FULL_CALL:
             self._resolve_call()
+        elif action == _FULL_HH:
+            self._resolve_high_hand()
         else:
             self._current_bid = index_to_bid(action)
             self._last_bidder = self._next_player
@@ -408,11 +407,31 @@ class LiarsPokerExactState(pyspiel.State):
         self._returns[loser] = -1.0
         self._game_over = True
 
+    def _resolve_high_hand(self):
+        # HH: declarer claims the pool's BEST hand exactly equals the standing
+        # bid. Mirrors MatchState._resolve_high_hand projected to single-round
+        # (no card-count penalty; ±1 zero-sum reward).
+        declarer = self._next_player
+        bidder = self._last_bidder
+        pool: list[int] = list(self._dealt)
+        raw_t, raw_p = _evaluate_ranked(pool)
+        pool_type, pool_primary = normalize_hand_type(raw_t, raw_p)
+        bid = self._current_bid
+        correct = (pool_type == bid.hand_type and pool_primary == bid.primary_rank)
+        winner = declarer if correct else bidder
+        loser = bidder if correct else declarer
+        self._returns = [0.0] * self._np
+        self._returns[winner] = 1.0
+        self._returns[loser] = -1.0
+        self._game_over = True
+
     def _action_to_string(self, player, action):
         if player == pyspiel.PlayerId.CHANCE:
             return f"Deal:{action}"
         if action == _FULL_CALL:
             return "Call"
+        if action == _FULL_HH:
+            return "HH"
         b = index_to_bid(action)
         return str(b)
 
