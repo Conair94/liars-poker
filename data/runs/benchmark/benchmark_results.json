@@ -1,265 +1,151 @@
 {
-  "generated": "2026-04-26T22:24:33.090589+00:00",
-  "run_id": "20260426-benchmark-d9e588",
-  "games_per_pair": 5,
+  "generated": "2026-04-27T20:28:14.883276+00:00",
+  "run_id": "20260427-benchmark-6640e2",
+  "games_per_pair": 2,
   "seed": 0,
   "groups": [
-    "standard"
+    "exact_ladder"
   ],
   "results": {
-    "biased30_vs_biased40": {
-      "agent_a": "biased30",
-      "agent_b": "biased40",
-      "games": 5,
+    "exactconditional_vs_exact_mixed": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_mixed",
+      "games": 2,
+      "wins_a": 0,
+      "wins_b": 2,
+      "win_rate_a": 0.0,
+      "win_rate_b": 1.0,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exactconditional_vs_exact_opp_model": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_opp_model",
+      "games": 2,
       "wins_a": 1,
-      "wins_b": 4,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased30_vs_random": {
-      "agent_a": "biased30",
-      "agent_b": "random",
-      "games": 5,
-      "wins_a": 5,
-      "wins_b": 0,
-      "win_rate_a": 1.0,
-      "win_rate_b": 0.0,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased30_vs_biased60": {
-      "agent_a": "biased30",
-      "agent_b": "biased60",
-      "games": 5,
-      "wins_a": 1,
-      "wins_b": 4,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased30_vs_biased70": {
-      "agent_a": "biased30",
-      "agent_b": "biased70",
-      "games": 5,
-      "wins_a": 0,
-      "wins_b": 5,
-      "win_rate_a": 0.0,
-      "win_rate_b": 1.0,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased30_vs_blind": {
-      "agent_a": "biased30",
-      "agent_b": "blind",
-      "games": 5,
-      "wins_a": 2,
-      "wins_b": 3,
-      "win_rate_a": 0.4,
-      "win_rate_b": 0.6,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased30_vs_conditional": {
-      "agent_a": "biased30",
-      "agent_b": "conditional",
-      "games": 5,
-      "wins_a": 2,
-      "wins_b": 3,
-      "win_rate_a": 0.4,
-      "win_rate_b": 0.6,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased40_vs_random": {
-      "agent_a": "biased40",
-      "agent_b": "random",
-      "games": 5,
-      "wins_a": 5,
-      "wins_b": 0,
-      "win_rate_a": 1.0,
-      "win_rate_b": 0.0,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased40_vs_biased60": {
-      "agent_a": "biased40",
-      "agent_b": "biased60",
-      "games": 5,
-      "wins_a": 2,
-      "wins_b": 3,
-      "win_rate_a": 0.4,
-      "win_rate_b": 0.6,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased40_vs_biased70": {
-      "agent_a": "biased40",
-      "agent_b": "biased70",
-      "games": 5,
-      "wins_a": 1,
-      "wins_b": 4,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased40_vs_blind": {
-      "agent_a": "biased40",
-      "agent_b": "blind",
-      "games": 5,
-      "wins_a": 2,
-      "wins_b": 3,
-      "win_rate_a": 0.4,
-      "win_rate_b": 0.6,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased40_vs_conditional": {
-      "agent_a": "biased40",
-      "agent_b": "conditional",
-      "games": 5,
-      "wins_a": 2,
-      "wins_b": 3,
-      "win_rate_a": 0.4,
-      "win_rate_b": 0.6,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "random_vs_biased60": {
-      "agent_a": "random",
-      "agent_b": "biased60",
-      "games": 5,
-      "wins_a": 0,
-      "wins_b": 5,
-      "win_rate_a": 0.0,
-      "win_rate_b": 1.0,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "random_vs_biased70": {
-      "agent_a": "random",
-      "agent_b": "biased70",
-      "games": 5,
-      "wins_a": 1,
-      "wins_b": 4,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "random_vs_blind": {
-      "agent_a": "random",
-      "agent_b": "blind",
-      "games": 5,
-      "wins_a": 0,
-      "wins_b": 5,
-      "win_rate_a": 0.0,
-      "win_rate_b": 1.0,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "random_vs_conditional": {
-      "agent_a": "random",
-      "agent_b": "conditional",
-      "games": 5,
-      "wins_a": 0,
-      "wins_b": 5,
-      "win_rate_a": 0.0,
-      "win_rate_b": 1.0,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased60_vs_biased70": {
-      "agent_a": "biased60",
-      "agent_b": "biased70",
-      "games": 5,
-      "wins_a": 0,
-      "wins_b": 5,
-      "win_rate_a": 0.0,
-      "win_rate_b": 1.0,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased60_vs_blind": {
-      "agent_a": "biased60",
-      "agent_b": "blind",
-      "games": 5,
-      "wins_a": 1,
-      "wins_b": 4,
-      "win_rate_a": 0.2,
-      "win_rate_b": 0.8,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased60_vs_conditional": {
-      "agent_a": "biased60",
-      "agent_b": "conditional",
-      "games": 5,
-      "wins_a": 2,
-      "wins_b": 3,
-      "win_rate_a": 0.4,
-      "win_rate_b": 0.6,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased70_vs_blind": {
-      "agent_a": "biased70",
-      "agent_b": "blind",
-      "games": 5,
-      "wins_a": 2,
-      "wins_b": 3,
-      "win_rate_a": 0.4,
-      "win_rate_b": 0.6,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "biased70_vs_conditional": {
-      "agent_a": "biased70",
-      "agent_b": "conditional",
-      "games": 5,
-      "wins_a": 0,
-      "wins_b": 5,
-      "win_rate_a": 0.0,
-      "win_rate_b": 1.0,
-      "group": "standard",
-      "exploitability_a": null,
-      "exploitability_b": null
-    },
-    "blind_vs_conditional": {
-      "agent_a": "blind",
-      "agent_b": "conditional",
-      "games": 5,
-      "wins_a": 4,
       "wins_b": 1,
-      "win_rate_a": 0.8,
-      "win_rate_b": 0.2,
-      "group": "standard",
+      "win_rate_a": 0.5,
+      "win_rate_b": 0.5,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exactconditional_vs_exact_adaptive": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_adaptive",
+      "games": 2,
+      "wins_a": 2,
+      "wins_b": 0,
+      "win_rate_a": 1.0,
+      "win_rate_b": 0.0,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exact_mixed_vs_exact_opp_model": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_opp_model",
+      "games": 2,
+      "wins_a": 1,
+      "wins_b": 1,
+      "win_rate_a": 0.5,
+      "win_rate_b": 0.5,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exact_mixed_vs_exact_adaptive": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_adaptive",
+      "games": 2,
+      "wins_a": 1,
+      "wins_b": 1,
+      "win_rate_a": 0.5,
+      "win_rate_b": 0.5,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exact_opp_model_vs_exact_adaptive": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_adaptive",
+      "games": 2,
+      "wins_a": 1,
+      "wins_b": 1,
+      "win_rate_a": 0.5,
+      "win_rate_b": 0.5,
+      "group": "exact_ladder",
       "exploitability_a": null,
       "exploitability_b": null
     }
   },
-  "oracle_exploitability": 0.0006666666666666488,
-  "oracle_exploitability_iters": 500
+  "oracle_exploitability": null,
+  "oracle_exploitability_iters": null,
+  "agent_exploitability": {
+    "exactconditional": {
+      "lbr": {
+        "value": 0.0,
+        "by_seat": [
+          0.0,
+          0.0
+        ],
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "deals": 2,
+        "depth": 1,
+        "candidates": "policy_support"
+      }
+    },
+    "exact_mixed": {
+      "lbr": {
+        "value": 0.0,
+        "by_seat": [
+          0.0,
+          0.0
+        ],
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "deals": 2,
+        "depth": 1,
+        "candidates": "policy_support"
+      }
+    },
+    "exact_opp_model": {
+      "lbr": {
+        "value": 0.375,
+        "by_seat": [
+          0.75,
+          0.0
+        ],
+        "ci95": [
+          1.47,
+          0.0
+        ],
+        "deals": 2,
+        "depth": 1,
+        "candidates": "policy_support"
+      }
+    },
+    "exact_adaptive": {
+      "lbr": {
+        "value": 0.375,
+        "by_seat": [
+          0.75,
+          0.0
+        ],
+        "ci95": [
+          1.47,
+          0.0
+        ],
+        "deals": 2,
+        "depth": 1,
+        "candidates": "policy_support"
+      }
+    }
+  }
 }

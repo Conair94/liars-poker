@@ -1,0 +1,86 @@
+{
+  "generated": "2026-04-27T20:29:58.094180+00:00",
+  "run_id": "20260427-p5_3_smoke-d9033c",
+  "games_per_pair": 5,
+  "seed": 0,
+  "groups": [
+    "exact_ladder"
+  ],
+  "results": {
+    "exactconditional_vs_exact_mixed": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_mixed",
+      "games": 5,
+      "wins_a": 2,
+      "wins_b": 3,
+      "win_rate_a": 0.4,
+      "win_rate_b": 0.6,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exactconditional_vs_exact_opp_model": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_opp_model",
+      "games": 5,
+      "wins_a": 1,
+      "wins_b": 4,
+      "win_rate_a": 0.2,
+      "win_rate_b": 0.8,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exactconditional_vs_exact_adaptive": {
+      "agent_a": "exactconditional",
+      "agent_b": "exact_adaptive",
+      "games": 5,
+      "wins_a": 1,
+      "wins_b": 4,
+      "win_rate_a": 0.2,
+      "win_rate_b": 0.8,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exact_mixed_vs_exact_opp_model": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_opp_model",
+      "games": 5,
+      "wins_a": 1,
+      "wins_b": 4,
+      "win_rate_a": 0.2,
+      "win_rate_b": 0.8,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exact_mixed_vs_exact_adaptive": {
+      "agent_a": "exact_mixed",
+      "agent_b": "exact_adaptive",
+      "games": 5,
+      "wins_a": 1,
+      "wins_b": 4,
+      "win_rate_a": 0.2,
+      "win_rate_b": 0.8,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    },
+    "exact_opp_model_vs_exact_adaptive": {
+      "agent_a": "exact_opp_model",
+      "agent_b": "exact_adaptive",
+      "games": 5,
+      "wins_a": 4,
+      "wins_b": 1,
+      "win_rate_a": 0.8,
+      "win_rate_b": 0.2,
+      "group": "exact_ladder",
+      "exploitability_a": null,
+      "exploitability_b": null
+    }
+  },
+  "oracle_exploitability": null,
+  "oracle_exploitability_iters": null,
+  "agent_exploitability": {}
+}

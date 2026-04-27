@@ -204,7 +204,22 @@
       "Bash(python -m pytest tests/agents/test_action_probs.py tests/interop/test_state_bridge.py tests/training/metrics/test_deal_sampler.py -x --tb=short)",
       "Bash(python3 -c \"import pyspiel\")",
       "Bash(python3 -m pytest tests/agents/test_action_probs.py tests/interop/test_state_bridge.py tests/training/metrics/test_deal_sampler.py -x --tb=short)",
-      "Bash(python3 -m pytest tests/interop/ tests/agents/ tests/game/ --tb=short)"
+      "Bash(python3 -m pytest tests/interop/ tests/agents/ tests/game/ --tb=short)",
+      "Bash(python -m pytest tests/training/metrics/test_lbr.py -v --tb=short)",
+      "Bash(python3 -c \"import pyspiel; print\\(pyspiel.__version__ if hasattr\\(pyspiel,'__version__'\\) else 'ok'\\)\")",
+      "Bash(python3 -m pytest tests/training/metrics/test_lbr.py -v --tb=short)",
+      "Bash(timeout 120 python3 -c ' *)",
+      "Bash(python3 -m pytest tests/training/metrics/test_lbr.py tests/agents/test_action_probs.py -q --tb=short)",
+      "Bash(wait)",
+      "Bash(python3 -m pytest tests/training/metrics/test_lbr.py tests/agents/test_action_probs.py -q)",
+      "Bash(pkill -f \"pytest tests/training/metrics\")",
+      "Bash(python3 -m pytest tests/ -q --ignore=tests/agents/learned)",
+      "Bash(python3 -m pytest tests/training/metrics/test_subgame_exploitability.py -v)",
+      "Bash(python3 -m pytest tests/training/metrics/test_subgame_exploitability.py tests/training/metrics/test_lbr.py tests/agents/test_action_probs.py -q)",
+      "Bash(python3 src/training/benchmark.py --games 2 --groups exact_ladder --subgame --exploitability-deals 2)",
+      "Bash(python3 src/training/benchmark.py --games 2 --groups exact_ladder --lbr --exploitability-deals 2 --lbr-depth 1)",
+      "Bash(python3 src/training/benchmark.py --games 5 --groups exact_ladder --log-decisions --run-name p5_3_smoke)",
+      "Bash(python3 -m training.reflect 20260427-p5_3_smoke-d9033c)"
     ]
   }
 }
