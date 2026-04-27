@@ -58,11 +58,8 @@ wire format.
   - `_FULL_NUM_ACTIONS = NUM_BIDS + 2  # 112`
   - `_FULL_CALL = NUM_BIDS             # 110`  (unchanged)
   - `_FULL_HH   = NUM_BIDS + 1         # 111`  (new, matches engine `HH_ACTION`)
-- `_legal_actions` adds `_FULL_HH` whenever a bid stands (i.e., same gating
-  as `_FULL_CALL`):
-  ```python
-  return list(range(cur_idx + 1, NUM_BIDS)) + [_FULL_CALL, _FULL_HH]
-  ```
+- `_legal_actions` adds `_FULL_HH` whenever a bid stands (same gating
+  as `_FULL_CALL`): `range(cur_idx + 1, NUM_BIDS) + [_FULL_CALL, _FULL_HH]`.
 - `_apply_action` adds an `action == _FULL_HH` branch that invokes a new
   `_resolve_high_hand` method.
 - `_resolve_high_hand` mirrors the **single-round** projection of
@@ -135,28 +132,79 @@ update `num_distinct_actions` and the action-layout row, and append a short
 
 ---
 
-## #2 — Modular agent interface + per-agent exploitability (separate session)
+## #2 — Honest exploitability metrics (separate session, design doc required)
 
-Out of scope for the current session. Sketch only:
+**Status:** scoped, not started. Needs its own design doc + checklist
+before any code.
 
-- Define a `policy.action_probs(info_state) -> dict[int, float]` contract
-  that every registry agent implements.
-- Add a Kuhn projection: a function that takes any project agent and
-  produces an `open_spiel.python.policy.Policy` over the
-  `python_liars_poker_kuhn` infosets, filling unreachable infosets with the
-  uniform-legal default.
-- Wire `exploitability_a` / `exploitability_b` in `benchmark.py
-  --exploitability` to call OpenSpiel's `nash_conv` against the projected
-  policy.
-- **Open question (must resolve before implementation):** how to project a
-  52-card-trained agent onto a 3-card Kuhn variant *meaningfully*. Naive
-  uniform-fill on missing infosets gives a number but it isn't
-  exploitability of *the agent* — it's exploitability of the projection.
-  Need to decide whether the metric reported is (a) projection
-  exploitability (cheap, possibly misleading) or (b) some kind of
-  abstraction-aware lower bound.
+Replaces the original "modular agent interface + Kuhn projection" framing.
+Discussion 2026-04-26 concluded that Kuhn projection alone is too weak for
+paper claims (Kuhn doesn't exercise pairs/trips/straights/flushes/etc.,
+and projecting a 52-card-trained agent onto 3 cards measures the
+projection more than the agent). Two complementary metrics will be built
+and compared:
 
-A separate design doc will resolve (a) vs (b) before any code lands.
+### 2a — Local Best Response (LBR) on the full 52-card game
+
+DeepStack-style: freeze the agent's policy, then for each decision point
+search a few moves ahead and assume the opponent plays the agent's policy
+beyond the lookahead horizon. The expected value of the LBR policy minus
+the agent's expected value is a **lower bound** on true exploitability.
+
+- Pros: runs on the real game, no abstraction artifacts, well-studied.
+- Cons: lookahead depth trades fidelity vs. compute; lower bound only.
+- Open questions: lookahead depth, how to estimate leaf values (rollout
+  vs. value-net), how to handle the chance fanout at leaves.
+
+### 2b — Subgame exploitability (sampled)
+
+Sample a random deal, fix the cards, solve the resulting bidding
+subgame with CFR+ to local Nash (the subgame is dramatically smaller than
+the full game once chance is collapsed), then measure the agent's regret
+on that subgame. Average across many sampled deals.
+
+- Pros: honest exploitability *number* on the real bid space, no
+  abstraction; complements LBR (different failure modes).
+- Cons: only measures play *given* the deal — does not capture
+  bidding-strategy errors that depend on hand-distribution conditioning.
+- Open questions: how many sampled deals for a stable estimate, whether
+  to importance-weight by hand likelihood.
+
+### 2c — Reporting
+
+Report both metrics side-by-side per agent in `benchmark.py
+--exploitability` output. Compare: agreement signals the metric is
+trustworthy; large disagreement signals one of the two is missing
+something and needs investigation.
+
+### Optional extension — small-game variant suite
+
+Earlier discussion proposed building a 2p × 2-card × 6-deck variant
+(adds Pair / TwoPair to the bid space exercised by the Kuhn oracle) and
+possibly a 2p × 3-card × 12-deck variant (adds Three of a Kind). These
+would round out the existing Kuhn oracle into a small-game *suite*
+producing an exploitability vector. **Lower priority than 2a/2b** —
+useful as a sanity-check baseline but not load-bearing for paper claims.
+
+### Checklist (#2)
+
+- [ ] Write `docs-internal/design/p5_2_exploitability.md` (design doc
+      covering LBR depth choice, leaf-value estimation, subgame solver
+      reuse of `kuhn_cfr_plus_solve` infrastructure, sample size, and
+      output schema).
+- [ ] Define a stable `Policy` contract every registry agent implements
+      (needed by both LBR and subgame solvers — this is the only piece
+      of the original "modular agent interface" framing that survives).
+- [ ] Implement `src/training/metrics/lbr.py` (LBR with configurable
+      lookahead depth).
+- [ ] Implement `src/training/metrics/subgame_exploitability.py` (sample
+      deals, solve subgame, measure agent regret).
+- [ ] Wire both into `benchmark.py --exploitability` output (replaces
+      the `null` `exploitability_a`/`exploitability_b` slots).
+- [ ] Optional: small-game variant suite (2-card / 6-deck and/or
+      3-card / 12-deck variants registered as additional adapters).
+- [ ] Compare LBR vs. subgame numbers across the agent zoo, document
+      agreement/disagreement.
 
 ---
 
