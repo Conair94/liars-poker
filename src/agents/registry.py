@@ -486,6 +486,83 @@ class ExactRulesConditionalAgent:
             return min(viable)
         return max(candidates, key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
 
+    def _bid_distribution(
+        self,
+        candidates: list,
+        adj_exact: np.ndarray,
+        viable: list,
+    ) -> dict[int, float]:
+        """Distribution over bids that `_select_bid` would sample from.
+
+        Default mirrors the deterministic `_select_bid`: a one-hot. Mixed
+        subclasses override to expose their internal mixing.
+        """
+        return {self._select_bid(candidates, adj_exact, viable): 1.0}
+
+    def action_probs(self, state: MatchState) -> dict[int, float]:
+        """Action distribution at `state`. Mirrors `choose_action` gating
+        but returns the bid distribution at mix points instead of sampling.
+
+        Caveat: when the exact-prob cache is missing the agent falls back
+        to `ExactRulesBlindAgent`, which has its own random fallback paths.
+        We treat that as one-hot (sample once via `choose_action`) — good
+        enough for Phase A; the metric pipeline only exercises this path
+        when caches are missing, which we treat as a configuration error.
+        """
+        n     = sum(state.hand_sizes[s] for s in state.active_seats())
+        rs    = state.round_state
+        seat  = rs.current_player
+        legal = state.legal_actions()
+
+        if n < 5 or n > 25:
+            return {self._blind.choose_action(state): 1.0}
+
+        try:
+            lookup     = _get_warm_start()
+            exact_prob = lookup.get_exact_rules_exact(n)
+        except Exception:
+            exact_prob = None
+        if exact_prob is None:
+            return {self._blind.choose_action(state): 1.0}
+
+        adj_exact = self._compute_adj_exact(exact_prob, lookup, rs.hands[seat], rs.current_bid, n)
+
+        peak_idx = int(np.argmax(adj_exact))
+        peak_p   = float(adj_exact[peak_idx])
+        bid_candidates = _filter_feasible(
+            [a for a in legal if a not in (CALL_ACTION, HH_ACTION)], n
+        )
+
+        if rs.current_bid is None:
+            if not bid_candidates:
+                return {legal[0]: 1.0}
+            safety = self.safety_frac * peak_p
+            viable = [a for a in bid_candidates if float(adj_exact[a]) >= safety]
+            return self._bid_distribution(bid_candidates, adj_exact, viable)
+
+        cur_idx = bid_to_index(rs.current_bid)
+
+        if CALL_ACTION in legal and not _is_bid_feasible(cur_idx, n):
+            return {CALL_ACTION: 1.0}
+
+        cur_p = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
+
+        if HH_ACTION in legal and peak_p > 0.0:
+            if cur_idx == peak_idx or cur_p >= self.hh_band * peak_p:
+                return {HH_ACTION: 1.0}
+
+        call_threshold = self._call_threshold(state)
+        if CALL_ACTION in legal:
+            if cur_p < call_threshold or cur_p < self.floor_frac * peak_p:
+                return {CALL_ACTION: 1.0}
+
+        if not bid_candidates:
+            return {CALL_ACTION: 1.0}
+
+        safety = self.safety_frac * peak_p
+        viable = [a for a in bid_candidates if float(adj_exact[a]) >= safety]
+        return self._bid_distribution(bid_candidates, adj_exact, viable)
+
     def choose_action(self, state: MatchState) -> int:
         n     = sum(state.hand_sizes[s] for s in state.active_seats())
         rs    = state.round_state
@@ -626,6 +703,35 @@ class ExactRulesMixedAgent(ExactRulesConditionalAgent):
             return mid_bid
         else:
             return above_min
+
+    def _bid_distribution(
+        self,
+        candidates: list,
+        adj_exact: np.ndarray,
+        viable: list,
+    ) -> dict[int, float]:
+        """Quarter-each over (best, min, mid, above_min); collisions sum.
+
+        Mirrors `_select_bid` exactly — duplicates collapse, so e.g. a
+        2-element pool returns {min: 0.5, above_min: 0.5} (best/mid coincide
+        with one of those two depending on adj_exact).
+        """
+        pool = viable if viable else candidates
+        if not pool:
+            return {CALL_ACTION: 1.0}
+        if len(pool) == 1:
+            return {pool[0]: 1.0}
+
+        pool_sorted = sorted(pool)
+        best_idx   = max(pool, key=lambda a: float(adj_exact[a]) if a < len(adj_exact) else 0.0)
+        min_bid    = pool_sorted[0]
+        mid_bid    = pool_sorted[len(pool_sorted) // 2]
+        above_min  = pool_sorted[1] if len(pool_sorted) > 1 else pool_sorted[0]
+
+        dist: dict[int, float] = {}
+        for a in (best_idx, min_bid, mid_bid, above_min):
+            dist[a] = dist.get(a, 0.0) + 0.25
+        return dist
 
 
 # ---------------------------------------------------------------------------

@@ -200,7 +200,11 @@
       "Bash(python3 -m pytest tests/oracles/ tests/interop/ -q)",
       "Bash(git -C /Users/connorlockhart/.claude/projects/-Users-connorlockhart-Documents-GitHub-liars-poker status --short)",
       "Bash(python3 -m pytest tests/interop/ -q)",
-      "Bash(python3 -m pytest tests/interop/ tests/oracles/ -q)"
+      "Bash(python3 -m pytest tests/interop/ tests/oracles/ -q)",
+      "Bash(python -m pytest tests/agents/test_action_probs.py tests/interop/test_state_bridge.py tests/training/metrics/test_deal_sampler.py -x --tb=short)",
+      "Bash(python3 -c \"import pyspiel\")",
+      "Bash(python3 -m pytest tests/agents/test_action_probs.py tests/interop/test_state_bridge.py tests/training/metrics/test_deal_sampler.py -x --tb=short)",
+      "Bash(python3 -m pytest tests/interop/ tests/agents/ tests/game/ --tb=short)"
     ]
   }
 }

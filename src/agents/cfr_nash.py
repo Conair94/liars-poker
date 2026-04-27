@@ -128,34 +128,44 @@ class CFRNashAgent:
 
     # ------------------------------------------------------------------
 
-    def choose_action(self, state: MatchState) -> int:
+    def _resolve_distribution(self, state: MatchState) -> tuple[list[int], list[float]] | None:
+        """Return (legal_subset, probs) the agent would sample from at `state`,
+        or None if the agent is in a deterministic fallback path."""
         rs = state.round_state
         if rs is None:
-            return CALL_ACTION
-
+            return None
         seat    = rs.current_player
         hand    = rs.hands[seat]
         rank    = hand[0] // 4 if len(hand) == 1 else max(c // 4 for c in hand)
         history = self._history_from_state(state)
-
-        # Intersect engine legal actions with CFR action space.
         engine_legal = set(state.legal_actions())
-
         if not self._loaded:
-            # Fallback: prefer CALL, then HH, then first legal bid.
-            for a in (CALL_ACTION, HH_ACTION):
-                if a in engine_legal:
-                    return a
-            return next(iter(engine_legal))
-
+            return None
         cfr_legal = [a for a in self._legal_cfr(history) if a in engine_legal]
         if not cfr_legal:
-            # History extends beyond what was trained on; simple fallback.
+            return None
+        key   = (seat % 2, rank, history)
+        probs = self._average_strategy(key, cfr_legal)
+        return cfr_legal, probs
+
+    def choose_action(self, state: MatchState) -> int:
+        engine_legal = set(state.legal_actions())
+        resolved = self._resolve_distribution(state)
+        if resolved is None:
             for a in (CALL_ACTION, HH_ACTION):
                 if a in engine_legal:
                     return a
             return self._rng.choice(list(engine_legal))
-
-        key   = (seat % 2, rank, history)
-        probs = self._average_strategy(key, cfr_legal)
+        cfr_legal, probs = resolved
         return self._sample(probs, cfr_legal)
+
+    def action_probs(self, state: MatchState) -> dict[int, float]:
+        engine_legal = set(state.legal_actions())
+        resolved = self._resolve_distribution(state)
+        if resolved is None:
+            for a in (CALL_ACTION, HH_ACTION):
+                if a in engine_legal:
+                    return {a: 1.0}
+            return {next(iter(engine_legal)): 1.0}
+        cfr_legal, probs = resolved
+        return {a: p for a, p in zip(cfr_legal, probs) if p > 0.0}
