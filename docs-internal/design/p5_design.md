@@ -1,9 +1,12 @@
 # P5 Design Doc
 
-- **Status:** Draft
-- **Date:** 2026-04-26
+- **Status:** Complete (all three sub-items landed 2026-04-27)
+- **Date:** 2026-04-26 (drafted) / 2026-04-27 (closed)
 - **Owner:** main
 - **Predecessor:** P4 (commit `2076a5b`)
+- **Closes:** #1 HH adapter (2026-04-26), #2 honest exploitability (2026-04-27),
+  #3 reflect rules (2026-04-27 — two of three; low-EU still deferred pending
+  value model)
 
 ## Goals
 

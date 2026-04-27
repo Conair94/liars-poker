@@ -4,18 +4,16 @@ Automated reflection v1 (TRAINING_PIPELINE_DESIGN §9).
 Loads ``data/runs/<run_id>/decisions.jsonl``, runs the v1 rule set, and
 writes ``summary.md`` to the same directory.
 
-Rules implemented in v1:
-  - Infeasible-bid tripwire
-  - Stale-bid-repetition cluster
+Rules implemented:
+  - Infeasible-bid tripwire (v1)
+  - Stale-bid-repetition cluster (v1)
+  - Missed-call rule (v2 — P5-#3): low P(call) when a strong response is
+    available
+  - Rank-leak entropy check (v2 — P5-#3): opening-bid distribution differs
+    too sharply across the agent's first private rank
 
-Rules deferred to a future revision (require per-choice ``p``/``eu`` and a
-``HandModel.posterior``, which arrive with the P5 modular agent refactor):
-  - Missed-call rule
-  - Low-EU choice rule
-  - Rank-leak entropy check
-
-Each deferred rule still appears in the summary so operators can see the
-gap; its row is annotated ``deferred: needs p/eu`` and counted as 0.
+Rules still deferred (require ``eu`` per choice — needs a value model):
+  - Low-EU choice rule (chosen action's eu below the kth-best by margin)
 
 Usage:
     python -m training.reflect <run_id>
@@ -93,6 +91,92 @@ def rule_stale_bid_repetition(records: list[dict]) -> dict[tuple, int]:
     return flags
 
 
+def rule_missed_call(records: list[dict], threshold: float = 0.30) -> dict[tuple, int]:
+    """Flag turns where P(call) is unexpectedly low when the standing bid is
+    very strong.
+
+    Heuristic: if the standing bid is a Pair-or-stronger and yet the agent's
+    distribution puts < `threshold` mass on CALL, count it. This catches
+    agents that bid up into untenable territory rather than calling. Without
+    a hand-model posterior we cannot tell whether the bid is genuinely
+    unsupported, so this is a *coarse* version of the design-doc rule.
+    """
+    flags: dict[tuple, int] = Counter()
+    for r in records:
+        sb = r["state"].get("standing_bid")
+        if sb is None or not sb.startswith("bid:"):
+            continue
+        # `bid:<HAND_ABBREV>:<RANK>` — anything beyond HC counts as "strong".
+        try:
+            hand_abbrev = sb.split(":", 2)[1]
+        except IndexError:
+            continue
+        if hand_abbrev == "HC":
+            continue
+        # Find P(call) in the choices list.
+        call_prob = None
+        for c in r["choices"]:
+            if c["action"] == "call":
+                call_prob = c.get("p")
+                break
+        if call_prob is None:
+            continue  # agent does not expose `p`; skip silently
+        if call_prob < threshold:
+            flags[_group_key(r)] += 1
+    return flags
+
+
+def rule_rank_leak(records: list[dict],
+                   min_openings: int = 30,
+                   leak_threshold: float = 0.6) -> dict[tuple, int]:
+    """Flag agents whose opening-bid distribution leaks information about
+    the agent's strongest private card.
+
+    For each (agent, opponent, ruleset) bucket, partition the agent's
+    opening turns by ``hand[0]`` rank (the high card of the agent's sorted
+    hand). Compute, for each rank-bucket, the modal opening-bid share. If
+    in any rank-bucket >`leak_threshold` mass concentrates on a single bid
+    that is rare (<10%) in OTHER rank-buckets, flag the bucket.
+
+    Without bid probabilities this is a behavioural proxy: deterministic
+    rank-conditioned bidding is the most blatant rank-leak failure.
+    """
+    by_bucket: dict[tuple, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
+    for r in records:
+        if r["state"].get("standing_bid") is not None:
+            continue
+        if not r["chosen"].startswith("bid:"):
+            continue
+        hand = r["state"].get("hand") or []
+        if not hand:
+            continue
+        # The hand list is in card-rank order (`<R><S>` strings); take the
+        # high-card rank as the leak signal.
+        hi_rank = hand[-1][0]
+        by_bucket[_group_key(r)][hi_rank].append(r["chosen"])
+
+    flags: dict[tuple, int] = Counter()
+    for bucket, by_rank in by_bucket.items():
+        total = sum(len(v) for v in by_rank.values())
+        if total < min_openings:
+            continue
+        for rank, openings in by_rank.items():
+            if len(openings) < 5:
+                continue
+            modal, count = Counter(openings).most_common(1)[0]
+            share_in_rank = count / len(openings)
+            if share_in_rank < leak_threshold:
+                continue
+            # How rare is `modal` in OTHER rank buckets?
+            other = [o for k, lst in by_rank.items() if k != rank for o in lst]
+            if not other:
+                continue
+            other_share = other.count(modal) / len(other)
+            if other_share < 0.10:
+                flags[bucket] += len(openings)
+    return flags
+
+
 def _group_key(r: dict) -> tuple:
     rs = r["ruleset"]
     return (
@@ -142,6 +226,8 @@ def write_summary(records: list[dict], out_path: str, run_id: str,
     totals = _bucket_totals(records)
     infeasible = rule_infeasible_bid(records)
     stale = rule_stale_bid_repetition(records)
+    missed = rule_missed_call(records)
+    leak = rule_rank_leak(records)
 
     parts = [
         f"# Reflection Summary — `{run_id}`",
@@ -156,14 +242,17 @@ def write_summary(records: list[dict], out_path: str, run_id: str,
                       note="Should be 0 post-2026-04-24 feasibility-filter fix."),
         _format_table("Stale-bid repetition (opening bids)", stale, totals,
                       note=">70% of openings reuse the same bid (≥10 openings sampled)."),
+        _format_table("Missed-call (P5-#3)", missed, totals,
+                      note="P(call)<0.30 when standing bid is Pair-or-stronger."),
+        _format_table("Rank-leak (P5-#3)", leak, totals,
+                      note="Opening-bid concentration > 60% in one hand-rank bucket "
+                           "while < 10% in others (≥30 openings sampled)."),
         "",
-        "## Deferred Rules (need per-choice p/eu — arrives in P5)",
+        "## Deferred Rules (need EU per choice — needs value model)",
         "",
         "| rule | status |",
         "|---|---|",
-        "| Missed-call (P(call)<0.3 when posterior says no bid) | deferred: p+posterior |",
-        "| Low-EU choice (chosen.eu below 3rd-best by margin) | deferred: needs eu |",
-        "| Rank-leak entropy (bid dist. conditional on hand[0]) | deferred: needs p |",
+        "| Low-EU choice (chosen.eu below kth-best by margin) | deferred: needs eu |",
         "",
     ]
     with open(out_path, "w") as f:

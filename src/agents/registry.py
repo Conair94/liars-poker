@@ -87,7 +87,13 @@ def _filter_feasible(candidates: list, n: int) -> list:
 
 # ---------------------------------------------------------------------------
 class RandomAgent:
-    """Picks a uniformly random legal action."""
+    """Picks a uniformly random legal action.
+
+    Note: deliberately does NOT override `action_probs`. The LBR / subgame
+    metric machinery falls back to a one-hot on `choose_action`, which yields
+    a single MC rollout per query rather than a full 110-way expectation —
+    necessary for tractability on the full game.
+    """
 
     def choose_action(self, state: MatchState) -> int:
         return random.choice(state.legal_actions())

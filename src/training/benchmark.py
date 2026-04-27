@@ -210,6 +210,57 @@ def run_benchmark(n_games: int = 100, base_seed: int = 0,
     return results
 
 
+def _compute_per_agent_exploitability(
+    active_groups: list[str],
+    do_lbr: bool,
+    do_subgame: bool,
+    deals: int,
+    lbr_depth: int,
+    seed: int,
+) -> dict:
+    """Run LBR and/or subgame metrics on every agent in the active groups.
+
+    Only exact-rules+HH groups are eligible — the metrics' adapter is
+    `python_liars_poker_exact` with HH wired (P5-1). Standard-rules agents
+    are skipped with a note in the output.
+    """
+    from training.metrics.lbr import lbr_exploitability
+    from training.metrics.subgame_exploitability import subgame_exploitability
+
+    eligible_keys: list[str] = []
+    for gname in active_groups:
+        g = GROUPS.get(gname)
+        if g is None:
+            continue
+        if not g["match_kwargs"].get("exact_rules", False):
+            continue
+        for k in g["keys"]:
+            if k in AGENT_REGISTRY and k not in eligible_keys:
+                eligible_keys.append(k)
+
+    out: dict = {}
+    for key in eligible_keys:
+        print(f"Per-agent exploitability: {key} ...", flush=True)
+        agent = build_agent(key)
+        agent_block: dict = {}
+        if do_lbr:
+            t0 = time.time()
+            agent_block["lbr"] = lbr_exploitability(
+                agent, deals=deals, depth=lbr_depth, seed=seed,
+            )
+            print(f"  lbr value={agent_block['lbr']['value']:.4f} "
+                  f"({time.time() - t0:.1f}s)")
+        if do_subgame:
+            t0 = time.time()
+            agent_block["subgame"] = subgame_exploitability(
+                agent, deals=deals, seed=seed,
+            )
+            print(f"  subgame value={agent_block['subgame']['value']:.4f} "
+                  f"({time.time() - t0:.1f}s)")
+        out[key] = agent_block
+    return out
+
+
 def _make_run_id(name: str, config: dict) -> str:
     """`YYYYMMDD-<name>-<short_hash>` per design §5."""
     blob = json.dumps(config, sort_keys=True, default=str).encode()
@@ -256,6 +307,24 @@ def main():
         "--exploitability-iters", type=int, default=2000,
         help="CFR iterations on the Kuhn-sized oracle (default 2000).",
     )
+    parser.add_argument(
+        "--lbr", action="store_true",
+        help="Compute per-agent LBR exploitability (P5-#2 §2a). Slow on the "
+             "full agent zoo; pair with --exploitability-deals to bound cost.",
+    )
+    parser.add_argument(
+        "--subgame", action="store_true",
+        help="Compute per-agent sampled-subgame exploitability (P5-#2 §2b).",
+    )
+    parser.add_argument(
+        "--exploitability-deals", type=int, default=50,
+        help="Sampled deals per agent for LBR / subgame metrics (default 50; "
+             "set 200+ for paper-grade runs).",
+    )
+    parser.add_argument(
+        "--lbr-depth", type=int, default=2,
+        help="LBR lookahead depth (default 2 — keeps zoo runs tractable).",
+    )
     args = parser.parse_args()
 
     active = args.groups or ALL_GROUP_NAMES
@@ -301,6 +370,17 @@ def main():
         oracle_expl = compute_exploitability(g, pol)
         print(f"  oracle_exploitability = {oracle_expl:.6f}")
 
+    agent_exploitability: dict = {}
+    if args.lbr or args.subgame:
+        agent_exploitability = _compute_per_agent_exploitability(
+            active_groups=[g for g in active if g in GROUPS],
+            do_lbr=args.lbr,
+            do_subgame=args.subgame,
+            deals=args.exploitability_deals,
+            lbr_depth=args.lbr_depth,
+            seed=args.seed,
+        )
+
     output = {
         "generated": datetime.now(UTC).isoformat(),
         "run_id": run_id,
@@ -310,6 +390,7 @@ def main():
         "results": results,
         "oracle_exploitability": oracle_expl,
         "oracle_exploitability_iters": args.exploitability_iters if args.exploitability else None,
+        "agent_exploitability": agent_exploitability,
     }
 
     if args.log_decisions:

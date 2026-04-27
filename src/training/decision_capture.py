@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from agents.policy import action_probs as _agent_action_probs
 from training.logging import (
     Choice,
     DecisionLogger,
@@ -60,6 +61,14 @@ class LoggingAgentWrapper:
 
     def choose_action(self, state) -> int:
         legal = list(state.legal_actions())
+        # Capture the agent's per-action distribution before invoking
+        # choose_action — for stochastic agents the inner call would otherwise
+        # advance their RNG state and the recorded `p` would describe a
+        # different draw than the chosen one.
+        try:
+            probs = _agent_action_probs(self._inner, state)
+        except Exception:
+            probs = {}
         chosen = self._inner.choose_action(state)
         record = DecisionRecord(
             run_id=self._run_id,
@@ -70,7 +79,10 @@ class LoggingAgentWrapper:
             opponent=self._opponent_name,
             ruleset=self._ruleset,
             state=_snapshot_state(state, self._agent_seat),
-            choices=[Choice(action=action_to_str(a)) for a in legal],
+            choices=[
+                Choice(action=action_to_str(a), p=probs.get(a))
+                for a in legal
+            ],
             chosen=action_to_str(chosen),
             reasoning_tag=None,
         )

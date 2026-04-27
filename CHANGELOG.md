@@ -8,6 +8,28 @@ Format roughly follows [Keep a Changelog](https://keepachangelog.com/). Dates ar
 
 ### Added
 
+- **P5-3 (2026-04-27)** — Reflect-rule deferred items closed (per-choice `p` plumbed end-to-end).
+  - `src/training/decision_capture.py`: `LoggingAgentWrapper` now queries `agents.policy.action_probs` *before* invoking `choose_action`, so `Choice.p` is populated for all agents (mixed agents emit their full distribution; deterministic agents emit a one-hot). RNG advance preserved by ordering the query first.
+  - `src/training/reflect.py`: implements two of the three rules previously deferred to P5.
+    - `rule_missed_call` — flags turns where `P(call) < 0.30` while the standing bid is Pair-or-stronger.
+    - `rule_rank_leak` — opening-bid concentration > 60% within one private-rank bucket while < 10% across the others (≥30 openings sampled per bucket).
+    - The remaining rule (low-EU choice) needs a value model and stays deferred; surface schema unchanged.
+
+- **P5-2 Phase D (2026-04-27)** — Per-agent exploitability wired into `benchmark.py`.
+  - `--lbr` and `--subgame` flags emit per-agent metrics under `agent_exploitability` in `metrics.json`, matching the design doc §2c schema.
+  - `--exploitability-deals` (default 50) and `--lbr-depth` (default 2) bound cost; `--exploitability-deals 200+` for paper-grade runs.
+  - Eligible agents = those in `--groups` whose ruleset is exact + HH (the metric adapter is `python_liars_poker_exact`).
+
+- **P5-2 Phase C (2026-04-27)** — Sampled subgame exploitability (exact via memoized tree DP).
+  - `src/training/metrics/subgame_exploitability.py`: per deal, computes exact NashConv on the post-deal bidding subgame via memoized DP keyed on `(current_bid_idx, current_player)` (~222 abstract states). Assumes the agent's policy is approximately history-blind within the subgame; canonical minimum-history `MatchState` constructed for the agent query.
+  - Avoids OpenSpiel's CFR+ entirely (BR vs. agent yields exact NashConv directly without solving for Nash, since chance is collapsed). Faster and exact compared to the design doc's CFR+-on-subgame plan; documented in module docstring.
+  - `tests/training/metrics/test_subgame_exploitability.py`: 6/6 pass.
+
+- **P5-2 Phase B (2026-04-27)** — Local Best Response (LBR) exploitability metric.
+  - `src/training/metrics/lbr.py`: `lbr_exploitability(agent, deals, depth, ...)` computes a depth-bounded best-response lower bound on exploitability against the registered single-round 52-card adapter. Per-seat results plus 95% gaussian CI. Pruning modes: `policy_support` (default, ε=0.01) and `all`.
+  - `tests/training/metrics/test_lbr.py`: pointwise BR-dominates-agent invariant (with `all` candidates), reward-range bounds, summary-shape, and forced-terminal regression tests. 5/5 pass.
+  - `RandomAgent`: documented why no `action_probs` override (one-hot fallback yields tractable single-MC-rollout estimates; uniform-110 expansion is intractable on the full game).
+
 - **P5-1 (2026-04-26)** — High Hand wired into the OpenSpiel adapter.
   - `src/interop/openspiel_adapter.py`: `python_liars_poker_exact` now exposes HH at action index 111 (matching engine `HH_ACTION`); `_FULL_NUM_ACTIONS = NUM_BIDS + 2 = 112`. New `_resolve_high_hand` mirrors `MatchState._resolve_high_hand` for the single-round projection: declarer wins iff pool's normalized best hand exactly equals the standing bid; ±1 zero-sum reward.
   - `tests/interop/test_openspiel_roundtrip.py`: added `test_full_adapter_roundtrip_1000_games_high_hand` (parity against engine with `high_hand=True`) and two hand-crafted HH resolution tests. Existing no-HH parity test now filters HH from the adapter's legal set.
