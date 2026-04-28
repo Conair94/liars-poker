@@ -1,0 +1,24 @@
+sweep_name: heuristic_ladder_smoketest
+phase: ar0b
+production: false
+random_seed: 0
+device: cpu
+
+# All-pairs of the 4 heuristic ladder agents (A vs B only, no reverse — bench_sweep adds
+# symmetric row). The 4 choose 2 = 6 pairs each run as a separate cell.
+cells:
+  - {handmodel: exactconditional, callpolicy: exact_mixed}
+  - {handmodel: exactconditional, callpolicy: exact_opp_model}
+  - {handmodel: exactconditional, callpolicy: exact_adaptive}
+  - {handmodel: exact_mixed,      callpolicy: exact_opp_model}
+  - {handmodel: exact_mixed,      callpolicy: exact_adaptive}
+  - {handmodel: exact_opp_model,  callpolicy: exact_adaptive}
+
+runner:
+  command: python -m training.bench_only
+  args:
+    handmodel:  "{handmodel}"
+    callpolicy: "{callpolicy}"
+    bidpolicy:  analytic
+  fixed:
+    games-per-pair: 50

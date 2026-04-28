@@ -43,3 +43,23 @@ def action_probs(agent, state: MatchState) -> dict[int, float]:
     if callable(fn):
         return fn(state)
     return {agent.choose_action(state): 1.0}
+
+
+def decision(agent, state: MatchState):
+    """Return the agent's full `AgentDecision` at `state`.
+
+    Falls back to wrapping `action_probs(agent, state)` when the agent
+    does not implement `.decision()`; in that case the trace fields
+    (belief / call / bid) are None.
+
+    Importing from agents.contracts is done lazily to keep this module
+    cheap to import (some test paths poke at `action_probs` without
+    needing torch / numpy).
+    """
+    fn = getattr(agent, "decision", None)
+    if callable(fn):
+        return fn(state)
+
+    from agents.contracts import AgentDecision
+    probs = action_probs(agent, state)
+    return AgentDecision(action_probs=probs)

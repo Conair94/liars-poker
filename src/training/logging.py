@@ -43,6 +43,11 @@ class DecisionRecord:
     reasoning_tag: str | None = None
     outcome: Outcome | None = None
     extras: dict[str, Any] = field(default_factory=dict)
+    # AR-0a: optional modular-agent trace fields. None for legacy agents.
+    belief: dict[str, Any] | None = None
+    call: dict[str, Any] | None = None
+    bid: dict[str, Any] | None = None
+    hh_fired: bool | None = None
 
     def to_json_line(self) -> str:
         d = asdict(self)
@@ -51,6 +56,9 @@ class DecisionRecord:
             d.pop("outcome", None)
         if not d.get("extras"):
             d.pop("extras", None)
+        for k in ("belief", "call", "bid", "hh_fired"):
+            if d.get(k) is None:
+                d.pop(k, None)
         return json.dumps(d, separators=(",", ":"))
 
 

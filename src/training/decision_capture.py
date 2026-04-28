@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from agents.policy import action_probs as _agent_action_probs
+from agents.policy import decision as _agent_decision
 from training.logging import (
     Choice,
     DecisionLogger,
@@ -65,8 +66,18 @@ class LoggingAgentWrapper:
         # choose_action — for stochastic agents the inner call would otherwise
         # advance their RNG state and the recorded `p` would describe a
         # different draw than the chosen one.
+        #
+        # If the inner agent implements `.decision()` (modular-agent
+        # contract, AR-0a), prefer it: it gives us belief/call/bid trace
+        # fields for free. Otherwise we fall back to action_probs only.
+        trace_fields: dict = {}
         try:
-            probs = _agent_action_probs(self._inner, state)
+            if hasattr(self._inner, "decision"):
+                ad = _agent_decision(self._inner, state)
+                probs = ad.action_probs
+                trace_fields = ad.trace_json()
+            else:
+                probs = _agent_action_probs(self._inner, state)
         except Exception:
             probs = {}
         chosen = self._inner.choose_action(state)
@@ -85,6 +96,10 @@ class LoggingAgentWrapper:
             ],
             chosen=action_to_str(chosen),
             reasoning_tag=None,
+            belief=trace_fields.get("belief"),
+            call=trace_fields.get("call"),
+            bid=trace_fields.get("bid"),
+            hh_fired=trace_fields.get("hh_fired"),
         )
         self._logger.write(record)
         self._turn_counter_ref[0] += 1
