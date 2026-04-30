@@ -197,11 +197,15 @@ def _run_cell(
         + args_flags
     )
     print(f"[sweep] start  {run_id}", flush=True)
-    proc = subprocess.run(
-        [sys.executable, "-m"] + cmd[1:] if cmd[0] == "python" else cmd,
-        capture_output=False,
-        cwd=str(_REPO_ROOT),
-    )
+    # Rewrite "python -m foo" → "[sys.executable] -m foo" so the subprocess
+    # uses the same interpreter that the sweep driver runs under.
+    if cmd[0] in ("python", "python3"):
+        exec_cmd = [sys.executable] + cmd[1:]
+    else:
+        exec_cmd = cmd
+    env = os.environ.copy()
+    env.setdefault("PYTHONPATH", str(_REPO_ROOT / "src"))
+    proc = subprocess.run(exec_cmd, capture_output=False, cwd=str(_REPO_ROOT), env=env)
     exit_code = proc.returncode
     completed = _manifest_completed(run_dir)
     print(

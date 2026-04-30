@@ -1,0 +1,24 @@
+cell:
+  bid_hist_dim: 64
+  hidden_dim: 256
+  num_trunk_layers: 2
+cell_index: 11
+device: cpu
+git_sha: fb17d031
+phase: ar1
+random_seed: 11
+run_id: ar1-20260430T030730Z-b64-h256-n2-fb17d031
+runner:
+  args:
+    bid-hist-dim: '64'
+    hidden-dim: '256'
+    num-trunk-layers: '2'
+  command: python -m agents.learned.handmodel.trainer
+  fixed:
+    max-epochs: 30
+    rollout-agent: exact_adaptive
+    test-decisions-per-n: 25000
+    train-decisions-per-n: 250000
+    val-decisions-per-n: 25000
+sweep_id: ar1-20260430T030730Z-ar1_handmodel_arch-fb17d031
+sweep_name: ar1_handmodel_arch
