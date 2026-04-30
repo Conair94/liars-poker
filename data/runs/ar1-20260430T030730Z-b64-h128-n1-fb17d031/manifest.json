@@ -3,11 +3,11 @@
   "sweep_id": "ar1-20260430T030730Z-ar1_handmodel_arch-fb17d031",
   "git_sha": "fb17d031",
   "started_at": "20260430T030730Z",
-  "last_completed_iter": 0,
-  "completed": false,
+  "last_completed_iter": 7,
+  "completed": true,
   "exit_code": null,
   "components": {
-    "handmodel": null,
+    "handmodel": "/Users/connorlockhart/Documents/GitHub/liars-poker/data/runs/ar1-20260430T030730Z-b64-h128-n1-fb17d031/handmodel/best.pt",
     "callpolicy": null,
     "bidpolicy": null
   }
