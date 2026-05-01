@@ -1,10 +1,18 @@
 # Implementation Plan (2026-04-24)
 
-Status: Item 3 ✓ COMPLETE. Item 2 ✓ COMPLETE. Item 1 IN PROGRESS.
+Status: Item 3 ✓ COMPLETE. Item 2 ✓ COMPLETE. Item 1 ✗ CLOSED (formally retired 2026-05-01).
 
 ---
 
-## Item 1 — CFR+ Convergence Stall
+## Item 1 — CFR+ Convergence Stall — CLOSED 2026-05-01
+
+**Resolution: Closed without diagnosis.** The investigation targeted `CFRNashAgent` and the `cfr_plus_mb4_hh` checkpoint, both of which were retired as defunct (see [agent_redesign.md](../agent_redesign.md) §0 supersedes list and `feedback_cfr_rnad_defunct.md`). The agent redesign (AR-1 → AR-5) replaces the restricted-bid CFR Nash agent with a modular learned agent whose acceptance gates use sampled-subgame exploitability and pairwise win rate against the heuristic ladder, not exploitability of a 26-bid abstraction. The "0.47 plateau" question is therefore moot — we no longer ship the agent it was about, and the new acceptance metrics measure the new agent on the real 110-bid game.
+
+The historical investigation notes below are retained for archaeology only.
+
+---
+
+## Item 1 (archived) — CFR+ Convergence Stall
 
 **Symptom:** `cfr_plus_mb4_hh` (50k iters, max_bids=4, HH) finished at exploitability 0.4712. Dropped 0.52→0.47 in first 2000 iters, then completely flatlined. Target was ≤0.1.
 
