@@ -245,7 +245,16 @@
       "Bash(kill %1)",
       "Bash(pkill -f \"pytest tests/agents/ -q\")",
       "Bash(python3 -m training.sweep configs/sweeps/ar1_handmodel_arch.yaml --dry-run)",
-      "Bash(PYTHONPATH=src python3 -m training.sweep configs/sweeps/ar1_handmodel_arch.yaml --dry-run)"
+      "Bash(PYTHONPATH=src python3 -m training.sweep configs/sweeps/ar1_handmodel_arch.yaml --dry-run)",
+      "Bash(PYTHONPATH=src python -m pytest tests/training/metrics/test_subgame_exploitability.py -x -q)",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c \"import pyspiel; print\\(pyspiel.__file__\\)\")",
+      "Bash(/opt/anaconda3/bin/python -c \"import pyspiel\")",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/pytest tests/training/metrics/test_subgame_exploitability.py -x -q)",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/pytest tests/training/cfr/ -x -q)",
+      "Bash(pkill -f \"pytest tests/training/cfr\")",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/pytest tests/training/cfr/ -x -q --timeout=60)",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c ' *)",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/pytest tests/training/cfr/ tests/training/metrics/test_subgame_exploitability.py -q)"
     ]
   }
 }
