@@ -55,6 +55,8 @@ from game.bids import (  # noqa: E402
 )
 from game.engine import MatchState  # noqa: E402
 
+from agents.learned.hh_gate import should_declare_hh  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Minimum pool cards required for each hand type to be achievable.
 # Bids whose hand_type requires more cards than the pool should never be made
@@ -533,8 +535,7 @@ class ExactRulesConditionalAgent:
 
         adj_exact = self._compute_adj_exact(exact_prob, lookup, rs.hands[seat], rs.current_bid, n)
 
-        peak_idx = int(np.argmax(adj_exact))
-        peak_p   = float(adj_exact[peak_idx])
+        peak_p = float(adj_exact.max())
         bid_candidates = _filter_feasible(
             [a for a in legal if a not in (CALL_ACTION, HH_ACTION)], n
         )
@@ -553,9 +554,8 @@ class ExactRulesConditionalAgent:
 
         cur_p = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
 
-        if HH_ACTION in legal and peak_p > 0.0:
-            if cur_idx == peak_idx or cur_p >= self.hh_band * peak_p:
-                return {HH_ACTION: 1.0}
+        if HH_ACTION in legal and should_declare_hh(adj_exact, cur_idx, hh_band=self.hh_band):
+            return {HH_ACTION: 1.0}
 
         call_threshold = self._call_threshold(state)
         if CALL_ACTION in legal:
@@ -588,8 +588,7 @@ class ExactRulesConditionalAgent:
 
         adj_exact = self._compute_adj_exact(exact_prob, lookup, rs.hands[seat], rs.current_bid, n)
 
-        peak_idx = int(np.argmax(adj_exact))
-        peak_p   = float(adj_exact[peak_idx])
+        peak_p = float(adj_exact.max())
         bid_candidates = _filter_feasible(
             [a for a in legal if a not in (CALL_ACTION, HH_ACTION)], n
         )
@@ -615,10 +614,9 @@ class ExactRulesConditionalAgent:
 
         cur_p = float(adj_exact[cur_idx]) if cur_idx < len(adj_exact) else 0.0
 
-        # Declare HH when the standing bid matches (or near-matches) the peak.
-        if HH_ACTION in legal and peak_p > 0.0:
-            if cur_idx == peak_idx or cur_p >= self.hh_band * peak_p:
-                return HH_ACTION
+        # Declare HH when the standing bid is the peak (within hh_band of max).
+        if HH_ACTION in legal and should_declare_hh(adj_exact, cur_idx, hh_band=self.hh_band):
+            return HH_ACTION
 
         # Decision-theoretic call threshold.
         call_threshold = self._call_threshold(state)

@@ -1,6 +1,6 @@
 # AR-2 Implementation Checklist
 
-- **Status:** In progress — Phase 1 complete (2026-05-01); Phases 2–9 pending
+- **Status:** In progress — Phase 1 complete (2026-05-01); Phase 2 complete (2026-05-02); Phases 3–9 pending
 - **Date:** 2026-05-01
 - **Parent design:** [agent_redesign_ar2.md](agent_redesign_ar2.md)
 - **Parent plan:** [agent_redesign_plan.md](agent_redesign_plan.md) §AR-2
@@ -20,11 +20,14 @@ Sequenced so each phase's dependencies are already in place. Natural commit boun
 - [x] New solver tests in [tests/training/cfr/test_subgame_solver.py](../../tests/training/cfr/test_subgame_solver.py) cover: distribution validity, HH-gate exclusion, convergence rate, n=10 smoke, terminal zero-sum, and bid-mass-above-standing-bid invariant.
 - [x] All 13 tests green (6 existing + 7 new).
 
-## Phase 2 — HH gate (free-standing)
+## Phase 2 — HH gate (free-standing) ✅
 
-- [ ] Create `src/agents/learned/hh_gate.py` with `should_declare_hh(belief, standing_bid, *, hh_band=0.95) -> bool` per design §4.4.
-- [ ] Refactor `ExactRulesConditional`'s HH path to call `should_declare_hh` (single source of truth — design §4.4).
-- [ ] Test §7.3: truth-table over 100 random `(belief, standing_bid)` pairs.
+- [x] Create [src/agents/learned/hh_gate.py](../../src/agents/learned/hh_gate.py) with `should_declare_hh(q, standing_bid, *, hh_band=0.95) -> bool` per design §4.4.
+- [x] Refactor `ExactRulesConditionalAgent`'s HH path to call `should_declare_hh` (single source of truth — design §4.4). Two sites: `action_probs` and `choose_action`.
+- [x] Test §7.3: [tests/agents/learned/test_hh_gate.py](../../tests/agents/learned/test_hh_gate.py) — truth-table over 100 random `(q, standing_bid)` pairs + 6 boundary tests; all 11 pass.
+- [x] Regression: all 6 `test_action_probs.py` tests pass post-refactor (broader 140-test agents suite green except a pre-existing R-NaD import failure unrelated to this work).
+- [x] **Deviation 1 — signature.** Function takes `q: np.ndarray` instead of `belief: HandBelief` (design §4.4 prose). Functionally equivalent — only `belief.q` is needed; both `ModularNashAgent` and `ExactRulesConditional` extract `q` and pass it. Avoids constructing a fully validated `HandBelief` (with `q_logits`, `feasible_mask`, `n`) at every call site.
+- [x] **Deviation 2 — strict argmax semantics.** The pre-refactor `ExactRulesConditional` used `cur_idx == peak_idx OR cur_p >= hh_band * peak_p`, which would fire HH when the standing bid was a *near* peak. The design's strict-argmax form requires `argmax(q) == standing_bid`. The refactor adopts the strict semantics for all callers, so `ExactRulesConditional*` HH behavior is now slightly more conservative (fires only when the standing bid is the *true* peak, not when it's a close second). Expected ≤1 pp drift on 1v1 5-card benchmarks; re-measure post-AR-2.
 
 ## Phase 3 — Network packages (heads only; trunk frozen)
 

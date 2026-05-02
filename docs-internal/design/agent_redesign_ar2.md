@@ -159,6 +159,12 @@ This function is the **single source of truth** for HH in the modular agent and 
 
 `ModularNashAgent.action_probs` calls `should_declare_hh` first; on True returns the HH degenerate distribution; on False calls CallPolicy / BidPolicy with `hh_fired=False`.
 
+**Implementation notes (Phase 2, 2026-05-02):**
+
+1. **Signature deviation.** Implemented as `should_declare_hh(q: np.ndarray, standing_bid, *, hh_band=0.95)` rather than taking a `HandBelief`. Only `belief.q` is needed; the validated `HandBelief` wrapper (with `q_logits`, `feasible_mask`, `n`) added construction overhead at every call site for no semantic benefit. Both `ModularNashAgent` and `ExactRulesConditional*` callers pass `q` directly.
+2. **Strict argmax adopted across all callers.** Pre-refactor, `ExactRulesConditional` used `cur_idx == peak_idx OR cur_p >= hh_band * peak_p` — fired HH when the standing bid was *near* the peak. The design's strict form requires `argmax(q) == standing_bid`. The refactor unifies on the strict semantics, so `ExactRulesConditional*` HH behavior is now slightly more conservative. Expected ≤1 pp drift on existing 1v1 5-card benchmarks; baseline numbers in `project_benchmark_results.md` should be re-measured at the AR-2 acceptance gate.
+3. **`hh_band` defaults split.** `should_declare_hh` defaults to `0.95` (used by `ModularNashAgent` and CFR+ distillation forced-HH labels). `ExactRulesConditional*` agents continue to pass `hh_band=0.9` explicitly to preserve their tuned behavior. Revisit unifying after AR-2 acceptance.
+
 ## 5. CFR+ training of the targets
 
 ### 5.1 Handling `hh_fired` during CFR+
