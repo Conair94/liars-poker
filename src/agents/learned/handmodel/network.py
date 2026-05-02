@@ -188,7 +188,7 @@ class LearnedHandModelNet(nn.Module):
     # Forward
     # ------------------------------------------------------------------
 
-    def forward(
+    def trunk_forward(
         self,
         own_hand:     torch.Tensor,   # (B, 5) int64; -1 = pad
         bid_tokens:   torch.Tensor,   # (B, L) int64
@@ -196,9 +196,13 @@ class LearnedHandModelNet(nn.Module):
         pos_tokens:   torch.Tensor,   # (B, L) int64
         hist_mask:    torch.Tensor,   # (B, L) bool — True for real tokens
         scalars:      torch.Tensor,   # (B, 5) float32
-        feasible:     torch.Tensor,   # (B, NUM_BIDS) bool
     ) -> torch.Tensor:
-        """Return masked logits (B, NUM_BIDS). Infeasible positions are -inf."""
+        """Return the pre-head trunk activation (B, hidden_dim).
+
+        Shared representation consumed by HandModel's bid head *and* by
+        AR-2 CallPolicy / BidPolicy heads. See
+        `docs-internal/design/agent_redesign_ar2_feature_spec.md` §1.
+        """
         # Card DeepSet (mask out pad cards via the embedding's padding_idx,
         # but -1 is not a valid index — remap to padding_idx 52).
         card_idx = torch.where(own_hand >= 0, own_hand, torch.full_like(own_hand, 52))
@@ -227,9 +231,23 @@ class LearnedHandModelNet(nn.Module):
             hist_vec = card_vec.new_zeros((card_vec.shape[0], 0))
 
         x = torch.cat([card_vec, hist_vec, scalars], dim=-1)
-        x = self.trunk(x)
-        logits = self.head(x)  # (B, NUM_BIDS)
+        return self.trunk(x)
 
+    def forward(
+        self,
+        own_hand:     torch.Tensor,   # (B, 5) int64; -1 = pad
+        bid_tokens:   torch.Tensor,   # (B, L) int64
+        seat_tokens:  torch.Tensor,   # (B, L) int64
+        pos_tokens:   torch.Tensor,   # (B, L) int64
+        hist_mask:    torch.Tensor,   # (B, L) bool — True for real tokens
+        scalars:      torch.Tensor,   # (B, 5) float32
+        feasible:     torch.Tensor,   # (B, NUM_BIDS) bool
+    ) -> torch.Tensor:
+        """Return masked logits (B, NUM_BIDS). Infeasible positions are -inf."""
+        x = self.trunk_forward(
+            own_hand, bid_tokens, seat_tokens, pos_tokens, hist_mask, scalars,
+        )
+        logits = self.head(x)  # (B, NUM_BIDS)
         # Hard mask before softmax — gradients respect feasibility.
         return logits.masked_fill(~feasible, _NEG_INF)
 

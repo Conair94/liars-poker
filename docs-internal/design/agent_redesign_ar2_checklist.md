@@ -1,6 +1,6 @@
 # AR-2 Implementation Checklist
 
-- **Status:** In progress — Phase 1 complete (2026-05-01); Phase 2 complete (2026-05-02); Phases 3–9 pending
+- **Status:** In progress — Phase 1 complete (2026-05-01); Phases 2–3 complete (2026-05-02); Phases 4–9 pending
 - **Date:** 2026-05-01
 - **Parent design:** [agent_redesign_ar2.md](agent_redesign_ar2.md)
 - **Parent plan:** [agent_redesign_plan.md](agent_redesign_plan.md) §AR-2
@@ -29,15 +29,20 @@ Sequenced so each phase's dependencies are already in place. Natural commit boun
 - [x] **Deviation 1 — signature.** Function takes `q: np.ndarray` instead of `belief: HandBelief` (design §4.4 prose). Functionally equivalent — only `belief.q` is needed; both `ModularNashAgent` and `ExactRulesConditional` extract `q` and pass it. Avoids constructing a fully validated `HandBelief` (with `q_logits`, `feasible_mask`, `n`) at every call site.
 - [x] **Deviation 2 — strict argmax semantics.** The pre-refactor `ExactRulesConditional` used `cur_idx == peak_idx OR cur_p >= hh_band * peak_p`, which would fire HH when the standing bid was a *near* peak. The design's strict-argmax form requires `argmax(q) == standing_bid`. The refactor adopts the strict semantics for all callers, so `ExactRulesConditional*` HH behavior is now slightly more conservative (fires only when the standing bid is the *true* peak, not when it's a close second). Expected ≤1 pp drift on 1v1 5-card benchmarks; re-measure post-AR-2.
 
-## Phase 3 — Network packages (heads only; trunk frozen)
+## Phase 3 — Network packages (heads only; trunk frozen) ✅
 
-- [ ] Create `src/agents/learned/callpolicy/{__init__.py, network.py, config.py, trainer.py}`.
-  - [ ] `network.py`: 478-d feature concat → `Linear(478→64)→LN→ReLU→Linear(64→1)→sigmoid` per design §4.2.
-  - [ ] `config.py`: dataclass with `hidden=64`, optimizer/LR, `--load-trunk` path.
-- [ ] Create `src/agents/learned/bidpolicy/{__init__.py, network.py, config.py, trainer.py}`.
-  - [ ] `network.py`: 367-d feature concat → `Linear(367→128)→LN→ReLU→Linear(128→110)`; add `+ log(q.q + 1e-12)` warm-start; mask via `info.feasible_mask` ∩ `info.legal_actions`; softmax. Init final layer `orthogonal(gain=0.01)` so init policy ≈ `softmax(log q)` (design §4.3).
-  - [ ] `config.py`: includes `β_max=0.05` and `floor_frac` schedule per design §5.3.
-- [ ] Both heads: `--load-trunk path/to/handmodel/best.pt`, `requires_grad=False` on every trunk param including HandModel's bid head. Trunk activations cached per (deal, infostate) per design §4.1.
+Feature byte-layout pinned in [agent_redesign_ar2_feature_spec.md](agent_redesign_ar2_feature_spec.md). Trainer modules are stubs in this phase; loss bodies + datasets land in Phase 4.
+
+- [x] Add `LearnedHandModelNet.trunk_forward(...)` returning the pre-head 256-d activation; refactor existing `forward` to call it. Byte-equivalent — guarded by AR-1 unit tests + new `test_trunk_forward_matches_full_forward`.
+- [x] Create [src/agents/learned/callpolicy/](../../src/agents/learned/callpolicy/) (`__init__.py, network.py, config.py, trainer.py`).
+  - [x] `network.py`: `CallPolicyNet` with `Linear(478→64)→LN→ReLU→Linear(64→1)→sigmoid` per design §4.2; `DistilledCallPolicy` Protocol wrapper + shared `build_call_features` numpy builder.
+  - [x] `config.py`: dataclass with `hidden=64`, optimizer/LR, `--load-trunk` path; `input_dim` derived property.
+- [x] Create [src/agents/learned/bidpolicy/](../../src/agents/learned/bidpolicy/) (`__init__.py, network.py, config.py, trainer.py`).
+  - [x] `network.py`: `BidPolicyNet` with `Linear(367→128)→LN→ReLU→Linear(128→110)`; adds `+ log(q.q + 1e-12)` warm-start; masks via `info.feasible_mask[:NUM_BIDS]`; softmax in the wrapper. Final layer `orthogonal(gain=0.01)` per design §4.3.
+  - [x] `config.py`: includes `β_max=0.05` and `floor_frac={2:0.6, 3:0.5, 4:0.4}` schedule per design §5.3 (consumed in Phase 4).
+- [x] Both heads: `--load-trunk path/to/handmodel/best.pt` enforced in trainer; `requires_grad=False` on every trunk param at wrapper construction; optimizer registers head params only (verified by `test_trunk_excluded_from_optimizer`). Phase 3 uses uncached forward; Phase 4 distillation pipeline adds the trunk-activation cache per design §4.1.
+- [x] Smoke tests in [tests/agents/learned/test_phase3_smoke.py](../../tests/agents/learned/test_phase3_smoke.py) — 10 tests covering trunk-forward parity, head construction, dim-mismatch error path, warm-start initialization (peaked-belief mode test), HH-fired empty-distribution shortcut, trunk-freeze invariance, and optimizer-param-set isolation. All green.
+- [x] Trainer modules are stubs — `loss_step` raises `NotImplementedError` until Phase 4. `build_train_state` wires the optimizer + frozen trunk so Phase 4 only fills in losses.
 
 ## Phase 4 — Distillation pipeline
 
