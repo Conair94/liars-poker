@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 from torch import optim
 
 from agents.learned.bidpolicy.config import BidPolicyConfig
@@ -52,12 +52,31 @@ def loss_step(
     targets:  torch.Tensor,    # (B, NUM_BIDS) — CFR+ avg policy over bids (rows sum to 1)
     pool_size: torch.Tensor,   # (B,) int — for β(n) schedule
 ) -> torch.Tensor:
-    """Phase 4 home: forward KL + entropy regularizer per design §5.3."""
-    raise NotImplementedError("BidPolicy loss lands in AR-2 Phase 4 (design §5.3)")
+    """Forward KL + schedule-dependent entropy regularizer per AR-2 §5.3.
+
+    L = E[ -Σ_a target * log_pi(a) ]  -  β(n) · E[H(pi)]
+
+    The constant target-entropy term is dropped (KL → cross-entropy form).
+    `targets` is zero on infeasible actions (solver respects the same mask),
+    so the `0 * -inf` contributions vanish exactly.
+    """
+    masked_logits = state.net(features, log_q, bid_mask)        # (B, NUM_BIDS)
+    log_pi        = F.log_softmax(masked_logits, dim=-1)
+    # Cross-entropy form. Where targets==0, the term contributes 0 even if
+    # log_pi == -inf (PyTorch defines 0 * -inf as 0 in masked_fill paths
+    # only if the zero is exact; we guard with masked_select to be safe).
+    safe_log_pi = torch.where(torch.isfinite(log_pi), log_pi, torch.zeros_like(log_pi))
+    ce = -(targets * safe_log_pi).sum(dim=-1)                   # (B,)
+
+    pi = log_pi.exp()                                           # zeros on infeasible
+    # Defensive clamp: H = -Σ pi * log_pi; on infeasible rows pi==0 and
+    # log_pi==-inf → 0*-inf = NaN unless we clamp. Clamp log_pi to ≥ -30.
+    log_pi_clamped = log_pi.clamp_min(-30.0)
+    H = -(pi * log_pi_clamped).sum(dim=-1)                      # (B,)
+
+    beta_max = state.net.config.beta_max
+    beta = beta_max * (1.0 - pool_size.float() / 5.0).clamp_min(0.0)   # (B,)
+    return (ce - beta * H).mean()
 
 
 __all__ = ["BidPolicyTrainState", "build_train_state", "loss_step"]
-
-
-# Silence unused-import warnings on the stubbed-out path.
-_ = nn

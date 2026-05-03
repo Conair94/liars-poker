@@ -87,12 +87,16 @@ class CallPolicyNet(nn.Module):
         nn.init.orthogonal_(self.fc2.weight, gain=0.5)
         nn.init.zeros_(self.fc2.bias)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Return p_call ∈ (0, 1), shape (B,)."""
+    def _raw_logits(self, x: torch.Tensor) -> torch.Tensor:
+        """Pre-sigmoid logits, shape (B,). Used by the trainer for BCE-with-logits."""
         h = self.fc1(x)
         h = self.ln(h)
         h = torch.relu(h)
-        return torch.sigmoid(self.fc2(h)).squeeze(-1)
+        return self.fc2(h).squeeze(-1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Return p_call ∈ (0, 1), shape (B,)."""
+        return torch.sigmoid(self._raw_logits(x))
 
 
 # ---------------------------------------------------------------------------

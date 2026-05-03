@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import torch
-import torch.nn as nn
+import torch.nn.functional as F
 from torch import optim
 
 from agents.learned.callpolicy.config import CallPolicyConfig
@@ -44,16 +44,13 @@ def build_train_state(config: CallPolicyConfig) -> CallPolicyTrainState:
 
 
 def loss_step(
-    state:   CallPolicyTrainState,
+    state:    CallPolicyTrainState,
     features: torch.Tensor,    # (B, input_dim)
-    targets:  torch.Tensor,    # (B,) avg_call_prob ∈ [0, 1]
+    targets:  torch.Tensor,    # (B,) avg_call_prob ∈ [0, 1] — soft labels
 ) -> torch.Tensor:
-    """Phase 4 home: BCE between sigmoid(net(features)) and targets."""
-    raise NotImplementedError("CallPolicy loss lands in AR-2 Phase 4 (design §5.2)")
+    """BCE-with-logits against soft targets per AR-2 §5.2."""
+    logits = state.net._raw_logits(features)
+    return F.binary_cross_entropy_with_logits(logits, targets, reduction="mean")
 
 
 __all__ = ["CallPolicyTrainState", "build_train_state", "loss_step"]
-
-
-# Silence unused-import warnings on the stubbed-out path.
-_ = nn

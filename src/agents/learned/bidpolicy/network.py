@@ -150,6 +150,13 @@ class DistilledBidPolicy:
 
         pi_bids = _stable_softmax(logits_b)
 
+        # Inference-time entropy floor (design §5.3). Applies only at
+        # n ≤ 4 (i.e. when `n` is a key of `floor_frac`).
+        feasible_bids = feasible_mask[:NUM_BIDS]
+        pi_bids = apply_entropy_floor(
+            pi_bids, feasible_bids, info.pool_size, self.net.config.floor_frac,
+        )
+
         # Embed back into NUM_ACTIONS-shaped vectors expected by the contract.
         pi_actions     = np.zeros(NUM_ACTIONS, dtype=np.float32)
         logits_actions = np.full(NUM_ACTIONS, _NEG_INF, dtype=np.float32)
@@ -177,6 +184,62 @@ class DistilledBidPolicy:
         q         = np.stack([b.q for b in beliefs])
         pool_size = np.array([i.pool_size for i in infos], dtype=np.int64)
         return build_bid_features(trunk_repr, q, pool_size)
+
+
+def _entropy(pi: np.ndarray) -> float:
+    """Shannon entropy in nats; safe on zeros."""
+    nz = pi > 0.0
+    if not nz.any():
+        return 0.0
+    return float(-(pi[nz] * np.log(pi[nz])).sum())
+
+
+def apply_entropy_floor(
+    pi:            np.ndarray,    # (NUM_BIDS,) — sums to 1 over feasible
+    feasible_mask: np.ndarray,    # (NUM_BIDS,) bool
+    n:             int,
+    floor_frac:    dict[int, float],
+) -> np.ndarray:
+    """Mix with uniform-over-feasible until `H(pi') ≥ floor_frac[n] · H(uniform)`.
+
+    Returns the floored distribution, or `pi` unchanged if `n` is not in
+    `floor_frac` (i.e. the floor doesn't apply at this pool size) or
+    `pi` already meets the floor.
+
+    Closed-form: `pi'(α) = (1 - α) · pi + α · u` is convex in `α ∈ [0, 1]`;
+    `H(pi'(α))` is monotone non-decreasing on the same interval (since
+    `u` maximizes entropy on the feasible support). Bisect for the smallest
+    α achieving the floor; ~14 iters to 1e-4.
+    """
+    if n not in floor_frac:
+        return pi
+    feas_count = int(feasible_mask.sum())
+    if feas_count <= 1:
+        return pi
+
+    u = feasible_mask.astype(np.float32) / float(feas_count)
+    H_uniform = float(np.log(feas_count))
+    H_target  = floor_frac[n] * H_uniform
+
+    if _entropy(pi) >= H_target - 1e-6:
+        return pi
+
+    lo, hi = 0.0, 1.0
+    for _ in range(40):
+        mid = 0.5 * (lo + hi)
+        cand = (1.0 - mid) * pi + mid * u
+        if _entropy(cand) < H_target:
+            lo = mid
+        else:
+            hi = mid
+        if hi - lo < 1e-4:
+            break
+    alpha = hi
+    out = ((1.0 - alpha) * pi + alpha * u).astype(np.float32)
+    s = float(out.sum())
+    if s > 0.0:
+        out /= s
+    return out
 
 
 def _stable_softmax(x: np.ndarray) -> np.ndarray:

@@ -1,6 +1,6 @@
 # AR-2 Implementation Checklist
 
-- **Status:** In progress — Phase 1 complete (2026-05-01); Phases 2–3 complete (2026-05-02); Phases 4–9 pending
+- **Status:** In progress — Phase 1 complete (2026-05-01); Phases 2–3 complete (2026-05-02); Phase 4 complete (2026-05-03); Phases 5–9 pending
 - **Date:** 2026-05-01
 - **Parent design:** [agent_redesign_ar2.md](agent_redesign_ar2.md)
 - **Parent plan:** [agent_redesign_plan.md](agent_redesign_plan.md) §AR-2
@@ -44,19 +44,18 @@ Feature byte-layout pinned in [agent_redesign_ar2_feature_spec.md](agent_redesig
 - [x] Smoke tests in [tests/agents/learned/test_phase3_smoke.py](../../tests/agents/learned/test_phase3_smoke.py) — 10 tests covering trunk-forward parity, head construction, dim-mismatch error path, warm-start initialization (peaked-belief mode test), HH-fired empty-distribution shortcut, trunk-freeze invariance, and optimizer-param-set isolation. All green.
 - [x] Trainer modules are stubs — `loss_step` raises `NotImplementedError` until Phase 4. `build_train_state` wires the optimizer + frozen trunk so Phase 4 only fills in losses.
 
-## Phase 4 — Distillation pipeline
+## Phase 4 — Distillation pipeline ✅
 
-- [ ] Create `src/training/cfr_distillation.py` per design §6:
-  - [ ] `sample_deals(N, hand_size_mix={4:.25, 6:.25, 8:.25, 10:.25})` reusing the existing deal sampler.
-  - [ ] For each deal: call `CFRPlusSubgameSolver.solve(hands)`; `walk_avg_strategy(...)` over reachable infostates under support of average strategy.
-  - [ ] Force HH action where the deterministic gate fires on the true pool; exclude HH otherwise (design §5.1).
-  - [ ] Shard `.npz` rows by `deal_idx % 64` to `data/runs/<run_id>/cfr_deals/{call,bid,trunk}_<shard>.npz`.
-  - [ ] 80/10/10 split **by deal**, never by row (design §6).
-- [ ] Trunk-activation precompute pass writes `trunk_<shard>.npz` once.
-- [ ] Loss functions:
-  - [ ] CallPolicy: BCE vs `avg_call_prob` (design §5.2).
-  - [ ] BidPolicy: forward KL `KL(target ‖ pi)` + entropy regularizer `-β(n)·H(pi)` with `β(n) = β_max · max(0, 1 - n/5)` (design §5.3).
-- [ ] Inference-time entropy floor: add `α · uniform_over_feasible` and renormalize so `H(pi) ≥ H_floor(n)` with `floor_frac = {2:0.6, 3:0.5, 4:0.4, 5+:0}` (design §5.3).
+Phase-4-specific design and step-level checklist live at [agent_redesign_ar2_phase4_design.md](agent_redesign_ar2_phase4_design.md) + [agent_redesign_ar2_phase4_checklist.md](agent_redesign_ar2_phase4_checklist.md).
+
+- [x] `src/training/cfr_distillation.py` per design §6: `sample_deals_mixture` (per-seat hand_size {2,3,4,5} → pool {4,6,8,10}); `walk_avg_strategy` BFS; sharded `.npz` (`deal_idx % shard_count`); 80/10/10 split-by-deal in `split.json`.
+- [x] Trunk-activation precompute pass: `trunk_<shard>.npz` aligned 1:1 with `bid_<shard>.npz`.
+- [x] Loss functions:
+  - [x] CallPolicy: BCE-with-logits against soft `avg_call_prob` (design §5.2). Added `CallPolicyNet._raw_logits` accessor for numerical stability.
+  - [x] BidPolicy: cross-entropy form of `KL(target ‖ pi)` + `-β(n)·H(pi)` with `β(n) = β_max · max(0, 1 - n/5)`; `log_pi.clamp_min(-30)` defensive guard against `0·-inf` NaN (design §5.3).
+- [x] Inference-time entropy floor: closed-form bisection on the convex mixture `(1-α)·pi + α·u`; applied only when `info.pool_size in floor_frac`. New helper `apply_entropy_floor` in `bidpolicy.network`.
+- [x] Tests: 11 new fast (`test_phase4_losses.py` 5; `test_entropy_floor.py` 4; `test_cfr_distillation_smoke.py` 2 fast) + 1 slow §7.6 KL-reduction test (8.05 → 3.81 on N=32 smoke).
+- [x] **Deviation 1 — `target_bid` masked to engine feasibility before normalization.** The solver's bid action set is "any bid > cur_bid_idx" (broader than the engine's hand-feasibility mask, which excludes bids no pool of this size can satisfy). At row emission we mask the solver's avg by `info.feasible_mask[:NUM_BIDS]` and renormalize so distillation targets live in the same space the network's softmax outputs. ~0.02% mass shifted on n=4 at max_iters=100; negligible at higher iter caps.
 
 ## Phase 5 — Modular agent wiring
 
