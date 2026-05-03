@@ -6,6 +6,7 @@
 - **Parent design:** [agent_redesign_ar2.md](agent_redesign_ar2.md) §5–§6
 - **Parent checklist:** [agent_redesign_ar2_checklist.md](agent_redesign_ar2_checklist.md) Phase 4
 - **Predecessors in this session series:** Phase 1 (`CFRPlusSubgameSolver`, c0952b5/`fb17d03`), Phase 2 (HH gate, `ec041bb`), Phase 3 (network packages + trainer stubs, `c6cb672`)
+- **Python env note:** Torch is only installed in the framework Python — `/Library/Frameworks/Python.framework/Versions/3.13/bin/python3`. Use it for every test / smoke / `cfr_distillation` CLI invocation. `python` / `python3` on PATH does NOT have torch. Slow-marked tests need `--override-ini="addopts="` to defeat the project's default `-m 'not slow'`.
 
 This sub-design fixes the implementation-level questions the parent left under-specified for Phase 4. It does not re-derive the loss form (parent §5.2/§5.3) or the deal-budget sweep (parent §3 — that's Phase 7).
 
