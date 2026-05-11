@@ -1,6 +1,6 @@
 # AR-2 Implementation Checklist
 
-- **Status:** In progress — Phase 1 complete (2026-05-01); Phases 2–3 complete (2026-05-02); Phase 4 complete (2026-05-03); Phases 5–9 pending
+- **Status:** In progress — Phase 1 complete (2026-05-01); Phases 2–3 complete (2026-05-02); Phase 4 complete (2026-05-03); Phases 5–6 complete (2026-05-11); Phases 7–9 pending
 - **Date:** 2026-05-01
 - **Parent design:** [agent_redesign_ar2.md](agent_redesign_ar2.md)
 - **Parent plan:** [agent_redesign_plan.md](agent_redesign_plan.md) §AR-2
@@ -57,20 +57,25 @@ Phase-4-specific design and step-level checklist live at [agent_redesign_ar2_pha
 - [x] Tests: 11 new fast (`test_phase4_losses.py` 5; `test_entropy_floor.py` 4; `test_cfr_distillation_smoke.py` 2 fast) + 1 slow §7.6 KL-reduction test (8.05 → 3.81 on N=32 smoke).
 - [x] **Deviation 1 — `target_bid` masked to engine feasibility before normalization.** The solver's bid action set is "any bid > cur_bid_idx" (broader than the engine's hand-feasibility mask, which excludes bids no pool of this size can satisfy). At row emission we mask the solver's avg by `info.feasible_mask[:NUM_BIDS]` and renormalize so distillation targets live in the same space the network's softmax outputs. ~0.02% mass shifted on n=4 at max_iters=100; negligible at higher iter caps.
 
-## Phase 5 — Modular agent wiring
+## Phase 5 — Modular agent wiring ✅
 
-- [ ] `ModularNashAgent.action_probs`: call `should_declare_hh` first → degenerate HH dist if True; else delegate to `CallPolicy` then `BidPolicy` with `hh_fired=False`.
-- [ ] Delete legacy `_select_bid` 4-way mixing fingerprint (design §5.4); sample `pi` from `BidPolicy.bid_dist().pi` via the existing match RNG.
-- [ ] Register agent in `src/agents/registry.py` per [feedback_agent_registry_pattern.md](../../../.claude/projects/-Users-connorlockhart-Documents-GitHub-liars-poker/memory/feedback_agent_registry_pattern.md).
+- [x] `ModularNashAgent.action_probs`: call `should_declare_hh` first → degenerate HH dist if True; else delegate to `CallPolicy` then `BidPolicy` with `hh_fired=False`. Implemented at [src/agents/learned/modular_nash_agent.py](../../src/agents/learned/modular_nash_agent.py).
+- [x] Legacy `_select_bid` 4-way mixing fingerprint is not used by the new agent — `ModularNashAgent.choose_action` samples directly from `BidPolicy.bid_dist().pi` via `state.rng.choices` (design §5.4). The existing `ExactRulesMixedAgent._select_bid` is retained as a benchmark baseline (referenced by acceptance gate §8 and inherited by `ExactRulesOpponentModelAgent` / `ExactRulesAdaptiveAgent`).
+- [x] Registered as `modular_nash` in `src/agents/registry.py` (`AGENT_REGISTRY` + `_AGENT_CLASS_MAP`). Factory `_make_modular_nash` raises `NotImplementedError` with a clear pointer to Phase 7 until head save/load lands alongside the distillation training script. Direct construction (`ModularNashAgent(hand_model, call_policy, bid_policy)`) works for tests.
+- [x] 5 wiring smoke tests at [tests/agents/learned/test_modular_nash_smoke.py](../../tests/agents/learned/test_modular_nash_smoke.py): opener sums to 1, mid-round CALL/bid split (`p_call : (1-p_call)·pi`), HH gate fires when peak ≡ standing bid, `choose_action` returns legal, sampling is RNG-reproducible. All 5 pass.
 
-## Phase 6 — Tests
+## Phase 6 — Tests ✅
 
-- [ ] §7.1: hand-crafted impossible-bid deal → `p_call > 0.95`.
-- [ ] §7.2 (slow): `n=2` 10³-deal property test for entropy floor.
-- [ ] §7.3: HH gate truth table (covered in Phase 2 above).
-- [ ] §7.4 (slow): solver byte-equivalence (covered in Phase 1 above).
-- [ ] §7.5: trunk-freeze invariance — L2 norm of trunk params unchanged after one epoch.
-- [ ] §7.6: validation `KL(target ‖ pi)` after training is ≥ 50% lower than at init.
+Phase-6-specific design and step-level checklist live at [agent_redesign_ar2_phase6_design.md](agent_redesign_ar2_phase6_design.md) + [agent_redesign_ar2_phase6_checklist.md](agent_redesign_ar2_phase6_checklist.md).
+
+- [x] §7.1: hand-crafted impossible-bid deal → `p_call > 0.95`. Two tests at [tests/agents/learned/test_phase6_impossible_bid.py](../../tests/agents/learned/test_phase6_impossible_bid.py): solver target ≥ 0.98 at the `(infeasible_bid, 1)` state; mini-distillation (300 steps on the single infostate, random-init tiny trunk, no checkpoint) reaches `p_call > 0.95`.
+- [x] §7.2 (slow): `n=2` 10³-deal property test for entropy floor at [tests/agents/learned/test_phase6_entropy_floor_n2.py](../../tests/agents/learned/test_phase6_entropy_floor_n2.py). 1000 infostates (500 opener + 500 mid-round) through `DistilledBidPolicy.bid_dist()`; all satisfy `entropy ≥ floor_frac[2] · log(feasible_count) − 1e-3`. Runtime 1 s.
+- [x] §7.3: HH gate truth table (covered in Phase 2 above).
+- [x] §7.4 (slow): solver byte-equivalence (covered in Phase 1 above).
+- [x] §7.5: trunk-freeze invariance — L2 norm of trunk params unchanged after one epoch. Test at [tests/agents/learned/test_phase6_trunk_freeze.py](../../tests/agents/learned/test_phase6_trunk_freeze.py): 50 `BidPolicy.loss_step` + `optimizer.step()` iters on synthetic data; `_trunk_l2(before) == _trunk_l2(after)` bitwise; also asserts every trunk param has zero accumulated gradient.
+- [x] §7.6: validation `KL(target ‖ pi)` after training is ≥ 50% lower than at init (covered in Phase 4 smoke).
+- [x] Regression: full agents/ + training/ suite 187 passed (1 pre-existing defunct-R-NaD failure unrelated, per [feedback_cfr_rnad_defunct.md](../../../.claude/projects/-Users-connorlockhart-Documents-GitHub-liars-poker/memory/feedback_cfr_rnad_defunct.md)).
+- [x] **Deviation — §7.1 mini-distillation.** Design called for testing a fully-distilled head; without a real distillation run available pre-Phase-7, the implementation mini-trains a fresh `CallPolicyNet` (random-init tiny trunk, no checkpoint) on the *single* impossible-bid infostate repeated as batch=32 for 300 BCE steps against the solver label. Converges to `p_call > 0.95` reliably. Documented in the Phase 6 design §1 "Deviation note".
 
 ## Phase 7 — Pilot run + sweep
 

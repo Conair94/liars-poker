@@ -1115,6 +1115,17 @@ AGENT_REGISTRY: dict = {
         "rules_label":  "Exact rules + High Hand, 52-card deck (trained domain: n=2, max 3 bids)",
         "class":        "CFRNashAgent",
     },
+    "modular_nash": {
+        "display":      "Modular Nash (AR-2)",
+        "description":  "Composes frozen AR-1 HandModel + DistilledCallPolicy + DistilledBidPolicy with the free-standing HH gate. Bids sampled from BidPolicy.pi via match RNG (no 4-way fingerprint). Requires Phase 7 distillation checkpoints to instantiate.",
+        "rules": {
+            "exact_rules": True,
+            "high_hand":   True,
+            "five_kings":  False,
+        },
+        "rules_label":  "Exact rules + High Hand declaration, 52-card deck",
+        "class":        "ModularNashAgent",
+    },
     "exact_random": {
         "display":      "Random Uniform (exact)",
         "description":  "Picks any legal action uniformly at random under exact-rules. Weakest baseline.",
@@ -1177,6 +1188,25 @@ def _make_cfr_nash():
     return CFRNashAgent()
 
 
+def _make_modular_nash():
+    """Construct `ModularNashAgent` from AR-2 checkpoints pointed to by env vars.
+
+    Required env vars (set after Phase 7 distillation runs):
+      - AR2_HANDMODEL_CKPT  — path to the frozen AR-1 HandModel checkpoint
+                              (defaults to the b64-h256-n2 winner).
+      - AR2_CALLPOLICY_CKPT — path to the distilled CallPolicy head checkpoint.
+      - AR2_BIDPOLICY_CKPT  — path to the distilled BidPolicy head checkpoint.
+
+    Raises `NotImplementedError` until the head checkpoint loaders land
+    alongside the Phase 7 distillation training script.
+    """
+    raise NotImplementedError(
+        "ModularNashAgent registry instantiation requires Phase 7 distillation "
+        "checkpoints + head save/load (not yet implemented). Construct it directly "
+        "via `ModularNashAgent(hand_model, call_policy, bid_policy)` for tests."
+    )
+
+
 _AGENT_CLASS_MAP = {
     "RandomAgent":              lambda: RandomAgent(),
     "BiasedRandom30Agent":      lambda: BiasedRandomAgent(0.30),
@@ -1190,6 +1220,7 @@ _AGENT_CLASS_MAP = {
     "ExactRulesOpponentModelAgent": lambda: ExactRulesOpponentModelAgent(),
     "ExactRulesAdaptiveAgent":     lambda: ExactRulesAdaptiveAgent(),
     "CFRNashAgent":             _make_cfr_nash,
+    "ModularNashAgent":         _make_modular_nash,
 }
 
 

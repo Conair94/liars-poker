@@ -25,3 +25,10 @@
 - Signal 3 (round result message wording) classified NOISE — UI string branching, does not generalize
 - Signal 5 (benchmark countup = n=2 matches CFR training) classified project fact, confirmed in existing benchmark_results.md
 - All candidates accepted (written without user rejection)
+
+### 2026-05-11 — Session scan (13 sessions via recall script, AR-2 P1–P5)
+
+- Sessions analyzed: 13 (2026-04-29 → 2026-05-11), covering AR-1 sweep results + AR-2 Phases 1–5
+- Candidates surfaced: FILL_GAP: 6, UPDATE: 0, NOISE: ~3 (per-phase ephemera), CONTRADICT: 0
+- Candidates returned to caller as punch list (caller chooses what to write)
+- Key themes: (1) user accepts judgment-call summaries before impl; (2) recurring small-behavior-deviation disclosure pattern; (3) defunct R-NaD import failure treated as known noise across every session; (4) memory-consolidation reminders the assistant keeps emitting
