@@ -1,6 +1,6 @@
 # AR-2 Implementation Checklist
 
-- **Status:** In progress — Phase 1 complete (2026-05-01); Phases 2–3 complete (2026-05-02); Phase 4 complete (2026-05-03); Phases 5–6 complete (2026-05-11); Phases 7–9 pending
+- **Status:** In progress — Phases 1–6 complete (through 2026-05-11); Phase 7 **code landed** 2026-05-11 (steps 1–8 of phase-7 checklist; pilot + sweep runs are subsequent session boundaries); Phases 7 (runs) + 8–9 pending
 - **Date:** 2026-05-01
 - **Parent design:** [agent_redesign_ar2.md](agent_redesign_ar2.md)
 - **Parent plan:** [agent_redesign_plan.md](agent_redesign_plan.md) §AR-2
@@ -81,10 +81,24 @@ Phase-6-specific design and step-level checklist live at [agent_redesign_ar2_pha
 
 Phase-7-specific design and step-level checklist live at [agent_redesign_ar2_phase7_design.md](agent_redesign_ar2_phase7_design.md) + [agent_redesign_ar2_phase7_checklist.md](agent_redesign_ar2_phase7_checklist.md).
 
-- [ ] **Pilot:** `N=1000`, single CPU run. Histogram per-deal solver iters and final ε. Confirm wall-clock < 30 min before launching the sweep (design §3.2).
-- [ ] Create `configs/sweeps/ar2_distillation_count.yaml` with `N ∈ {1k, 5k, 10k, 50k}`. Reuse AR-0b harness (apply [feedback_sweep_driver_fix.md](../../../.claude/projects/-Users-connorlockhart-Documents-GitHub-liars-poker/memory/feedback_sweep_driver_fix.md) — double-`-m` + `PYTHONPATH`).
-- [ ] Held-out 2k-deal validation set, fixed and shared across cells.
-- [ ] Plot `KL(distilled ‖ cfr_plus_avg)` vs `N` per `n`. If slope < 5% per doubling not reached at `N=50k`, add `100k` cell or fall back to `N=10k` per design §3.3.
+**Code landing (2026-05-11) — steps 1–8 of the phase-7 checklist:**
+
+- [x] `iter_shards` helper + `target_call` written into `bid_<sh>.npz` ([src/training/cfr_distillation.py](../../src/training/cfr_distillation.py)).
+- [x] [src/training/ar2_pilot.py](../../src/training/ar2_pilot.py) — pre-flight wrapper with GO/NO-GO gates + optional `--holdout`.
+- [x] CallPolicy + BidPolicy `_main()` CLIs with `--external-val-run-id`, atomic `best.pt`, per-`n` val KL (bidpolicy).
+- [x] [src/training/ar2_pipeline.py](../../src/training/ar2_pipeline.py) — per-cell driver (distill → callpolicy → bidpolicy → `ar2_summary.json`, manifest-aware for AR-0b).
+- [x] [configs/sweeps/ar2_distillation_count.yaml](../../configs/sweeps/ar2_distillation_count.yaml) — `N ∈ {1k, 5k, 10k, 50k}`, dry-run enumerates 4 cells.
+- [x] [src/training/ar2_sweep_summary.py](../../src/training/ar2_sweep_summary.py) — elbow detector + KL-curve JSON + optional matplotlib plot.
+- [x] 11 Phase-7 smoke/unit tests green; AR-2 regression subset 121 pass (1 pre-existing R-NaD import failure unrelated).
+- [x] **Deviation 1 — call-head data source.** Trunk shards align with bid shards in Phase 4; call head trains on bid-eligible row subset only (call-only rows where `target_call ≈ 1` dropped as trivial). `target_call` added to `bid_<sh>.npz` so `iter_shards` joins 1:1 for both heads.
+- [x] **Deviation 2 — sweep index file.** AR-0b harness writes `data/sweeps/<id>/index.json`, not `cells.json`; summariser reads `index.json`.
+
+**Pending (subsequent session boundaries):**
+
+- [ ] **Pilot:** `N=1000`, single CPU run. Histogram per-deal solver iters and final ε. Confirm wall-clock < 30 min before launching the sweep (design §3.2). Also generates `ar2_holdout_2k`.
+- [ ] **Sweep launch:** `python -m training.sweep configs/sweeps/ar2_distillation_count.yaml --max-parallel 4` (≤ 33 h wall-clock).
+- [ ] **Elbow pick:** run `python -m training.ar2_sweep_summary --sweep-id <id>`; inspect `elbow.json` + `ar2_kl_curve.png`.
+- [ ] **Wire chosen checkpoints into `modular_nash` factory** (un-stub `_make_modular_nash`).
 
 ## Phase 8 — Acceptance gate
 
