@@ -27,6 +27,7 @@ import sys
 from collections import deque
 from collections.abc import Iterator
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 
@@ -264,6 +265,7 @@ def write_shards(
             pool_size     = np.array([r.pool_size    for r in bucket], dtype=np.int16),
             target_bid    = np.stack([r.target_bid for r in bucket]).astype(np.float32),
             feasible_mask = np.stack([r.feasible_mask for r in bucket]).astype(np.bool_),
+            target_call   = np.array([r.target_call for r in bucket], dtype=np.float32),
         )
 
     return out_dir
@@ -295,6 +297,119 @@ def write_split_json(
     with open(path, "w") as f:
         json.dump({"train": train, "val": val, "test": test}, f, indent=2)
     return path
+
+
+# ---------------------------------------------------------------------------
+# Step 3.5 — Shared shard iterator (Phase 7)
+# ---------------------------------------------------------------------------
+
+# Phase-7 deviation: trunk_<sh>.npz aligns 1:1 with bid_<sh>.npz (not all call
+# rows). For Phase 7 the call head trains on the bid-eligible subset only —
+# call-only rows (where target_call ≈ 1, no real call-vs-bid decision) are
+# dropped. iter_shards therefore joins bid_<sh>.npz with trunk_<sh>.npz for
+# both heads; the head argument only controls which target/feature keys are
+# yielded.
+
+def iter_shards(
+    run_id:     str,
+    split:      str,
+    *,
+    head:       Literal["call", "bid"],
+    data_root:  str | None = None,
+    batch_size: int | None = None,
+) -> Iterator[dict[str, np.ndarray]]:
+    """Yield row dicts (or stacked batches) from a distillation run.
+
+    Joins `bid_<sh>.npz` + `trunk_<sh>.npz` (1:1 aligned), filtered to
+    `deal_idx` ∈ the requested split per `split.json`.
+
+    Row dict keys when `head="call"`:
+        trunk_repr, q, standing_bid, pool_size, target_call_prob, deal_idx
+    Row dict keys when `head="bid"`:
+        trunk_repr, q, pool_size, feasible_mask, target_bid, deal_idx
+    """
+    if head not in ("call", "bid"):
+        raise ValueError(f"head must be 'call' or 'bid', got {head!r}")
+    if data_root is None:
+        data_root = os.path.join(_SRC, "..", "data")
+    run_dir = os.path.abspath(os.path.join(data_root, "runs", run_id, "cfr_deals"))
+
+    with open(os.path.join(run_dir, "split.json")) as f:
+        splits = json.load(f)
+    if split not in splits:
+        raise KeyError(f"split {split!r} not in split.json (keys: {list(splits)})")
+    deal_set = set(int(d) for d in splits[split])
+
+    bid_files   = sorted(f for f in os.listdir(run_dir) if f.startswith("bid_") and f.endswith(".npz"))
+    pending: list[dict[str, np.ndarray]] = []
+
+    def _flush_batch(rows: list[dict[str, np.ndarray]]) -> dict[str, np.ndarray]:
+        keys = rows[0].keys()
+        return {k: np.stack([r[k] for r in rows]) for k in keys}
+
+    for bf in bid_files:
+        sh = bf[len("bid_"):-len(".npz")]
+        tf = f"trunk_{sh}.npz"
+        bpath = os.path.join(run_dir, bf)
+        tpath = os.path.join(run_dir, tf)
+        if not os.path.exists(tpath):
+            continue
+        b = np.load(bpath)
+        t = np.load(tpath)
+        n_rows = b["deal_idx"].shape[0]
+        if t["trunk_repr"].shape[0] != n_rows:
+            raise RuntimeError(f"shard {sh}: bid rows {n_rows} != trunk rows {t['trunk_repr'].shape[0]}")
+        keep = np.array([int(d) in deal_set for d in b["deal_idx"]], dtype=np.bool_)
+        if not keep.any():
+            continue
+        idx = np.nonzero(keep)[0]
+
+        trunk_repr = t["trunk_repr"][idx]
+        q          = t["q"][idx]
+        pool_size  = b["pool_size"][idx]
+        deal_idx   = b["deal_idx"][idx]
+
+        if head == "call":
+            standing_bid = b["cur_bid_idx"][idx]
+            target_call  = b["target_call"][idx]
+            for i in range(len(idx)):
+                row = {
+                    "trunk_repr":       trunk_repr[i],
+                    "q":                q[i],
+                    "standing_bid":     standing_bid[i],
+                    "pool_size":        pool_size[i],
+                    "target_call_prob": target_call[i],
+                    "deal_idx":         deal_idx[i],
+                }
+                if batch_size is None:
+                    yield row
+                else:
+                    pending.append(row)
+                    if len(pending) >= batch_size:
+                        yield _flush_batch(pending)
+                        pending = []
+        else:  # head == "bid"
+            feasible_mask = b["feasible_mask"][idx]
+            target_bid    = b["target_bid"][idx]
+            for i in range(len(idx)):
+                row = {
+                    "trunk_repr":    trunk_repr[i],
+                    "q":             q[i],
+                    "pool_size":     pool_size[i],
+                    "feasible_mask": feasible_mask[i],
+                    "target_bid":    target_bid[i],
+                    "deal_idx":      deal_idx[i],
+                }
+                if batch_size is None:
+                    yield row
+                else:
+                    pending.append(row)
+                    if len(pending) >= batch_size:
+                        yield _flush_batch(pending)
+                        pending = []
+
+    if batch_size is not None and pending:
+        yield _flush_batch(pending)
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +531,7 @@ __all__ = [
     "walk_avg_strategy",
     "write_shards",
     "write_split_json",
+    "iter_shards",
     "precompute_trunk",
     "run_distillation",
 ]

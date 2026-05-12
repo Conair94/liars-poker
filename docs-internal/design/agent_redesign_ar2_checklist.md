@@ -79,6 +79,8 @@ Phase-6-specific design and step-level checklist live at [agent_redesign_ar2_pha
 
 ## Phase 7 — Pilot run + sweep
 
+Phase-7-specific design and step-level checklist live at [agent_redesign_ar2_phase7_design.md](agent_redesign_ar2_phase7_design.md) + [agent_redesign_ar2_phase7_checklist.md](agent_redesign_ar2_phase7_checklist.md).
+
 - [ ] **Pilot:** `N=1000`, single CPU run. Histogram per-deal solver iters and final ε. Confirm wall-clock < 30 min before launching the sweep (design §3.2).
 - [ ] Create `configs/sweeps/ar2_distillation_count.yaml` with `N ∈ {1k, 5k, 10k, 50k}`. Reuse AR-0b harness (apply [feedback_sweep_driver_fix.md](../../../.claude/projects/-Users-connorlockhart-Documents-GitHub-liars-poker/memory/feedback_sweep_driver_fix.md) — double-`-m` + `PYTHONPATH`).
 - [ ] Held-out 2k-deal validation set, fixed and shared across cells.
