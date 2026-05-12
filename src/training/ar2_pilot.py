@@ -20,10 +20,8 @@ _SRC  = os.path.abspath(os.path.join(_HERE, ".."))
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
-from training.cfr.subgame_solver import CFRPlusSubgameSolver  # noqa: E402
 from training.cfr_distillation import (  # noqa: E402
     run_distillation,
-    sample_deals_mixture,
 )
 
 _REPO_ROOT = os.path.abspath(os.path.join(_SRC, ".."))
@@ -43,11 +41,13 @@ def run_pilot(
     seed:       int,
     trunk_ckpt: str,
     *,
-    max_iters:  int = 500,
+    max_iters:  int = 200,
     device:     str = "cpu",
     data_root:  str | None = None,
+    workers:    int = 1,
+    progress:   bool = True,
 ) -> dict:
-    """Run distillation + solver-stats pass; write pilot JSONs; return GO/NO-GO dict."""
+    """Run distillation, harvest solver stats inline, write pilot JSONs, return GO/NO-GO dict."""
     if data_root is None:
         data_root = _DEFAULT_DATA_ROOT
     run_dir = os.path.abspath(os.path.join(data_root, "runs", run_id))
@@ -56,18 +56,12 @@ def run_pilot(
     summary = run_distillation(
         N=N, seed=seed, run_id=run_id, trunk_ckpt=trunk_ckpt,
         max_iters=max_iters, device=device, data_root=data_root,
+        workers=workers, progress=progress,
     )
     wall_clock_s = time.monotonic() - t0
 
-    # Solver-stats pass: re-solve the same deal stream to harvest per-deal
-    # iters_used / final_eps without threading them out of run_distillation.
-    solver = CFRPlusSubgameSolver(max_iters=max_iters)
-    iters_list: list[int]   = []
-    eps_list:   list[float] = []
-    for hands, _n in sample_deals_mixture(N, seed=seed):
-        sol = solver.solve(hands)
-        iters_list.append(int(sol.iters_used))
-        eps_list.append(float(sol.final_eps))
+    iters_list: list[int]   = list(summary.get("iters_used", []))
+    eps_list:   list[float] = list(summary.get("final_eps",  []))
 
     eps_arr = np.asarray(eps_list, dtype=np.float64)
     frac_converged = float((eps_arr < 1e-3).mean()) if len(eps_arr) else 0.0
@@ -129,8 +123,12 @@ def _main(argv: list[str] | None = None) -> None:
     p.add_argument("--N",           type=int, default=1000)
     p.add_argument("--seed",        type=int, default=0)
     p.add_argument("--trunk-ckpt",  type=str, required=True)
-    p.add_argument("--max-iters",   type=int, default=500)
+    p.add_argument("--max-iters",   type=int, default=200)
     p.add_argument("--device",      type=str, default="cpu")
+    p.add_argument("--workers",     type=int, default=1,
+                   help="Process-pool workers for parallel solver. 1 = serial.")
+    p.add_argument("--no-progress", action="store_true",
+                   help="Suppress per-batch progress lines on stderr.")
     p.add_argument("--holdout",     action="store_true",
                    help="After the primary pilot, also generate ar2_holdout_2k (seed=1000, N=2000).")
     p.add_argument("--data-root",   type=str, default=None,
@@ -141,6 +139,7 @@ def _main(argv: list[str] | None = None) -> None:
         run_id=args.run_id, N=args.N, seed=args.seed,
         trunk_ckpt=args.trunk_ckpt, max_iters=args.max_iters,
         device=args.device, data_root=args.data_root,
+        workers=args.workers, progress=(not args.no_progress),
     )
 
     if result["verdict"] == "GO":
@@ -160,6 +159,7 @@ def _main(argv: list[str] | None = None) -> None:
             run_distillation(
                 N=2000, seed=1000, run_id="ar2_holdout_2k", trunk_ckpt=args.trunk_ckpt,
                 max_iters=args.max_iters, device=args.device, data_root=data_root,
+                workers=args.workers, progress=(not args.no_progress),
             )
 
 

@@ -24,8 +24,10 @@ import hashlib
 import json
 import os
 import sys
+import time
 from collections import deque
 from collections.abc import Iterator
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Literal
 
@@ -463,6 +465,20 @@ def precompute_trunk(
 # Step 5 — Top-level entry point
 # ---------------------------------------------------------------------------
 
+def _solve_one_deal(
+    args: tuple[int, tuple[list[int], list[int]], int],
+) -> tuple[int, list[_Row], int, float]:
+    """Worker: solve a single deal, walk its avg strategy, return rows + stats.
+
+    Module-level so it's picklable for ProcessPoolExecutor.
+    """
+    deal_idx, hands, max_iters = args
+    solver = CFRPlusSubgameSolver(max_iters=max_iters)
+    sol = solver.solve(hands)
+    rows = list(walk_avg_strategy(sol, hands, deal_idx))
+    return deal_idx, rows, int(sol.iters_used), float(sol.final_eps)
+
+
 def run_distillation(
     N:           int,
     seed:        int,
@@ -474,22 +490,82 @@ def run_distillation(
     shard_count: int = 64,
     device:      str = "cpu",
     data_root:   str | None = None,
+    workers:     int | None = None,
+    progress:    bool = False,
 ) -> dict:
-    """Sample → solve → walk → shard → precompute trunk. Returns summary dict."""
-    solver = CFRPlusSubgameSolver(max_iters=max_iters)
+    """Sample → solve → walk → shard → precompute trunk. Returns summary dict.
 
-    all_rows:  list[_Row] = []
-    deal_idxs: list[int]  = []
-    for deal_idx, (hands, _n) in enumerate(sample_deals_mixture(N, seed=seed, mix=mix)):
-        deal_idxs.append(deal_idx)
-        sol = solver.solve(hands)
-        for row in walk_avg_strategy(sol, hands, deal_idx):
-            all_rows.append(row)
+    `workers`: when set to >1, dispatch deal solves across a process pool.
+    `progress`: emit a per-batch line to stderr (`[N/total ...]`) for visibility.
+    Solver stats (`iters_used`, `final_eps`) are collected during the single
+    solve pass and returned in the summary so callers don't need a second pass.
+    """
+    # Materialize deals up front so ProcessPoolExecutor.map can dispatch them.
+    deals: list[tuple[int, tuple[list[int], list[int]]]] = [
+        (i, hands) for i, (hands, _n) in enumerate(sample_deals_mixture(N, seed=seed, mix=mix))
+    ]
+    total = len(deals)
+    deal_idxs: list[int]    = [d[0] for d in deals]
+    rows_by_idx: dict[int, list[_Row]] = {}
+    iters_used: list[int]   = [0] * total
+    final_eps:  list[float] = [0.0] * total
+
+    log_every = max(1, total // 20)  # ~20 progress lines total
+    t0 = time.monotonic()
+
+    if workers is None or workers <= 1:
+        if progress:
+            print(f"[distill {run_id}] N={total} max_iters={max_iters} workers=1", flush=True, file=sys.stderr)
+        for k, (deal_idx, hands) in enumerate(deals):
+            di, rows, it, eps = _solve_one_deal((deal_idx, hands, max_iters))
+            rows_by_idx[di] = rows
+            iters_used[di]  = it
+            final_eps[di]   = eps
+            if progress and ((k + 1) % log_every == 0 or k + 1 == total):
+                dt = time.monotonic() - t0
+                rate = (k + 1) / max(dt, 1e-6)
+                eta = (total - (k + 1)) / max(rate, 1e-6)
+                print(f"[distill {run_id}] {k+1}/{total} deals "
+                      f"({rate:.2f}/s, eta {eta:.0f}s)", flush=True, file=sys.stderr)
+    else:
+        if progress:
+            print(f"[distill {run_id}] N={total} max_iters={max_iters} workers={workers}",
+                  flush=True, file=sys.stderr)
+        # chunksize tuned so each worker gets ~8 chunks worth of deals.
+        chunksize = max(1, total // (workers * 8))
+        payloads = [(deal_idx, hands, max_iters) for deal_idx, hands in deals]
+        completed = 0
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            for di, rows, it, eps in pool.map(_solve_one_deal, payloads, chunksize=chunksize):
+                rows_by_idx[di] = rows
+                iters_used[di]  = it
+                final_eps[di]   = eps
+                completed += 1
+                if progress and (completed % log_every == 0 or completed == total):
+                    dt = time.monotonic() - t0
+                    rate = completed / max(dt, 1e-6)
+                    eta = (total - completed) / max(rate, 1e-6)
+                    print(f"[distill {run_id}] {completed}/{total} deals "
+                          f"({rate:.2f}/s, eta {eta:.0f}s)", flush=True, file=sys.stderr)
+
+    # Flatten back to deal-order list of rows.
+    all_rows: list[_Row] = []
+    for di in deal_idxs:
+        all_rows.extend(rows_by_idx.get(di, []))
+
+    if progress:
+        print(f"[distill {run_id}] solve done in {time.monotonic()-t0:.1f}s; "
+              f"n_rows={len(all_rows)}; writing shards + trunk precompute...",
+              flush=True, file=sys.stderr)
 
     out_dir = write_shards(all_rows, run_id, shard_count=shard_count, data_root=data_root)
     write_split_json(deal_idxs, run_id, data_root=data_root)
     precompute_trunk(all_rows, run_id, trunk_ckpt,
                      shard_count=shard_count, device=device, data_root=data_root)
+
+    if progress:
+        print(f"[distill {run_id}] complete in {time.monotonic()-t0:.1f}s",
+              flush=True, file=sys.stderr)
 
     return {
         "run_id":     run_id,
@@ -497,6 +573,8 @@ def run_distillation(
         "n_deals":    len(deal_idxs),
         "n_rows":     len(all_rows),
         "n_bid_rows": sum(1 for r in all_rows if r.target_bid is not None),
+        "iters_used": iters_used,
+        "final_eps":  final_eps,
     }
 
 
@@ -513,13 +591,20 @@ def _main() -> None:
     p.add_argument("--max-iters",   type=int, default=500)
     p.add_argument("--shard-count", type=int, default=64)
     p.add_argument("--device",      type=str, default="cpu")
+    p.add_argument("--workers",     type=int, default=1,
+                   help="Process-pool workers for parallel solver. 1 = serial.")
+    p.add_argument("--progress",    action="store_true",
+                   help="Print per-batch progress lines to stderr.")
     args = p.parse_args()
 
     summary = run_distillation(
         N=args.N, seed=args.seed, run_id=args.run_id, trunk_ckpt=args.trunk_ckpt,
         max_iters=args.max_iters, shard_count=args.shard_count, device=args.device,
+        workers=args.workers, progress=args.progress,
     )
-    print(json.dumps(summary, indent=2))
+    # Drop large per-deal lists when echoing to stdout for the CLI.
+    echo = {k: v for k, v in summary.items() if k not in {"iters_used", "final_eps"}}
+    print(json.dumps(echo, indent=2))
 
 
 if __name__ == "__main__":

@@ -166,25 +166,31 @@ Before launching the pilot, prove the wiring with a 16-deal end-to-end run.
 
 ## Step 9 — Pilot run (session boundary; long-running)
 
-- [ ] Generate the shared held-out set first (one-shot):
+**Infra deviation (2026-05-12):** initial launch at `--max-iters=500` ran 3h+ with zero output and was killed. Three pilot-infra issues fixed in this session ([src/training/cfr_distillation.py](../../src/training/cfr_distillation.py), [src/training/ar2_pilot.py](../../src/training/ar2_pilot.py)):
+
+1. **Redundant second solver pass removed.** `run_distillation` now returns `iters_used` + `final_eps` in its summary dict (collected inline during the single solve loop). `ar2_pilot.py` reads from there — no longer re-solves all N deals after distillation.
+2. **Progress logging added.** `run_distillation(..., progress=True)` emits ~20 stderr lines (`[distill <run> k/N deals (rate/s, eta)]`). Pilot defaults `progress=True`; `--no-progress` opts out.
+3. **Process-pool parallelism.** `run_distillation(..., workers=W)` dispatches per-deal solves through `ProcessPoolExecutor`. Smoke at N=16 with W=6 gave 4× speedup vs serial; expected ~6× at N=1000. New module-level `_solve_one_deal` worker is picklable. `ar2_pilot.py` exposes `--workers`.
+4. **Pilot default `--max-iters` lowered 500 → 200** (Phase-4 smoke hit 53% bid-CE reduction at max_iters=200, above the 50% gate).
+
+Combined effect: ~12× wall-clock improvement (2× from removing redundant pass + ~6× from workers, with overhead). N=1000 + N=2000 holdout projected at ~25 min total on a 10-core M-series.
+
+- [x] Run the pilot (single command — `--holdout` chains the 2k validation set after the primary 1k):
   ```
-  PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.ar2_pilot \
-    --run-id ar2_holdout_2k --N 2000 --seed 1000 \
-    --trunk-ckpt data/runs/<ar1_winner>/best.pt --max-iters 500
-  ```
-  Run in background per [feedback_cfr_test_suite_runtime.md](../../../.claude/projects/-Users-connorlockhart-Documents-GitHub-liars-poker/memory/feedback_cfr_test_suite_runtime.md); Monitor for completion.
-- [ ] Run the pilot:
-  ```
-  PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.ar2_pilot \
+  PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -u -m training.ar2_pilot \
     --run-id ar2_pilot_1k --N 1000 --seed 0 \
-    --trunk-ckpt data/runs/<ar1_winner>/best.pt --max-iters 500
+    --trunk-ckpt data/runs/ar1-20260430T030730Z-b64-h256-n2-fb17d031/handmodel/best.pt \
+    --max-iters 200 --workers 6 --holdout \
+    > data/runs/ar2_pilot_1k.log 2>&1 &
   ```
+  Launched 2026-05-12 02:36 (PID 47648).
 - [ ] Read `pilot_timing.json` + `pilot_solver_stats.json`. Apply the three gates (design §1 "Pass criteria"):
   - Wall-clock ≤ 30 min?
   - `frac_converged ≥ 0.95`?
   - Row counts `1.5N ≤ n_rows ≤ 4N`?
 - [ ] Update [project_overnight_training_plan.md](../../../.claude/projects/-Users-connorlockhart-Documents-GitHub-liars-poker/memory/project_overnight_training_plan.md) with pilot launch time + projected sweep budget.
 - [ ] If any gate fails: apply the failure remedy in design §1, re-run pilot. Do not proceed to Step 10 until all three pass.
+- [ ] **Sweep launch caveat:** sweep cells now run with internal worker pools. On a 10-core box, choose `(sweep --max-parallel) × (per-cell --workers) ≤ ~10` to avoid oversubscription. Recommend `--max-parallel 2 --workers 4` (4 cells × ~8 cores busy at any time, but only 2 distillations active concurrently) or `--max-parallel 1 --workers 8`.
 
 ---
 

@@ -284,7 +284,29 @@
       "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/learned/test_phase6_entropy_floor_n2.py -v --runslow -m slow)",
       "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/learned/test_phase6_entropy_floor_n2.py -v -m slow -o \"addopts=\")",
       "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/learned/test_phase6_trunk_freeze.py -v)",
-      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/ tests/training/ --ignore=tests/agents/heuristic/test_cfr_1v1.py)"
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/ tests/training/ --ignore=tests/agents/heuristic/test_cfr_1v1.py)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/training/test_iter_shards.py tests/training/test_ar2_pilot_smoke.py -v)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/training/test_iter_shards.py tests/training/test_ar2_pilot_smoke.py -v -m slow)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/learned/test_callpolicy_cli_smoke.py -v -m slow)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/learned/test_bidpolicy_cli_smoke.py -v -m slow)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/training/test_ar2_pipeline_smoke.py -v -m slow)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.sweep configs/sweeps/ar2_distillation_count.yaml --dry-run)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/training/test_ar2_sweep_summary.py -v)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/training/test_iter_shards.py tests/training/test_ar2_pilot_smoke.py tests/training/test_ar2_pipeline_smoke.py tests/training/test_ar2_sweep_summary.py tests/agents/learned/test_callpolicy_cli_smoke.py tests/agents/learned/test_bidpolicy_cli_smoke.py -v -m 'slow or not slow')",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/learned/ tests/training/cfr/ tests/training/ --ignore=tests/agents/heuristic/test_cfr_1v1.py --ignore=tests/training/test_ar2_pipeline_smoke.py)",
+      "Bash(nohup /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -u -m training.ar2_pilot --run-id ar2_pilot_1k --N 1000 --seed 0 --trunk-ckpt data/runs/ar1-20260430T030730Z-b64-h256-n2-fb17d031/handmodel/best.pt --max-iters 500 --holdout)",
+      "Bash(echo \"PID=$!\")",
+      "Bash(PYTHONPATH=src nohup /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -u -m training.ar2_pilot --run-id ar2_pilot_1k --N 1000 --seed 0 --trunk-ckpt data/runs/ar1-20260430T030730Z-b64-h256-n2-fb17d031/handmodel/best.pt --max-iters 500 --holdout)",
+      "Bash(ps -p 79733 -o pid,etime,rss,command)",
+      "Bash(kill -0 79733)",
+      "Bash(ps -p 79733 -o pid,etime,stat,command)",
+      "Bash(ps -p 79733 -o pid,etime,stat,%cpu,rss,command)",
+      "Bash(kill 79733)",
+      "Bash(kill 80022)",
+      "Bash(sysctl -n hw.ncpu hw.physicalcpu)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -u -m training.ar2_pilot --run-id _smoke_pilot --N 8 --seed 0 --trunk-ckpt data/runs/ar1-20260430T030730Z-b64-h256-n2-fb17d031/handmodel/best.pt --max-iters 100 --workers 1 --data-root data)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -u -m training.ar2_pilot --run-id _smoke_pilot_par --N 16 --seed 0 --trunk-ckpt data/runs/ar1-20260430T030730Z-b64-h256-n2-fb17d031/handmodel/best.pt --max-iters 100 --workers 6 --data-root data)",
+      "Bash(ps -p 47648 -o pid,etime,stat,%cpu)"
     ]
   }
 }
