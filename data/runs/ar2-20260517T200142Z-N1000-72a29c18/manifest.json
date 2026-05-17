@@ -1,0 +1,15 @@
+{
+  "run_id": "ar2-20260517T200142Z-N1000-72a29c18",
+  "sweep_id": "ar2-20260517T200142Z-ar2_distillation_count-72a29c18",
+  "git_sha": "72a29c18",
+  "started_at": "20260517T200142Z",
+  "last_completed_iter": 0,
+  "completed": true,
+  "exit_code": 0,
+  "components": {
+    "handmodel": null,
+    "callpolicy": null,
+    "bidpolicy": null
+  },
+  "finished_at": "2026-05-17T20:12:45Z"
+}

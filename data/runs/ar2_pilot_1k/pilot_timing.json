@@ -1,0 +1,12 @@
+{
+  "wall_clock_seconds": 298.353672582889,
+  "n_deals": 1000,
+  "n_rows": 218000,
+  "n_bid_rows": 211000,
+  "rows_per_deal": 218.0,
+  "projected_50k_hours": 4.14380100809568,
+  "max_iters": 200,
+  "N": 1000,
+  "seed": 0,
+  "run_id": "ar2_pilot_1k"
+}

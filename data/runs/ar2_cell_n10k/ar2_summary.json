@@ -1,0 +1,20 @@
+{
+  "run_id": "ar2_cell_n10k",
+  "N": 10000,
+  "seed": 0,
+  "distillation_wall_clock_s": 2885.8610300831497,
+  "n_deals": 10000,
+  "n_rows": 2180000,
+  "n_bid_rows": 2110002,
+  "callpolicy_val_bce_best": 0.2817197397664237,
+  "bidpolicy_val_kl_best": 0.488871454079121,
+  "bidpolicy_val_kl_per_n": {
+    "2": null,
+    "4": 0.06825182143763842,
+    "6": 0.40895318293916993,
+    "8": 0.5537034200997426,
+    "10": 0.932891564126368
+  },
+  "callpolicy_ckpt": "/Users/connorlockhart/Documents/GitHub/liars-poker/data/runs/ar2_cell_n10k/callpolicy/best.pt",
+  "bidpolicy_ckpt": "/Users/connorlockhart/Documents/GitHub/liars-poker/data/runs/ar2_cell_n10k/bidpolicy/best.pt"
+}

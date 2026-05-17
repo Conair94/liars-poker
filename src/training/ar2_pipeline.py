@@ -62,6 +62,8 @@ def _main(argv: list[str] | None = None) -> int:
     p.add_argument("--bidpolicy-epochs",  type=int, default=30)
     p.add_argument("--device",            type=str, default="cpu")
     p.add_argument("--data-root",         type=str, default=None)
+    p.add_argument("--workers",           type=int, default=1,
+                   help="Process-pool workers for distillation solver.")
     # Accept-and-ignore: sweep harness passes --config.
     p.add_argument("--config",            type=str, default=None, help=argparse.SUPPRESS)
     args = p.parse_args(argv)
@@ -79,6 +81,7 @@ def _main(argv: list[str] | None = None) -> int:
     summary = run_distillation(
         N=args.N, seed=args.seed, run_id=args.run_id, trunk_ckpt=args.trunk_ckpt,
         max_iters=args.max_iters, device=args.device, data_root=data_root,
+        workers=args.workers, progress=True,
     )
     t_distill_s = time.monotonic() - t0
 

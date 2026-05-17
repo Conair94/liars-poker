@@ -1,0 +1,22 @@
+cell:
+  N: 50000
+cell_index: 3
+device: cpu
+git_sha: 72a29c18
+phase: ar2
+random_seed: 3
+run_id: ar2-20260517T200142Z-N50000-72a29c18
+runner:
+  args:
+    N: '50000'
+  command: python -m training.ar2_pipeline
+  fixed:
+    bidpolicy-epochs: 30
+    callpolicy-epochs: 20
+    holdout-run-id: ar2_holdout_2k
+    max-iters: 200
+    seed: 0
+    trunk-ckpt: data/runs/ar1-20260430T030730Z-b64-h256-n2-fb17d031/handmodel/best.pt
+    workers: 4
+sweep_id: ar2-20260517T200142Z-ar2_distillation_count-72a29c18
+sweep_name: ar2_distillation_count

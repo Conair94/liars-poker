@@ -34,6 +34,16 @@ venv/
 data/runs/**/*.jsonl
 data/runs/**/*.jsonl.gz
 
+# CFR distillation shards and precomputed trunk activations are huge
+# (single 50k cell ~20 GB) and reproducible from the seed + config.
+# Keep run metadata (config.yaml, manifest.json, *_summary.json,
+# training_curve.json, checkpoints) but exclude raw shards.
+data/runs/**/cfr_deals/
+data/runs/**/*.npz
+
+# Sweep + pilot stdout logs — large, reproducible, contain progress noise.
+data/runs/*.log
+
 # W&B local run cache (synced to wandb.ai, not needed in git)
 src/wandb/
 wandb/
