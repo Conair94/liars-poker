@@ -1,0 +1,20 @@
+{
+  "run_id": "ar2-20260517T200142Z-N5000-72a29c18",
+  "N": 5000,
+  "seed": 0,
+  "distillation_wall_clock_s": 2440.561355166137,
+  "n_deals": 5000,
+  "n_rows": 1090000,
+  "n_bid_rows": 1055000,
+  "callpolicy_val_bce_best": 0.28771272814359256,
+  "bidpolicy_val_kl_best": 0.4972516730298868,
+  "bidpolicy_val_kl_per_n": {
+    "2": null,
+    "4": 0.058218621269572335,
+    "6": 0.41349031076723053,
+    "8": 0.558087514344916,
+    "10": 0.9666306817090069
+  },
+  "callpolicy_ckpt": "/Users/connorlockhart/Documents/GitHub/liars-poker/data/runs/ar2-20260517T200142Z-N5000-72a29c18/callpolicy/best.pt",
+  "bidpolicy_ckpt": "/Users/connorlockhart/Documents/GitHub/liars-poker/data/runs/ar2-20260517T200142Z-N5000-72a29c18/bidpolicy/best.pt"
+}

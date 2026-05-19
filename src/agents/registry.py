@@ -1188,22 +1188,72 @@ def _make_cfr_nash():
     return CFRNashAgent()
 
 
-def _make_modular_nash():
-    """Construct `ModularNashAgent` from AR-2 checkpoints pointed to by env vars.
+from dataclasses import dataclass
 
-    Required env vars (set after Phase 7 distillation runs):
-      - AR2_HANDMODEL_CKPT  — path to the frozen AR-1 HandModel checkpoint
-                              (defaults to the b64-h256-n2 winner).
-      - AR2_CALLPOLICY_CKPT — path to the distilled CallPolicy head checkpoint.
-      - AR2_BIDPOLICY_CKPT  — path to the distilled BidPolicy head checkpoint.
 
-    Raises `NotImplementedError` until the head checkpoint loaders land
-    alongside the Phase 7 distillation training script.
+@dataclass(frozen=True)
+class ModularNashCheckpoints:
+    """Filesystem pins for the three AR-2 artefacts the factory needs."""
+    trunk_ckpt:      str
+    callpolicy_ckpt: str
+    bidpolicy_ckpt:  str
+
+
+_REPO_ROOT = os.path.abspath(os.path.join(_SRC_DIR, ".."))
+_MODULAR_NASH_CONFIG = os.path.join(_REPO_ROOT, "configs", "modular_nash.yaml")
+
+
+def _load_modular_nash_checkpoints() -> ModularNashCheckpoints:
+    """Resolve checkpoint paths from `configs/modular_nash.yaml`.
+
+    Env vars `AR2_HANDMODEL_CKPT`, `AR2_CALLPOLICY_CKPT`, `AR2_BIDPOLICY_CKPT`
+    override the corresponding YAML field if set (used by sweep/CI overrides).
+    Relative paths are resolved against the repo root.
     """
-    raise NotImplementedError(
-        "ModularNashAgent registry instantiation requires Phase 7 distillation "
-        "checkpoints + head save/load (not yet implemented). Construct it directly "
-        "via `ModularNashAgent(hand_model, call_policy, bid_policy)` for tests."
+    import yaml  # local import: registry is hot-imported; yaml is heavy
+
+    with open(_MODULAR_NASH_CONFIG, "r") as f:
+        cfg = yaml.safe_load(f)
+
+    def _resolve(field: str, env_key: str) -> str:
+        raw = os.environ.get(env_key) or cfg[field]
+        return raw if os.path.isabs(raw) else os.path.join(_REPO_ROOT, raw)
+
+    return ModularNashCheckpoints(
+        trunk_ckpt      = _resolve("trunk_ckpt",      "AR2_HANDMODEL_CKPT"),
+        callpolicy_ckpt = _resolve("callpolicy_ckpt", "AR2_CALLPOLICY_CKPT"),
+        bidpolicy_ckpt  = _resolve("bidpolicy_ckpt",  "AR2_BIDPOLICY_CKPT"),
+    )
+
+
+def _make_modular_nash():
+    """Construct `ModularNashAgent` from the AR-2 checkpoints pinned in
+    `configs/modular_nash.yaml` (Phase-7 elbow at N=10k).
+    """
+    import torch
+
+    from agents.learned.bidpolicy import BidPolicyConfig, BidPolicyNet, DistilledBidPolicy
+    from agents.learned.callpolicy import CallPolicyConfig, CallPolicyNet, DistilledCallPolicy
+    from agents.learned.handmodel.network import LearnedHandModel
+    from agents.learned.modular_nash_agent import ModularNashAgent
+
+    ckpts = _load_modular_nash_checkpoints()
+    trunk = LearnedHandModel.from_checkpoint(ckpts.trunk_ckpt, device="cpu")
+
+    call_blob = torch.load(ckpts.callpolicy_ckpt, map_location="cpu", weights_only=False)
+    call_net  = CallPolicyNet(CallPolicyConfig.from_dict(call_blob["config_dict"]))
+    call_net.load_state_dict(call_blob["state_dict"])
+    call_policy = DistilledCallPolicy(net=call_net, trunk=trunk, device="cpu")
+
+    bid_blob = torch.load(ckpts.bidpolicy_ckpt, map_location="cpu", weights_only=False)
+    bid_net  = BidPolicyNet(BidPolicyConfig.from_dict(bid_blob["config_dict"]))
+    bid_net.load_state_dict(bid_blob["state_dict"])
+    bid_policy = DistilledBidPolicy(net=bid_net, trunk=trunk, device="cpu")
+
+    return ModularNashAgent(
+        hand_model  = trunk,
+        call_policy = call_policy,
+        bid_policy  = bid_policy,
     )
 
 

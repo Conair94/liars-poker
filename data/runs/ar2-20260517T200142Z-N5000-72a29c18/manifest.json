@@ -4,11 +4,12 @@
   "git_sha": "72a29c18",
   "started_at": "20260517T200142Z",
   "last_completed_iter": 0,
-  "completed": false,
-  "exit_code": null,
+  "completed": true,
+  "exit_code": 0,
   "components": {
     "handmodel": null,
     "callpolicy": null,
     "bidpolicy": null
-  }
+  },
+  "finished_at": "2026-05-17T20:47:21Z"
 }
