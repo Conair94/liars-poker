@@ -339,7 +339,10 @@
       "Bash(git diff-tree *)",
       "Bash(awk '$1>1000000 {n++; sz+=$1} END {printf \"files >1MB: %d, total %.1f MB\\\\n\", n, sz/1024/1024}')",
       "Bash(git push *)",
-      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.ar2_sweep_summary --sweep-id ar2-20260517T200142Z-ar2_distillation_count-72a29c18)"
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.ar2_sweep_summary --sweep-id ar2-20260517T200142Z-ar2_distillation_count-72a29c18)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c ' *)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/learned/test_modular_nash_smoke.py -v)",
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c \"import torch; print\\(torch.__version__\\)\")"
     ]
   }
 }

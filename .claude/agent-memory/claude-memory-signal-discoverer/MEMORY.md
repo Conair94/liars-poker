@@ -32,3 +32,16 @@
 - Candidates surfaced: FILL_GAP: 6, UPDATE: 0, NOISE: ~3 (per-phase ephemera), CONTRADICT: 0
 - Candidates returned to caller as punch list (caller chooses what to write)
 - Key themes: (1) user accepts judgment-call summaries before impl; (2) recurring small-behavior-deviation disclosure pattern; (3) defunct R-NaD import failure treated as known noise across every session; (4) memory-consolidation reminders the assistant keeps emitting
+
+### 2026-05-18 — Session scan (10 sessions via recall script, AR-2 P7)
+
+- Sessions analyzed: 10 (2026-05-11 → 2026-05-18), AR-2 Phase 7 pilot → sweep → factory wiring
+- Candidates surfaced: FILL_GAP: 6, UPDATE: 0, NOISE: 0, CONTRADICT: 0
+- Candidates returned to caller as punch list (caller chooses what to write):
+  - `feedback_gitignore_run_artifacts_first` — gitignore *.npz/cfr_deals/ BEFORE first sweep commit; reset --mixed beats history rewrite when commits are local-only
+  - `feedback_sweep_harness_flag_format` — sweep harness can't emit store_true flags; use --key value or invert defaults
+  - `project_ar2_phase7_complete` — Phase 7 closed 96be92d, N=10k chosen, Phase 8 acceptance gate next
+  - `reference_ar2_sweep_summary` — invocation pattern with full sweep-id (not just timestamp)
+  - `feedback_ar2_distillation_row_count` — ~218 rows/deal, design spec was ~100× off, no reach_prob column
+  - `feedback_extract_learnings_new_session` — run /extract-learnings in fresh session (user-confirmed 2026-05-18)
+- Key themes: (1) git-history blob incident is the highest-signal gotcha; (2) Phase 7 closure is project-state worth pinning for Phase 8 resume; (3) user keeps confirming the design-first/deviation-disclosure pattern
