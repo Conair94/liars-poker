@@ -1,0 +1,113 @@
+{
+  "args": {
+    "games": 4,
+    "deals": 4,
+    "seed": 0,
+    "elbow": "/Users/connorlockhart/Documents/GitHub/liars-poker/data/sweeps/ar2-20260517T200142Z-ar2_distillation_count-72a29c18/elbow.json",
+    "out_dir": null
+  },
+  "timestamp": "20260519T015302Z",
+  "results": {
+    "win_rate": {
+      "agent_a": "modular_nash",
+      "agent_b": "exactconditional",
+      "games": 4,
+      "wins_a": 1,
+      "wins_b": 3,
+      "win_rate_a": 0.25,
+      "win_rate_b": 0.75,
+      "p": 0.25,
+      "ci95_lo": -0.17435244785437493,
+      "ci95_hi": 0.674352447854375,
+      "pass": false
+    },
+    "exploitability": {
+      "modular_nash": {
+        "value": 0.9936799340272409,
+        "by_seat": [
+          1.279526754447485,
+          0.7078331136069965
+        ],
+        "ci95": [
+          0.1418421479808252,
+          0.1356647608261465
+        ],
+        "deals": 4
+      },
+      "exactconditional": {
+        "value": 1.0,
+        "by_seat": [
+          0.5,
+          1.5
+        ],
+        "ci95": [
+          0.98,
+          0.98
+        ],
+        "deals": 4
+      },
+      "diff": -0.006320065972759137,
+      "pass": true
+    },
+    "elbow": {
+      "chosen_N": 10000,
+      "reason": "elbow_at_N=10000",
+      "slopes": {
+        "4": {
+          "1000": null,
+          "5000": null,
+          "10000": -0.11996306725477941,
+          "50000": null
+        },
+        "6": {
+          "1000": null,
+          "5000": null,
+          "10000": 0.009192369582867711,
+          "50000": null
+        },
+        "8": {
+          "1000": null,
+          "5000": null,
+          "10000": 0.009299219805578593,
+          "50000": null
+        },
+        "10": {
+          "1000": null,
+          "5000": null,
+          "10000": 0.025659371722203343,
+          "50000": null
+        }
+      },
+      "kl_per_n_per_N": {
+        "4": {
+          "1000": 0.06359601884362531,
+          "5000": 0.058218621269572335,
+          "10000": 0.06520270564841457,
+          "50000": 0.039291555071867545
+        },
+        "6": {
+          "1000": 0.49342094949670035,
+          "5000": 0.41349031076723053,
+          "10000": 0.4096893550117233,
+          "50000": 0.4101954412537112
+        },
+        "8": {
+          "1000": 0.6345896501205157,
+          "5000": 0.558087514344916,
+          "10000": 0.5528977358782736,
+          "50000": 0.5258357738091695
+        },
+        "10": {
+          "1000": 1.0646096672835172,
+          "5000": 0.9666306817090069,
+          "10000": 0.9418275457289487,
+          "50000": 0.9098458535914067
+        }
+      },
+      "callpolicy_ckpt": "/Users/connorlockhart/Documents/GitHub/liars-poker/data/runs/ar2-20260517T200142Z-N10000-72a29c18/callpolicy/best.pt",
+      "bidpolicy_ckpt": "/Users/connorlockhart/Documents/GitHub/liars-poker/data/runs/ar2-20260517T200142Z-N10000-72a29c18/bidpolicy/best.pt",
+      "pass": true
+    },
+    "all_pass": false
+  }
+}

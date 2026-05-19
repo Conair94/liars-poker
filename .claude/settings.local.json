@@ -342,7 +342,9 @@
       "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.ar2_sweep_summary --sweep-id ar2-20260517T200142Z-ar2_distillation_count-72a29c18)",
       "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c ' *)",
       "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest tests/agents/learned/test_modular_nash_smoke.py -v)",
-      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c \"import torch; print\\(torch.__version__\\)\")"
+      "Bash(/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -c \"import torch; print\\(torch.__version__\\)\")",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.ar2_acceptance --games 4 --deals 4)",
+      "Bash(PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.ar2_acceptance --games 200 --deals 200 --seed 0)"
     ]
   }
 }
