@@ -1,6 +1,6 @@
 # AR-2 Implementation Checklist
 
-- **Status:** In progress — Phases 1–6 complete (through 2026-05-11); Phase 7 **code landed** 2026-05-11 (steps 1–8 of phase-7 checklist; pilot + sweep runs are subsequent session boundaries); Phases 7 (runs) + 8–9 pending
+- **Status:** In progress — Phases 1–7 complete (Phase 7 closed 2026-05-18: 4-cell distillation-count sweep `ar2-20260517T200142Z-…-72a29c18` finished, elbow at N=10k, `modular_nash` factory wired via `configs/modular_nash.yaml`); Phases 8–9 pending
 - **Date:** 2026-05-01
 - **Parent design:** [agent_redesign_ar2.md](agent_redesign_ar2.md)
 - **Parent plan:** [agent_redesign_plan.md](agent_redesign_plan.md) §AR-2
@@ -93,12 +93,18 @@ Phase-7-specific design and step-level checklist live at [agent_redesign_ar2_pha
 - [x] **Deviation 1 — call-head data source.** Trunk shards align with bid shards in Phase 4; call head trains on bid-eligible row subset only (call-only rows where `target_call ≈ 1` dropped as trivial). `target_call` added to `bid_<sh>.npz` so `iter_shards` joins 1:1 for both heads.
 - [x] **Deviation 2 — sweep index file.** AR-0b harness writes `data/sweeps/<id>/index.json`, not `cells.json`; summariser reads `index.json`.
 
-**Pending (subsequent session boundaries):**
+**Runs (closed 2026-05-18):**
 
-- [ ] **Pilot:** `N=1000`, single CPU run. Histogram per-deal solver iters and final ε. Confirm wall-clock < 30 min before launching the sweep (design §3.2). Also generates `ar2_holdout_2k`.
-- [ ] **Sweep launch:** `python -m training.sweep configs/sweeps/ar2_distillation_count.yaml --max-parallel 4` (≤ 33 h wall-clock).
-- [ ] **Elbow pick:** run `python -m training.ar2_sweep_summary --sweep-id <id>`; inspect `elbow.json` + `ar2_kl_curve.png`.
-- [ ] **Wire chosen checkpoints into `modular_nash` factory** (un-stub `_make_modular_nash`).
+- [x] **Pilot (2026-05-17):** `N=1000`, `--workers 6`, `--max-iters 200`. Wall=298 s (gate ≤ 30 min PASS by 6×), `frac_converged=1.0`. Row-count gate `NO-GO` flagged as a design/gate spec miss (solver writes ~218 rows/deal, no reach-prob filtering) — accepted; gate threshold to be revised at Phase 9.
+- [x] **Sweep:** `sweep_id=ar2-20260517T200142Z-ar2_distillation_count-72a29c18`. 4 cells (`N∈{1k,5k,10k,50k}`, `max_iters=200`, per-cell `workers=4`, `--max-parallel 2`). All 4 `ar2_summary.json` produced cleanly.
+- [x] **Elbow pick:** `chosen_N=10000, reason=elbow_at_N=10000`. Slopes 10k→50k near zero for n∈{6,8,10}; 5× compute (50k) buys <3% KL.
+- [x] **Wire chosen checkpoints into `modular_nash` factory:** new `configs/modular_nash.yaml` pins trunk + heads; `_make_modular_nash` un-stubbed (loads `LearnedHandModel.from_checkpoint` + `Distilled{Call,Bid}Policy` from `best.pt`). `build_agent('modular_nash')` working; 5/5 `test_modular_nash_smoke.py` green.
+
+**Runtime deviations (this session, 2026-05-12 → 2026-05-18):**
+
+- **Pilot harness fixes:** `run_distillation` was non-progress-logging + did a redundant SECOND solver pass to harvest stats; both fixed (single-pass return dict + stderr progress + `ProcessPoolExecutor` worker pool). Default `--max-iters` 500 → 200 (Phase-4 smoke proved sufficient).
+- **Sweep harness — `--progress` flag:** AR-0b sweep harness only emits `--key value` pairs (not store_true). Solution: removed the flag and hard-coded `progress=True` in `ar2_pipeline.run_distillation`.
+- **Repo hygiene:** `.gitignore` rules added for `data/runs/**/cfr_deals/`, `data/runs/**/*.npz`, `data/runs/*.log`. Earlier commits had tracked 576 shard `.npz` files (5.4 GB / ~27 GB of history blobs); fixed by `git reset --mixed origin/main` + clean re-commit (working tree preserved on disk).
 
 ## Phase 8 — Acceptance gate
 

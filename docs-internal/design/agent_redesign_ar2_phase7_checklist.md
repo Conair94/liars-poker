@@ -206,20 +206,16 @@ Combined effect: ~12× wall-clock improvement (2× from removing redundant pass 
   ```
   Used `--max-parallel 2` (not 4) because per-cell `workers=4` is in YAML — 2×4=8 cores fits the 10-core box.
 - [x] Sweep cell IDs (sweep_id prefix `ar2-20260517T200142Z-*-72a29c18`): `N1000`, `N5000`, `N10000`, `N50000`.
-- [ ] After completion, verify all 4 cells produced `data/runs/<cell_run_id>/ar2_summary.json`. Investigate any missing cell before summarising.
-- [ ] **Repo hygiene fix landed alongside sweep launch:** prior commits tracked 576 `.npz` shard files (5.4 GB). Added `.gitignore` rules for `cfr_deals/`, `*.npz`, and `data/runs/*.log`; `git rm --cached` cleared the index. Shards are reproducible from seed + config, so safe.
+- [x] After completion, verify all 4 cells produced `data/runs/<cell_run_id>/ar2_summary.json`. **All 4 present (2026-05-18).**
+- [x] **Repo hygiene fix landed alongside sweep launch:** prior commits tracked 576 `.npz` shard files (5.4 GB). Added `.gitignore` rules for `cfr_deals/`, `*.npz`, and `data/runs/*.log`; `git rm --cached` cleared the index. Shards are reproducible from seed + config, so safe.
 
 ---
 
 ## Step 11 — Elbow detection + pick `N`
 
-- [ ] Run the summariser:
-  ```
-  PYTHONPATH=src /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m training.ar2_sweep_summary \
-    --sweep-id <sweep_id>
-  ```
-- [ ] Inspect `data/sweeps/<sweep_id>/elbow.json` and `ar2_kl_curve.png`. Confirm the chosen `N` matches visual elbow on the plot.
-- [ ] If `reason == "fallback_per_design_3.3"`: record this as a deviation in §"Deviations to record" below and in the Phase 7 entry in the parent checklist.
+- [x] Ran summariser on `sweep_id=ar2-20260517T200142Z-ar2_distillation_count-72a29c18` (2026-05-18). Output: `{chosen_N: 10000, reason: "elbow_at_N=10000"}`.
+- [x] Inspected `data/sweeps/<sweep_id>/{elbow.json, ar2_kl_curve.json, ar2_kl_curve.png}`. Per-n slopes 10k→50k: n=4 still improving (small absolute KL ~0.04), n=6 +0.009, n=8 +0.009, n=10 +0.026 — flat by design's plateau definition.
+- [x] `reason != "fallback_per_design_3.3"` — no deviation needed.
 
 ---
 
@@ -227,13 +223,10 @@ Combined effect: ~12× wall-clock improvement (2× from removing redundant pass 
 
 This unblocks Phase 8's `ModularNashAgent` construction.
 
-- [ ] Update `src/agents/registry.py::_make_modular_nash` to load the three artefacts:
-  - Trunk: `<ar1_winner>/best.pt`
-  - CallPolicy: `<chosen_cell>/callpolicy/best.pt` (read from `elbow.json`)
-  - BidPolicy:  `<chosen_cell>/bidpolicy/best.pt`
-- [ ] Hard-code these paths via a small config dataclass `ModularNashCheckpoints` (`trunk_ckpt`, `callpolicy_ckpt`, `bidpolicy_ckpt`) loaded from a YAML at `configs/modular_nash.yaml` (new) so paths are not buried in registry code.
-- [ ] Smoke: `python -c "from agents.registry import make_agent; a = make_agent('modular_nash', exact_rules=True, high_hand=True); print(a.action_probs(...))"` (use a sample infostate from an existing test).
-- [ ] Confirm `pytest tests/agents/learned/test_modular_nash_smoke.py -v` still passes — those tests construct the agent directly, but registry-level breakage must not regress.
+- [x] Updated `src/agents/registry.py::_make_modular_nash` to load the three artefacts (trunk via `LearnedHandModel.from_checkpoint`, heads via `torch.load(... weights_only=False)` + `*Config.from_dict` + `load_state_dict`, wrapped in `Distilled{Call,Bid}Policy`).
+- [x] Added `ModularNashCheckpoints` dataclass + `_load_modular_nash_checkpoints()` reading new `configs/modular_nash.yaml` (env-var overrides via `AR2_HANDMODEL_CKPT`/`AR2_CALLPOLICY_CKPT`/`AR2_BIDPOLICY_CKPT`).
+- [x] Smoke: `build_agent('modular_nash')` returns `ModularNashAgent`; `action_probs` on a fresh n=5 match sums to 1.0 over 110 actions.
+- [x] `pytest tests/agents/learned/test_modular_nash_smoke.py -v` → 5/5 pass.
 
 ---
 
